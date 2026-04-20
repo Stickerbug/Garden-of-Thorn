@@ -26,7 +26,7 @@
 1. 安装 [Godot 4.x](https://godotengine.org/download/)。
 2. 克隆本仓库（将地址替换为实际仓库地址）：
    
-    git clone git@github.com:你的用户名/GardenOfThorn.git
+    git clone https://github.com/Stickerbug/Garden-of-Thorn.git
    
 3. 使用 Godot 导入项目文件夹。
 4. 按 F5 运行项目。
