@@ -12,11 +12,22 @@ config_version=5
 
 config/name="Garden of Thorn"
 config/features=PackedStringArray("4.6", "Mobile")
+boot_splash/bg_color=Color(0.4780895, 0.60141546, 0.32595682, 1)
 config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+
+[editor]
+
+version_control/plugin_name="GitPlugin"
+version_control/autoload_on_startup=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/github_copilot/plugin.cfg")
+enabled=PackedStringArray()
 
 [physics]
 

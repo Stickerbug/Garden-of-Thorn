@@ -1,0 +1,43 @@
+[gd_scene format=3 uid="uid://csv0basontnox"]
+
+[node name="MainMenu" type="Control" unique_id=1759064557]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="TextureRect" parent="." unique_id=1161913537]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=941364709]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1241026176]
+layout_mode = 2
+
+[node name="Logo" type="TextureRect" parent="CenterContainer/VBoxContainer" unique_id=632160299]
+layout_mode = 2
+
+[node name="LocalMultiplayerButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=354659785]
+layout_mode = 2
+
+[node name="TrainingButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=608795145]
+layout_mode = 2
+
+[node name="SettingsButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=939938088]
+layout_mode = 2
+
+[node name="QuitButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=251753628]
+layout_mode = 2
+metadata/_edit_group_ = true
+
+[node name="FooterLabel" type="Label" parent="." unique_id=1362948354]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0

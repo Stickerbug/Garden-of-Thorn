@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://dy5k0r5yycr1v"]
+
+[node name="TrainingSelect" type="Control" unique_id=1769315116]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="TextureRect" parent="." unique_id=591941871]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1302500817]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1908651901]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="CenterContainer/VBoxContainer" unique_id=285527156]
+layout_mode = 2
+
+[node name="DifficultyOption" type="OptionButton" parent="CenterContainer/VBoxContainer" unique_id=1651010579]
+layout_mode = 2
+
+[node name="UsePresetDeckButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1269316300]
+layout_mode = 2
+
+[node name="StartTrainingButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1018024058]
+layout_mode = 2
+
+[node name="BackButto" type="Button" parent="CenterContainer/VBoxContainer" unique_id=1439316286]
+layout_mode = 2

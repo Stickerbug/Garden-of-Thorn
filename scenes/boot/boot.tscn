@@ -1,0 +1,32 @@
+[gd_scene format=3 uid="uid://bygrqc7mbdll5"]
+
+[node name="Boot" type="Control" unique_id=818280933]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+metadata/_edit_group_ = true
+
+[node name="Background" type="ColorRect" parent="." unique_id=1780816663]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=909022227]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="TextureRect" type="TextureRect" parent="CenterContainer" unique_id=19246117]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CenterContainer" unique_id=1602073489]
+layout_mode = 2
+
+[node name="ProgressBar" type="ProgressBar" parent="CenterContainer" unique_id=2090762645]
+layout_mode = 2
+
+[node name="VersionLabel" type="Label" parent="." unique_id=1457281866]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
