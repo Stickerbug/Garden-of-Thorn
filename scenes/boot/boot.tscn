@@ -1,29 +1,47 @@
 [gd_scene format=3 uid="uid://bygrqc7mbdll5"]
 
+[ext_resource type="Script" uid="uid://c7m0377i82r2b" path="res://scenes/boot/boot.gd" id="1_lhnci"]
+[ext_resource type="Texture2D" uid="uid://b4ijpexd3l7tg" path="res://art/ui/boot_bg.png" id="2_xgbku"]
+[ext_resource type="Texture2D" uid="uid://cak1ipqjpkman" path="res://art/ui/title_logo.png" id="3_cfko8"]
+
 [node name="Boot" type="Control" unique_id=818280933]
 layout_mode = 3
 anchors_preset = 0
 offset_right = 40.0
 offset_bottom = 40.0
-metadata/_edit_group_ = true
+script = ExtResource("1_lhnci")
 
-[node name="Background" type="ColorRect" parent="." unique_id=1780816663]
+[node name="Background" type="TextureRect" parent="." unique_id=260427332]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_right = 2730.0
+offset_bottom = 1535.0
+scale = Vector2(0.704, 0.704)
+texture = ExtResource("2_xgbku")
+
+[node name="Logo" type="TextureRect" parent="." unique_id=19246117]
+layout_mode = 0
+offset_left = 443.0
+offset_top = 154.0
+offset_right = 5464.0
+offset_bottom = 3305.0
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("3_cfko8")
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=909022227]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_top = 838.0
+offset_right = 640.0
+offset_bottom = 892.0
+scale = Vector2(3, 3)
 
-[node name="TextureRect" type="TextureRect" parent="CenterContainer" unique_id=19246117]
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1508527053]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="CenterContainer" unique_id=1602073489]
+[node name="LoadingLabel" type="Label" parent="CenterContainer/VBoxContainer" unique_id=1602073489]
 layout_mode = 2
 
-[node name="ProgressBar" type="ProgressBar" parent="CenterContainer" unique_id=2090762645]
+[node name="ProgressBar" type="ProgressBar" parent="CenterContainer/VBoxContainer" unique_id=2090762645]
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 
 [node name="VersionLabel" type="Label" parent="." unique_id=1457281866]

@@ -1,5 +1,4 @@
 extends Node
-class_name GameState
 
 enum MatchMode {
 	LOCAL_LAN,

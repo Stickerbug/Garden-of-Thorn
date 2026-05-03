@@ -1,5 +1,9 @@
 [gd_scene format=3 uid="uid://csv0basontnox"]
 
+[ext_resource type="Script" uid="uid://s147yob2w3m4" path="res://scenes/menu/main_menu.gd" id="1_nl8w3"]
+[ext_resource type="Texture2D" uid="uid://ciiqja4nad3s" path="res://art/ui/menu_bg.png" id="2_3rkf3"]
+[ext_resource type="Texture2D" uid="uid://cnph4ajlupkxa" path="res://art/ui/button_normal.png" id="3_247la"]
+
 [node name="MainMenu" type="Control" unique_id=1759064557]
 layout_mode = 3
 anchors_preset = 15
@@ -7,16 +11,21 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_nl8w3")
 
 [node name="Background" type="TextureRect" parent="." unique_id=1161913537]
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 40.0
+scale = Vector2(0.704, 0.704)
+texture = ExtResource("2_3rkf3")
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=941364709]
 layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+offset_left = 789.0
+offset_top = 384.0
+offset_right = 2691.0
+offset_bottom = 1234.0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer" unique_id=1241026176]
 layout_mode = 2
@@ -29,6 +38,7 @@ layout_mode = 2
 
 [node name="TrainingButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=608795145]
 layout_mode = 2
+icon = ExtResource("3_247la")
 
 [node name="SettingsButton" type="Button" parent="CenterContainer/VBoxContainer" unique_id=939938088]
 layout_mode = 2

@@ -11,9 +11,15 @@ config_version=5
 [application]
 
 config/name="Garden of Thorn"
+run/main_scene="uid://bygrqc7mbdll5"
 config/features=PackedStringArray("4.6", "Mobile")
 boot_splash/bg_color=Color(0.4780895, 0.60141546, 0.32595682, 1)
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*uid://dx18mfdsnqosy"
+SceneRouter="*uid://cwou0ov4btiq1"
 
 [display]
 

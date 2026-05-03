@@ -1,5 +1,4 @@
 extends Node
-class_name SceneRouter
 
 const BOOT_SCENE := "res://scenes/boot/boot.tscn"
 const MAIN_MENU_SCENE := "res://scenes/menu/main_menu.tscn"
