@@ -14,6 +14,8 @@ config/name="Garden of Thorn"
 run/main_scene="uid://bygrqc7mbdll5"
 config/features=PackedStringArray("4.6", "Mobile")
 boot_splash/bg_color=Color(0.4780895, 0.60141546, 0.32595682, 1)
+boot_splash/show_image=false
+boot_splash/image="uid://b4ijpexd3l7tg"
 config/icon="res://icon.svg"
 
 [autoload]
