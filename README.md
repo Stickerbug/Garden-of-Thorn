@@ -1,5 +1,8 @@
 # Garden of Thorn / 荆棘花园
 
+本项目已不再更新！
+更多信息详见[Garden of Thorn的Python在线版仓库]([https://godotengine.org/download/](https://github.com/Stickerbug/Python-Online-Garden-of-Thorn))
+
 一个双人对战卡牌游戏。
 
 玩家通过“三选一”构筑 15 张卡组，管理能量与魔力两种资源，使用攻击、装备、技能、反制四类卡牌，率先将对手生命值降至 0 即获胜。项目使用 Godot 开发，目标是实现局域网联机对战。
