@@ -1,7 +1,7 @@
 # Garden of Thorn / 荆棘花园
 
 本项目已不再更新！
-更多信息详见[Garden of Thorn的Python在线版仓库]([https://godotengine.org/download/](https://github.com/Stickerbug/Python-Online-Garden-of-Thorn))
+更多信息详见[Garden of Thorn的Python在线版仓库](https://github.com/Stickerbug/Python-Online-Garden-of-Thorn)
 
 一个双人对战卡牌游戏。
 
