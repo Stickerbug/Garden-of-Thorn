@@ -1086,7 +1086,10 @@ def _card_is_upgradable(card):
     upgrade = STORY_CARDS.get(str(card.get('def_id') or ''), {}).get('upgrade')
     if not upgrade:
         return False
-    return bool(upgrade.get('infinite')) or not bool(card.get('upgraded'))
+    # 无限升级两式：旧式 upgrade.infinite 与表15参数化 upgrade.infinite_formula
+    if upgrade.get('infinite') or upgrade.get('infinite_formula'):
+        return True
+    return not bool(card.get('upgraded'))
 
 
 def _ensure_card_removable(card):
@@ -11420,7 +11423,8 @@ def _upgrade_cards(state, cards, seed, events, namespace, apply_fast_learning=Tr
             continue
         seen.add(instance_id)
         upgrade = STORY_CARDS[card['def_id']].get('upgrade') or {}
-        if upgrade.get('infinite'):
+        _infinite = bool(upgrade.get('infinite') or upgrade.get('infinite_formula'))
+        if _infinite:
             card['upgrade_level'] = max(
                 int(card.get('upgrade_level') or 0),
                 1 if card.get('upgraded') else 0,
@@ -11432,7 +11436,7 @@ def _upgrade_cards(state, cards, seed, events, namespace, apply_fast_learning=Tr
             'card_instance_id': instance_id,
             'source': namespace,
         }
-        if upgrade.get('infinite'):
+        if _infinite:
             event['upgrade_level'] = int(card['upgrade_level'])
         events.append(event)
 
@@ -11446,7 +11450,8 @@ def _upgrade_cards(state, cards, seed, events, namespace, apply_fast_learning=Tr
         extra_count = len(upgraded) * _relic_count(state, 'fast_learning')
         for card in candidates[:extra_count]:
             upgrade = STORY_CARDS[card['def_id']].get('upgrade') or {}
-            if upgrade.get('infinite'):
+            _infinite = bool(upgrade.get('infinite') or upgrade.get('infinite_formula'))
+            if _infinite:
                 card['upgrade_level'] = max(
                     int(card.get('upgrade_level') or 0),
                     1 if card.get('upgraded') else 0,
@@ -11458,7 +11463,7 @@ def _upgrade_cards(state, cards, seed, events, namespace, apply_fast_learning=Tr
                 'source': 'fast_learning',
                 'trigger_source': namespace,
             }
-            if upgrade.get('infinite'):
+            if _infinite:
                 event['upgrade_level'] = int(card['upgrade_level'])
             events.append(event)
     return len(upgraded)
