@@ -9009,8 +9009,8 @@ def _rank_match_block_reason(player_a, player_b):
     """排位段位差拦截原因：None=允许。
 
     - rank_tier_gap（2026-10-02）：legendary 及以上不得与 common 对战（双向）。
-    - rank_risk_gap（2026-10-18）：升段局（段位分打满）或 0分局（段位分为0）
-      不得与低于自己超过 2 小段的对战——低段方主动邀请同样拦截。
+    - rank_risk_gap（2026-10-18，10-19 调整为 3 小段）：升段局（段位分打满）或
+      0分局（段位分为0）不得与低于自己超过 3 小段的对战——低段方主动邀请同样拦截。
     1v1 直比；2v2 由调用方取「双方最高与最低」两侧各比一次。"""
     import rank_system as _rs
     legendary_start = _rs.MAJOR_TIERS.index('legendary') * len(_rs.SUB_TIERS) + 1
@@ -9021,7 +9021,7 @@ def _rank_match_block_reason(player_a, player_b):
     sa, sb = _rank_state_of_player(player_a), _rank_state_of_player(player_b)
     for (my_tier, my_points), (opp_tier, _opp_points) in ((sa, sb), (sb, sa)):
         at_risk = my_points >= _rs.rank_cap(my_tier) or my_points <= 0
-        if at_risk and my_tier - opp_tier > 2:
+        if at_risk and my_tier - opp_tier > 3:
             return 'rank_risk_gap'
     return None
 
@@ -9033,7 +9033,7 @@ def _rank_match_blocked(player_a, player_b):
 def _rank_match_block_message(reason):
     return {
         'rank_tier_gap': '段位差距过大：传奇及以上不能与普通段位对战',
-        'rank_risk_gap': '升段局与0分局不能与低于自己超过2小段的玩家对战',
+        'rank_risk_gap': '升段局与0分局不能与低于自己超过3小段的玩家对战',
     }.get(str(reason or ''), '段位差距过大，无法开始对局')
 
 
