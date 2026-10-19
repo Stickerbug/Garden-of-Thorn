@@ -11278,15 +11278,22 @@
         return label;
     }
 
+    /* 反馈 GS-200 + 2026-10-19 防卡顿：图鉴默认只展示已选择角色的卡池
+       （进行中旅程的角色，会话内选中的角色次之；都没有则退回普花），
+       中立牌属于所有角色卡池一并保留；其余分类可手动勾选。 */
+    function storyCodexDefaultOwners() {
+        let characterId = String(activeRun?.state?.character_id || '');
+        if (!characterId) characterId = String(selectedStoryCharacterId || '');
+        if (!characterId || characterId === 'common_flower') characterId = 'common_flower';
+        const ownerKey = characterId === 'common_flower' ? 'primary' : characterId;
+        return new Set(['neutral', ownerKey]);
+    }
+
     function ensureStoryCodexCardFilters(records) {
         if (storyCodexCardFiltersReady) return;
         Object.keys(storyContent?.rarities || {}).forEach((key) => storyCodexRarities.add(key));
         Object.keys(storyContent?.card_types || {}).forEach((key) => storyCodexTypes.add(key));
-        records.forEach((record) => {
-            storyCodexRarities.add(String(record.definition.rarity || 'common'));
-            storyCodexTypes.add(String(record.definition.type || ''));
-            storyCodexOwners.add(storyCodexOwnerKey(record.definition));
-        });
+        storyCodexDefaultOwners().forEach((key) => storyCodexOwners.add(key));
         storyCodexCardFiltersReady = true;
     }
 
