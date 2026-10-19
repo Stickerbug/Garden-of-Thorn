@@ -8928,6 +8928,25 @@ class GameEngine:
             )
         )
 
+    def _exile_unique_duplicate_grant_void(self, player_id: int, card: CardInstance, message: Optional[str] = None) -> bool:
+        """2026-10-19 设计：获得唯一牌时若已拥有同名牌——新获得的副本放逐，
+        一张虚空加入手中（取代旧规则"保留副本+虚空进牌组/直接没收"）。"""
+        if not (0 <= player_id < len(self.players)) or card is None:
+            return False
+        self._remove_owned_card_instance(player_id, card)
+        self._put_card_in_exile(player_id, card, trigger=False)
+        from engine_runtime_support import VOID_CARD_ID
+        void_def_id = self._void_resolve_card_def_id(VOID_CARD_ID)
+        if not void_def_id or void_def_id not in CARD_DEFS:
+            self.log_msg(f"{self.pn(player_id)}已拥有唯一牌{card.name_cn}，新获得的副本被放逐")
+            return True
+        self.players[player_id].add_to_hand(CardInstance(void_def_id))
+        self.log_msg(message or (
+            f"{self.pn(player_id)}已拥有唯一牌{card.name_cn}，"
+            "新获得的副本被放逐，将1张虚空加入手中"
+        ))
+        return True
+
     def _apply_forced_unique_copy_penalty(
         self,
         player_id: int,
@@ -8942,14 +8961,8 @@ class GameEngine:
             source_owned=source_owned,
         ):
             return False
-        from engine_runtime_support import VOID_CARD_ID
-        void_def_id = self._void_resolve_card_def_id(VOID_CARD_ID)
-        if not void_def_id or void_def_id not in CARD_DEFS:
-            raise RuntimeError('强制复制唯一牌时无法创建虚空惩罚牌')
-        penalty = CardInstance(void_def_id)
-        self._void_add_card_to_deck_random(player_id, penalty)
-        self.log_msg(message or f"{self.pn(player_id)}强制复制唯一牌{copied_card.name_cn}，将1张虚空加入牌组")
-        return True
+        # 2026-10-19 设计：不再保留额外副本——副本放逐 + 虚空加入手中。
+        return self._exile_unique_duplicate_grant_void(player_id, copied_card, message=message)
 
     def _add_forced_copy_to_hand(
         self,
@@ -9004,9 +9017,10 @@ class GameEngine:
             excluding_instance_id=getattr(preferred_card, 'instance_id', None),
         ):
             return True
+        # 2026-10-19 设计：重复生成的唯一牌放逐 + 虚空加入手中（不再直接没收）。
         removed = self._remove_owned_card_instance(player_id, preferred_card)
         if removed:
-            self.log_msg(f"{self.pn(player_id)}已拥有唯一牌{preferred_card.name_cn}，未获得额外实例")
+            self._exile_unique_duplicate_grant_void(player_id, preferred_card)
         return not removed
 
     def _enforce_unique_cards_for_all(self):
@@ -12980,7 +12994,7 @@ class GameEngine:
                     target_card,
                     message=(
                         f"{self.pn(target_id)}已拥有唯一牌{target_card.name_cn}，"
-                        "获得额外副本，将1张虚空加入牌组"
+                        "新获得的副本被放逐，将1张虚空加入手中"
                     ),
                 )
             except Exception:
@@ -20496,9 +20510,11 @@ class GameEngine:
             )
         if params.get('swift_value') is not None:
             copied.swift_value = max(0, self._eval_int(player_id, params['swift_value'], card, 0))
+        penalty_applied = False
         if params.get('unique_copy_penalty'):
             try:
-                self._apply_forced_unique_copy_penalty(player_id, copied)
+                # 2026-10-19 新规则命中（副本放逐+虚空入手）时不再落入原目标区域。
+                penalty_applied = self._apply_forced_unique_copy_penalty(player_id, copied)
             except Exception:
                 pass
         zone = str(params.get('zone', 'hand') or 'hand').lower()
@@ -20507,7 +20523,9 @@ class GameEngine:
         if not self._valid_player_id(target_id):
             target_id = player_id
         target = self.players[target_id]
-        if zone == 'discard':
+        if penalty_applied:
+            pass
+        elif zone == 'discard':
             if position == 'random':
                 target.discard.insert(random.randint(0, len(target.discard)), copied)
             else:
@@ -20565,11 +20583,14 @@ class GameEngine:
                 new_card.extra_hits = extra_hits
                 new_card.setup_modifiers.add('explicit_extra_hits')
             self._apply_setup_modifiers_to_card(target_id, new_card)
-            self._apply_forced_unique_copy_penalty(
+            penalty_applied = self._apply_forced_unique_copy_penalty(
                 target_id,
                 new_card,
                 source_owned=(card is not None and getattr(card, 'def_id', None) == def_id),
             )
+            if penalty_applied:
+                # 2026-10-19 新规则：副本已放逐并给虚空，不再进牌组。
+                continue
             ps.deck.insert(0, new_card)
             made.append(new_card)
         if log:
@@ -23222,11 +23243,14 @@ class GameEngine:
                 new_card.extra_hits = extra_hits
                 new_card.setup_modifiers.add('explicit_extra_hits')
             self._apply_setup_modifiers_to_card(target_id, new_card)
-            self._apply_forced_unique_copy_penalty(
+            penalty_applied = self._apply_forced_unique_copy_penalty(
                 target_id,
                 new_card,
                 source_owned=(card is not None and getattr(card, 'def_id', None) == def_id),
             )
+            if penalty_applied:
+                # 2026-10-19 新规则：副本已放逐并给虚空，不再进牌组。
+                continue
             ps.deck.insert(0, new_card)
             made.append(new_card)
         if log:

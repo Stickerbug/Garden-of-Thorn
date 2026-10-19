@@ -143,13 +143,15 @@ class UniqueCardRuleTests(unittest.TestCase):
                     {'target_instance_id': target.instance_id},
                 )
 
+                # 设计 9.22：拟态无法复制带唯一 tag 的牌——不复制、不放逐、无虚空。
                 self.assertEqual(
-                    2,
+                    1,
                     sum(card.def_id == UNIQUE_ID for card in player.hand),
                 )
                 expected_void_id = engine._void_resolve_card_def_id('void:void')
-                self.assertEqual([expected_void_id], [card.def_id for card in player.deck])
-                self.assertFalse(any(card.def_id == UNIQUE_ID for card in player.exile))
+                self.assertEqual(0, sum(card.def_id == expected_void_id for card in player.hand))
+                self.assertEqual([], [card.def_id for card in player.deck])
+                self.assertEqual(0, sum(card.def_id == UNIQUE_ID for card in player.exile))
 
     def test_forced_copy_detects_unique_card_in_every_owned_zone(self):
         for zone_name in ('hand', 'deck', 'discard', 'exile', 'equipment'):
@@ -165,13 +167,11 @@ class UniqueCardRuleTests(unittest.TestCase):
 
                 engine._add_forced_copy_to_hand(0, copied)
 
-                self.assertIn(copied, player.hand)
+                # 2026-10-19 设计：副本被放逐（原区域中的那张保留），虚空加入手中
+                self.assertNotIn(copied, player.hand)
+                self.assertIn(copied, player.exile)
                 expected_void_id = engine._void_resolve_card_def_id('void:void')
-                self.assertEqual(
-                    [expected_void_id],
-                    [card.def_id for card in player.deck if card.def_id == expected_void_id],
-                )
-                self.assertNotIn(original, player.exile if zone_name != 'exile' else [])
+                self.assertEqual(1, sum(1 for card in player.hand if card.def_id == expected_void_id))
 
     def test_normal_duplicate_generation_is_rejected_without_void_or_exile(self):
         engine = self.prepare_engine()
@@ -183,11 +183,12 @@ class UniqueCardRuleTests(unittest.TestCase):
 
         accepted = engine._enforce_unique_cards_for_player(0, preferred_card=generated)
 
+        # 2026-10-19 设计：重复唯一牌→副本放逐+虚空加入手中
         self.assertFalse(accepted)
         self.assertNotIn(generated, player.hand)
         self.assertIn(original, player.discard)
-        self.assertEqual([], player.exile)
-        self.assertFalse(any(card.def_id == VOID_ID for card in player.deck))
+        self.assertIn(generated, player.exile)
+        self.assertTrue(any(card.def_id == VOID_ID for card in player.hand))
 
     def test_normal_hand_generation_rejects_duplicate_before_enter_hand_event(self):
         engine = self.prepare_engine()
@@ -263,10 +264,12 @@ class UniqueCardRuleTests(unittest.TestCase):
         )
 
         self.assertTrue(result.get('success'), result)
-        self.assertEqual(1, sum(card.def_id == UNIQUE_ID for card in player.exile))
-        self.assertEqual(1, sum(card.def_id == UNIQUE_ID for card in player.discard))
+        # 2026-10-19 设计：强制副本被放逐（原有1张+副本共2张），虚空加入手中
+        self.assertEqual(2, sum(card.def_id == UNIQUE_ID for card in player.exile))
+        self.assertEqual(0, sum(card.def_id == UNIQUE_ID for card in player.discard))
         expected_void_id = engine._void_resolve_card_def_id('void:void')
-        self.assertEqual([expected_void_id], [card.def_id for card in player.deck])
+        self.assertEqual([expected_void_id], [card.def_id for card in player.hand])
+        self.assertEqual([], [card.def_id for card in player.deck])
 
     def test_create_copies_to_deck_keeps_each_unique_copy_and_penalizes_each_extra(self):
         engine = self.prepare_engine()
@@ -283,8 +286,10 @@ class UniqueCardRuleTests(unittest.TestCase):
         )
 
         expected_void_id = engine._void_resolve_card_def_id('void:void')
-        self.assertEqual(2, sum(card.def_id == UNIQUE_ID for card in player.deck))
-        self.assertEqual(2, sum(card.def_id == expected_void_id for card in player.deck))
+        # 2026-10-19 设计：副本放逐，虚空加入手中（各2张）
+        self.assertEqual(0, sum(card.def_id == UNIQUE_ID for card in player.deck))
+        self.assertEqual(2, sum(card.def_id == UNIQUE_ID for card in player.exile))
+        self.assertEqual(2, sum(card.def_id == expected_void_id for card in player.hand))
 
     def test_legacy_or_forced_duplicates_are_not_removed_by_global_enforcement(self):
         engine = self.prepare_engine()

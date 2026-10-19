@@ -240,7 +240,9 @@ def _place_created_card(
             )
             return True
         if hasattr(engine, "_apply_forced_unique_copy_penalty"):
-            engine._apply_forced_unique_copy_penalty(owner_id, card, source_owned=True)
+            # 2026-10-19 新规则：命中唯一惩罚（副本放逐+虚空入手）时不再落入原区域。
+            if engine._apply_forced_unique_copy_penalty(owner_id, card, source_owned=True):
+                return True
         _move_card(engine, card, owner_id, zone, trigger_hand=trigger_hand)
         return True
     if hasattr(engine, "_can_normally_acquire_card"):
