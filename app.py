@@ -5324,6 +5324,27 @@ def player_accepts_game_invites(player):
     return bool(player) and player.get('accept_game_invites', True) is not False
 
 
+def player_is_admin_inviter(player):
+    """管理员身份（大厅邀请豁免用）：账号角色 admin 或管理员标记。"""
+    if not player:
+        return False
+    if player.get('is_admin_player'):
+        return True
+    return str(player.get('role_type') or '').strip().lower() == 'admin'
+
+
+def sid_has_pending_admin_invite(target_sid):
+    """该玩家是否有管理员发来的待处理对局邀请（AFK检测豁免用）。
+
+    Callers hold ``_lock``."""
+    for inviter_sid, invited_sid in (invites or {}).items():
+        if invited_sid != target_sid:
+            continue
+        if player_is_admin_inviter(players.get(inviter_sid)):
+            return True
+    return False
+
+
 def minigame_2048_player_declines_invites(player) -> bool:
     """小游戏里的「拒绝对局邀请」偏好：**按账号存，所有小游戏共用**。
 
@@ -5736,6 +5757,11 @@ def _lobby_idle_cleanup_worker():
                     if not _player_uses_automatic_afk_check(player):
                         continue
                     if sid in PENDING_AFK_CHECKS:
+                        continue
+                    # 2026-10-19 管理员豁免：有待处理管理员邀请的玩家不发送AFK检测
+                    # （邀请不被打扰），并把计时器推后到邀请结束再算。
+                    if sid_has_pending_admin_invite(sid):
+                        mark_afk_activity(sid, now)
                         continue
                     next_at = float(player.get('next_lobby_afk_check_at') or 0)
                     if not next_at:
@@ -30632,10 +30658,11 @@ def on_invite_team(data):
         if any(not player_is_lobby_match_available(member_sid) for member_sid in all_invite_sids):
             emit('server_error', {'message': '只有全部位于大厅时才能邀请队伍'})
             return
+        # 2026-10-19 管理员豁免：管理员可邀请含已关闭对局邀请玩家的队伍。
         if any(
             member_sid in players and not player_accepts_game_invites(players[member_sid])
             for member_sid in target_team['members']
-        ):
+        ) and not player_is_admin_inviter(players.get(sid)):
             emit('server_error', {'message': '对方队伍中有玩家已关闭对局邀请', 'reason': 'game_invites_disabled'})
             return
         if not same_runtime_scope_sids(all_invite_sids):
@@ -31571,7 +31598,8 @@ def on_invite(data):
         if not player_is_lobby_match_available(target_sid):
             emit('server_error', {'message': '目标玩家不在大厅'})
             return
-        if not player_accepts_game_invites(target):
+        # 2026-10-19 管理员豁免：管理员可邀请已关闭对局邀请的玩家。
+        if not player_accepts_game_invites(target) and not player_is_admin_inviter(inviter):
             emit('server_error', {'message': '该玩家已关闭对局邀请', 'reason': 'game_invites_disabled'})
             return
         # 小游戏内的「拒绝对局邀请」：服务端在邀请处理处执行，不是把按钮变灰。
@@ -31665,7 +31693,8 @@ def on_invite(data):
         if not player_is_lobby_match_available(target_sid):
             emit('server_error', {'message': '目标玩家不在大厅'})
             return
-        if not player_accepts_game_invites(target):
+        # 2026-10-19 管理员豁免：管理员可邀请已关闭对局邀请的玩家。
+        if not player_accepts_game_invites(target) and not player_is_admin_inviter(inviter):
             emit('server_error', {'message': '该玩家已关闭对局邀请', 'reason': 'game_invites_disabled'})
             return
         if not same_runtime_scope_players(inviter, target):
