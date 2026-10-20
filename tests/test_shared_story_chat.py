@@ -192,7 +192,7 @@ def test_story_chat_ui_is_collapsible_and_uses_shared_socket_history():
     assert "storyChatSocket.emit(STORY_COOP_DEMO ? 'coop_chat_join' : 'story_chat_join'" in STORY_JS
     # 2026-10-19 频道路由：合作模式按当前频道选 coop_chat_send/story_chat_send
     assert "const coopEvent = storyChatChannel === 'global' ? 'story_chat_send' : 'coop_chat_send'" in STORY_JS
-    assert "storyChatSocket.emit(STORY_COOP_DEMO ? coopEvent : 'story_chat_send')" in STORY_JS
+    assert "storyChatSocket.emit(STORY_COOP_DEMO ? coopEvent : 'story_chat_send', {" in STORY_JS
     assert "storyChatSocket.on('lobby_chat_history', renderStoryChatHistory);" in STORY_JS
     assert 'function setStoryChatOpen(open)' in STORY_JS
     assert 'width: min(640px, calc(100vw - 32px));' in STORY_CSS
