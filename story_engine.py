@@ -4629,18 +4629,27 @@ def _resolve_effect(state, card, values, effect, targets, payload, seed, events,
             bonus = int(orbit_vars.get('damage_bonus') or 0)
         living = _living_enemies(combat)
         if context.get('orbit'):
-            # 花瓣触发：无玩家选择，随机敌方目标。
-            enemy = _rng(state, seed, 'date_palm_strike').choice(living) if living else None
+            # 花瓣触发：无玩家选择，随机敌方目标；
+            # 广域打击（裂解附魔等）时改为命中全部存活敌人。
+            if 'wide' in _card_tags(values):
+                strike_targets = living
+            else:
+                strike_targets = (
+                    [_rng(state, seed, 'date_palm_strike').choice(living)] if living else []
+                )
         else:
-            # 手动打出：用玩家选定的目标（表15 红标：对目标造成 XD）。
-            enemy = next((t for t in targets if isinstance(t, dict) and int(t.get('health') or 0) > 0), None)
-            if enemy is None:
-                enemy = living[0] if living else None
-        if enemy is not None:
-            _enemy_physical_damage(
-                state, enemy, max(0, int(amount or 0)) + bonus, 1, events,
-                _localized(values.get('name')),
-            )
+            # 手动打出：用玩家选定的目标（表15 红标：对目标造成 XD）；
+            # 广域时 targets 已由 _card_targets 展开为全部存活敌人。
+            strike_targets = [
+                target for target in targets
+                if isinstance(target, dict) and int(target.get('health') or 0) > 0
+            ] or living[:1]
+        for enemy in strike_targets:
+            if enemy is not None:
+                _enemy_physical_damage(
+                    state, enemy, max(0, int(amount or 0)) + bonus, 1, events,
+                    _localized(values.get('name')),
+                )
         if not context.get('orbit'):
             growth = max(0, int(effect.get('growth') or 0))
             if growth:
