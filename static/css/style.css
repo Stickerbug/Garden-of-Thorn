@@ -22776,3 +22776,8 @@ body.mulligan-open .classic-command-panel {
   position: relative;
   z-index: 12030;
 }
+
+/* 开局调度期间打开的牌堆展开视图（#modal）也要浮于调度面板之上 */
+body.mulligan-open #modal {
+  z-index: 12040;
+}
