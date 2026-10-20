@@ -37217,6 +37217,7 @@ let mulliganMatchKey = '';
 function hideMulliganPanel() {
     if (mulliganTimerId) { clearInterval(mulliganTimerId); mulliganTimerId = null; }
     removeMulliganVisibilityListeners();
+    document.body.classList.remove('mulligan-open');
     const panel = $('mulligan-panel');
     if (panel) {
         panel.innerHTML = '';
@@ -37249,6 +37250,7 @@ function renderMulliganWaiting() {
     const ownId = Number(data.your_id);
     const submitted = Array.isArray(m.submitted) ? m.submitted : [];
     panel.innerHTML = '';
+    document.body.classList.add('mulligan-open');
     panel.classList.remove('hidden');
     panel.classList.add('visible');
     const title = document.createElement('div');
@@ -37296,6 +37298,7 @@ function syncMulliganPanel(data) {
         Array.isArray(m.your_pick) ? m.your_pick : Array.from(mulliganSelectedIds)
     );
     panel.innerHTML = '';
+    document.body.classList.add('mulligan-open');
     panel.classList.remove('hidden');
     panel.classList.add('visible');
 

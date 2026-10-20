@@ -22768,3 +22768,11 @@ html[data-ui-style="minimal"] .card.card-skin-no-corner::before,
   background: #2e6b4d;
   color: #fff;
 }
+
+/* 开局调度不遮挡牌堆：调度面板打开期间，左侧资源栏(含抽牌堆)与
+   右侧指令面板(含弃牌/放逐堆)浮于面板之上，保持可见可点击 */
+body.mulligan-open .classic-left-rail,
+body.mulligan-open .classic-command-panel {
+  position: relative;
+  z-index: 12030;
+}
