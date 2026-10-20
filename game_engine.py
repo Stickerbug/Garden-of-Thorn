@@ -17585,6 +17585,11 @@ class GameEngine:
             if card.card_type == 'thorn' and card_damage > 0 and not has_v2_play:
                 method_name = f'_effect_{card.def_id.lower()}'
                 if not hasattr(self, method_name):
+                    # 2026-10-19：出牌日志先于伤害写入（与 v2 原子路径一致）——
+                    # 否则纯伤害攻击牌的「使用了X」排在「受到ND」之后，且在
+                    # deal_attack_damage 的早退路径（目标已倒地/伤害延迟）下
+                    # 整段出牌在战报里凭空消失。
+                    self._log_card_play(player_id, card)
                     dmg = self._modified_attack_damage(card_damage, card)
                     is_precision = 'precision' in self._effective_card_flags(card)
                     if 'wide_strike' in self._effective_card_flags(card):
@@ -17599,6 +17604,7 @@ class GameEngine:
                         if not (0 <= int(target_id) < len(self.players)):
                             continue
                         self.deal_attack_damage(target_id, dmg, card_hits_val, is_precision=is_precision, attacker_id=player_id, source_card=card)
+                    return
             if self._card_has_v2_event(card.card_def, 'on_play'):
                 self._run_v2_card_event(player_id, card, 'on_play', choice)
                 return
