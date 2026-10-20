@@ -5763,6 +5763,9 @@ def _lobby_idle_cleanup_worker():
                     if sid_has_pending_admin_invite(sid):
                         mark_afk_activity(sid, now)
                         continue
+                    # 2026-10-19 管理员本体同样豁免自动挂机检测。
+                    if player_is_admin_inviter(player):
+                        continue
                     next_at = float(player.get('next_lobby_afk_check_at') or 0)
                     if not next_at:
                         mark_afk_activity(sid, now)
