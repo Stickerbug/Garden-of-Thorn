@@ -9037,16 +9037,12 @@ def _rank_state_of_player(player):
 def _rank_match_block_reason(player_a, player_b):
     """排位段位差拦截原因：None=允许。
 
-    - rank_tier_gap（2026-10-02）：legendary 及以上不得与 common 对战（双向）。
+    - rank_tier_gap（2026-10-02，2026-10-21 取消）：legendary 与 common 的
+      对战限制已移除——任何段位都可以互相邀战。
     - rank_risk_gap（2026-10-18，10-19 调整为 3 小段）：升段局（段位分打满）或
       0分局（段位分为0）不得与低于自己超过 3 小段的对战——低段方主动邀请同样拦截。
     1v1 直比；2v2 由调用方取「双方最高与最低」两侧各比一次。"""
     import rank_system as _rs
-    legendary_start = _rs.MAJOR_TIERS.index('legendary') * len(_rs.SUB_TIERS) + 1
-    common_end = _rs.MAJOR_TIERS.index('unusual') * len(_rs.SUB_TIERS)
-    ta, tb = _rank_tier_of_player(player_a), _rank_tier_of_player(player_b)
-    if (ta >= legendary_start and tb <= common_end) or (tb >= legendary_start and ta <= common_end):
-        return 'rank_tier_gap'
     sa, sb = _rank_state_of_player(player_a), _rank_state_of_player(player_b)
     for (my_tier, my_points), (opp_tier, _opp_points) in ((sa, sb), (sb, sa)):
         at_risk = my_points >= _rs.rank_cap(my_tier) or my_points <= 0
@@ -30846,7 +30842,7 @@ def on_accept_team_match(data):
         if pair_blocked:
             pair_reason = next(
                 (_rank_match_block_reason(me, other) for other in others if _rank_match_block_reason(me, other)),
-                'rank_tier_gap',
+                'rank_risk_gap',
             )
             emit_match_start_failed(all_sids, _rank_match_block_message(pair_reason), reason=pair_reason)
             return
