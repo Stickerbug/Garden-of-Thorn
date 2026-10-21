@@ -18016,6 +18016,7 @@ class GameEngine:
                     if isinstance(result, dict) and result.get('needs_v2_ui'):
                         self._store_v2_ui_pause(result.get('v2_ui_pause') or {})
                         return {'success': True, 'needs_v2_ui': True}
+                self._resume_deferred_attack_hits()
                 return {'success': True, 'cancelled': True}
             context.setdefault('vars', {})[pending.get('save_as') or 'ui_result'] = clean.get('values', {})
             context['current_action'] = {
@@ -18034,6 +18035,7 @@ class GameEngine:
             if isinstance(result, dict) and result.get('needs_v2_ui'):
                 self._store_v2_ui_pause(result.get('v2_ui_pause') or {})
                 return {'success': True, 'needs_v2_ui': True}
+            self._resume_deferred_attack_hits()
             self._check_game_over()
             return {'success': True}
         except Exception as exc:
@@ -18046,6 +18048,36 @@ class GameEngine:
             if isinstance(button, dict) and str(button.get('id')) == str(button_id):
                 return str(button.get('role') or ('cancel' if button_id == 'cancel' else 'confirm'))
         return 'cancel' if button_id == 'cancel' else 'confirm'
+
+    def _resume_deferred_attack_hits(self):
+        """受击钩子UI（魔法盐触发弹窗等）解答后，续跑被挂起的多段攻击剩余段。
+
+        deal_attack_damage 的段循环遇 pending_v2_ui 会暂存剩余段并退出——
+        若此刻没有新的UI挂起（钩子链已走完），在这里原参数续跑。"""
+        stash = getattr(self, '_deferred_attack_hits', None)
+        if not isinstance(stash, dict) or getattr(self, 'pending_v2_ui', None):
+            return
+        self._deferred_attack_hits = None
+        hits_left = max(0, int(stash.get('hits_left') or 0))
+        target_id = stash.get('target_id')
+        if hits_left <= 0 or not self._valid_player_id(target_id):
+            return
+        if int(self.players[target_id].health) <= 0:
+            return
+        try:
+            self.deal_attack_damage(
+                target_id,
+                max(0, int(stash.get('amount') or 0)),
+                hits_left,
+                is_precision=bool(stash.get('is_precision')),
+                attacker_id=int(stash.get('attacker_id') or -1),
+                source_card=stash.get('source_card'),
+                ignore_untargetable=bool(stash.get('ignore_untargetable')),
+                crit_bonus_multiplier=float(stash.get('crit_bonus_multiplier') or 1.0),
+                crit_bonus_damage=max(0, int(stash.get('crit_bonus_damage') or 0)),
+            )
+        except Exception as exc:
+            self._log_mod_runtime_error('resume_deferred_attack_hits', exc, None, stash.get('source_card'))
 
     def _card_log_marker(self, card: CardInstance) -> str:
         try:
@@ -19703,6 +19735,20 @@ class GameEngine:
             before_v2_modifiers = max(0, int(dmg or 0))
             dmg = self._run_v2_damage_modifiers(damage_context, dmg)
             if getattr(self, 'pending_v2_ui', None):
+                # 受击钩子（如魔法盐触发弹窗）挂起UI：剩余段暂存，UI解答后续跑
+                # （此前直接break会把多段攻击的剩余段凭空丢弃——轻2×2只剩1段）。
+                self._deferred_attack_hits = {
+                    'target_id': target_id,
+                    'amount': amount,
+                    'hits_left': hits - hit_index,
+                    'is_precision': is_precision,
+                    'attacker_id': attacker_id,
+                    'source_card': source_card,
+                    'is_battery': is_battery,
+                    'ignore_untargetable': ignore_untargetable,
+                    'crit_bonus_multiplier': crit_bonus_multiplier,
+                    'crit_bonus_damage': crit_bonus_damage,
+                }
                 break
             self._record_achievement_damage_output(
                 attacker_id,
