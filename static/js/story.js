@@ -15211,6 +15211,99 @@
         showView('story-terminal');
     }
 
+
+    /* —— 故事模式音乐（2026-10-21）——
+       曲目按阶段/生态区映射；Boss与精英战斗有专属曲。
+       音量沿用大厅音频设置键 gtn_audio_music（0-100），存 gtn_audio_story_music
+       开关（on/off）。首次交互后自动开播（浏览器自动播放策略）。 */
+    const STORY_MUSIC_SOURCES = {
+        elite: '/static/audio/story/elite.mp3',
+        'stage1-garden': '/static/audio/story/stage1-garden.mp3',
+        'stage1-desert': '/static/audio/story/stage1-desert.mp3',
+        'stage1-ocean': '/static/audio/story/stage1-ocean.mp3',
+        'stage1-boss': '/static/audio/story/stage1-boss.mp3',
+        'stage2-jungle': '/static/audio/story/stage2-jungle.mp3',
+        'stage2-boss': '/static/audio/story/stage2-boss.mp3',
+        'stage3-factory': '/static/audio/story/stage3-factory.mp3',
+        'stage3-boss': '/static/audio/story/stage3-boss.mp3',
+    };
+
+    let storyMusicAudio = null;
+    let storyMusicCurrentKey = '';
+    let storyMusicUnlocked = false;
+
+    function storyMusicEnabled() {
+        try {
+            return localStorage.getItem('gtn_audio_story_music') !== 'off';
+        } catch (err) {
+            return true;
+        }
+    }
+
+    function storyMusicVolume() {
+        let value = NaN;
+        try {
+            value = Number(localStorage.getItem('gtn_audio_music'));
+        } catch (err) { /* 忽略 */ }
+        if (!Number.isFinite(value)) value = 80;
+        return Math.max(0, Math.min(100, value)) / 100;
+    }
+
+    function storyMusicKeyFor(state) {
+        if (!state) return '';
+        const stage = Math.max(1, Math.min(3, Number(state.stage) || 1));
+        const node = currentNode(state);
+        const inCombat = state.phase === 'combat';
+        const roomType = state?.room?.type || node?.type;
+        if (inCombat || roomType) {
+            if (roomType === 'boss') return `stage${stage}-boss`;
+            if (roomType === 'elite') return 'elite';
+        }
+        const biome = String(state.biome || 'garden');
+        return `stage${stage}-${biome}`;
+    }
+
+    function stopStoryMusic() {
+        storyMusicCurrentKey = '';
+        if (storyMusicAudio) {
+            try {
+                storyMusicAudio.pause();
+            } catch (err) { /* 忽略 */ }
+        }
+    }
+
+    function playStoryMusicForKey(key) {
+        const src = STORY_MUSIC_SOURCES[key];
+        if (!src) return;
+        if (storyMusicCurrentKey === key && storyMusicAudio && !storyMusicAudio.paused) return;
+        storyMusicCurrentKey = key;
+        if (!storyMusicAudio) {
+            storyMusicAudio = new Audio(src);
+            storyMusicAudio.loop = true;
+            storyMusicAudio.preload = 'auto';
+        } else if (storyMusicAudio.src !== new URL(src, location.href).href) {
+            storyMusicAudio.src = src;
+        }
+        storyMusicAudio.volume = storyMusicVolume();
+        storyMusicAudio.play().catch(() => { /* 等待用户交互后重试 */ });
+    }
+
+    function updateStoryMusic(state) {
+        if (!storyMusicEnabled() || !state) {
+            stopStoryMusic();
+            return;
+        }
+        playStoryMusicForKey(storyMusicKeyFor(state));
+    }
+
+    function unlockStoryMusic() {
+        if (storyMusicUnlocked) return;
+        storyMusicUnlocked = true;
+        if (activeRun?.state) updateStoryMusic(activeRun.state);
+    }
+    window.addEventListener('pointerdown', unlockStoryMusic, { once: true });
+    window.addEventListener('keydown', unlockStoryMusic, { once: true });
+
     function renderRun(run) {
         const scrollPositions = captureStoryScrollPositions();
         // 归一协调态字段名（GET/动作响应带 coop_coord，轮询路径已预映射）。
@@ -15231,6 +15324,7 @@
             $('story-aim-layer')?.classList.add('hidden');
             renderStoryCharacterOptions();
             showView('story-empty');
+            stopStoryMusic();
             restoreStoryScrollPositions(scrollPositions);
             return;
         }
@@ -15281,6 +15375,7 @@
             else renderMapView(state);
         }
         openPendingStoryDeckOperation(state);
+        updateStoryMusic(state);
         restoreStoryScrollPositions(scrollPositions);
     }
 
@@ -15442,6 +15537,8 @@
         }
         const handOrder = $('story-settings-hand-order');
         if (handOrder) handOrder.checked = storyShowHandOrder;
+        const musicToggle = $('story-settings-music');
+        if (musicToggle) musicToggle.checked = storyMusicEnabled();
         document.querySelectorAll('#story-settings-speed-options input[type="radio"]').forEach((radio) => {
             radio.checked = Number(radio.value) === storyPlaybackRate;
         });
@@ -15493,6 +15590,14 @@
     function commitStorySettingsDraft() {
         setStoryBordersHidden(Boolean($('story-settings-hide-borders')?.checked));
         setStoryHandOrder(Boolean($('story-settings-hand-order')?.checked));
+        const musicToggle = $('story-settings-music');
+        if (musicToggle) {
+            try {
+                localStorage.setItem('gtn_audio_story_music', musicToggle.checked ? 'on' : 'off');
+            } catch (quotaErr) { /* 忽略 */ }
+            if (musicToggle.checked) updateStoryMusic(activeRun?.state || null);
+            else stopStoryMusic();
+        }
         const speedRadio = document.querySelector('#story-settings-speed-options input[type="radio"]:checked');
         setStoryPlaybackRate(Number(speedRadio?.value || 2));
     }
