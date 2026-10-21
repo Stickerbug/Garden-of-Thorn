@@ -17247,6 +17247,10 @@ class GameEngine:
                     return int(target_card.cost_e_override if target_card.cost_e_override is not None else target_card.card_def.cost_e)
                 if prop == 'cost_m_override':
                     return int(target_card.cost_m_override if target_card.cost_m_override is not None else target_card.card_def.cost_m)
+                if prop in ('flags', 'tags'):
+                    # 集合属性原样返回（配合 count 表达式计数），int() 会抛 TypeError。
+                    value = getattr(target_card, prop, None)
+                    return value if isinstance(value, (set, frozenset, list, tuple)) else set(value or ())
                 if not hasattr(target_card, prop):
                     # Round 69 / 批次 BH：模组自定义卡属性（写侧落 ``custom_vars``）。
                     custom_vars = getattr(target_card, 'custom_vars', None)
@@ -17349,6 +17353,15 @@ class GameEngine:
                 if not isinstance(store, dict) or not name:
                     return int(expr.get('default', 0) or 0)
                 return int(self._scalar_value(store.get(name, expr.get('default', 0)), 0))
+        if ref == 'count':
+            # 计数表达式（三叉戟"该卡牌标签数量×5"等）：对象可为集合/列表或数值。
+            subject = self._eval_expr(player_id, expr.get('of'), card)
+            if isinstance(subject, (set, frozenset, list, tuple, dict)):
+                return len(subject)
+            try:
+                return int(subject or 0)
+            except (TypeError, ValueError):
+                return 0
         return self._base_eval_expr(player_id, expr, card)
 
     def _eval_condition(self, player_id, cond, card=None):

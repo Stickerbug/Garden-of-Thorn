@@ -1834,6 +1834,15 @@ def eval_v2_value(engine, context: Dict[str, Any], expr: Any):
     if op in ("card_prop", "card_property"):
         card = _resolve_card(engine, context, expr.get("card", "current_card"))
         return _card_prop(card, expr.get("prop", expr.get("property", expr.get("field", ""))))
+    if op == "count":
+        # 计数表达式（三叉戟"该卡牌标签数量×5"等）：对象可为集合/列表或数值。
+        subject = eval_v2_value(engine, context, expr.get("of", expr.get("value")))
+        if isinstance(subject, (set, frozenset, list, tuple, dict)):
+            return len(subject)
+        try:
+            return int(subject or 0)
+        except (TypeError, ValueError):
+            return 0
     if op in ("equipment_prop", "equipment_property"):
         owner_id = _player_id(engine, resolve_v2_target(engine, context, expr.get("target", "source")))
         equipment = _resolve_equipment(engine, context, owner_id, expr.get("equipment", "current_equipment"))
