@@ -310,8 +310,8 @@
       const pinnedAnnouncements = announcements.filter((item) => rank(item) === 0);
       pinnedPolls.forEach((item) => feed.appendChild(renderPoll(item)));
       pinnedAnnouncements.forEach((item) => feed.appendChild(renderAnnouncement(item)));
-      announcements.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderAnnouncement(item)));
       polls.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderPoll(item)));
+      announcements.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderAnnouncement(item)));
       chains.forEach((item) => feed.appendChild(renderChain(item)));
     }
     const manage = byId('community-manage-link');
