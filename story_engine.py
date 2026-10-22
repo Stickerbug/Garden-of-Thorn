@@ -3489,14 +3489,13 @@ def _is_card_playable(state, card, automatic=False):
     cost_m = values.get('cost_m')
     if cost_m in ('X', 'x'):
         cost_m = 0
-    health_cost = max(
-        0,
-        int((card.get('modifiers') or {}).get('enchantment_health_cost') or 0),
-    )
+    if int((card.get('modifiers') or {}).get('enchantment_health_cost') or 0) > 0:
+        # 经验修补（2026-10-22 修正口径）：全部花费改用H支付，每点1H——
+        # 不再要求E/M，只需生命值高于总花费。
+        return int(state.get('player', {}).get('health') or 0) > int(cost_e or 0) + int(cost_m or 0)
     return (
         int(combat.get('elixir') or 0) >= int(cost_e or 0)
         and int(combat.get('magic') or 0) >= int(cost_m or 0)
-        and int(state.get('player', {}).get('health') or 0) > health_cost
     )
 
 
@@ -6255,11 +6254,13 @@ def _play_card(state, payload, seed, events, autoplay_depth=0):
     else:
         x_magic_cost = 0
         cost_m = int(raw_cost_m or 0)
-    _spend_elixir(state, x_cost, events, source=card.get('def_id') or 'card')
-    if raw_cost_m not in ('X', 'x'):
-        _spend_magic(state, cost_m, events, source=card.get('def_id') or 'card')
-    health_cost = max(0, int(modifiers.get('enchantment_health_cost') or 0))
-    if health_cost:
+    if int(modifiers.get('enchantment_health_cost') or 0) > 0:
+        # 经验修补（2026-10-22 修正口径）：所有花费由生命抵扣，每点花费1H，
+        # E/M 不再消耗。X 费用按结算时的全部剩余资源量计入。
+        if raw_cost_m in ('X', 'x'):
+            health_cost = x_cost + x_magic_cost
+        else:
+            health_cost = x_cost + cost_m
         health_before = int(state['player'].get('health') or 0)
         state['player']['health'] = health_before - health_cost
         events.append({
@@ -6271,6 +6272,10 @@ def _play_card(state, payload, seed, events, autoplay_depth=0):
             'source_card_instance_id': instance_id,
             'source_definition_id': card.get('def_id'),
         })
+    else:
+        _spend_elixir(state, x_cost, events, source=card.get('def_id') or 'card')
+        if raw_cost_m not in ('X', 'x'):
+            _spend_magic(state, cost_m, events, source=card.get('def_id') or 'card')
     is_infect_play = bool((card.get('modifiers') or {}).get('infect'))
     if is_infect_play:
         hand_index = combat['hand'].index(card)

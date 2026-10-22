@@ -3192,9 +3192,14 @@
         const fragment = document.createDocumentFragment();
         (viewer?.hand || []).forEach((card) => {
             const values = cardValues(card);
-            const affordable = Number(viewer.elixir || 0) >= Number(values?.cost_e || 0)
-                && Number(viewer.magic || 0) >= Number(values?.cost_m || 0)
-                && Number(viewer.health || 0) > Number(card?.modifiers?.enchantment_health_cost || 0);
+            // 经验修补口径（2026-10-22）：全部花费由H抵扣（每点1H），不再看E/M
+            const healthPatched = Number(card?.modifiers?.enchantment_health_cost || 0) > 0;
+            const totalCost = (values?.cost_e === 'X' ? 0 : Number(values?.cost_e || 0))
+                + (values?.cost_m === 'X' || values?.cost_m == null ? 0 : Number(values.cost_m || 0));
+            const affordable = healthPatched
+                ? Number(viewer.health || 0) > totalCost
+                : Number(viewer.elixir || 0) >= Number(values?.cost_e || 0)
+                    && Number(viewer.magic || 0) >= Number(values?.cost_m || 0);
             const instanceId = String(card?.instance_id || '');
             const button = createStoryCard(card, {
                 compact: true,
