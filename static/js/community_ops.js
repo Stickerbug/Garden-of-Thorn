@@ -112,7 +112,7 @@
       const card = element('article', 'ops-item');
       const head = element('div', 'ops-item-head');
       head.appendChild(element('h3', 'ops-item-title', `#${item.id} ${item.question || ''}`));
-      head.appendChild(element('span', 'ops-item-state', item.effective_state || item.state));
+      head.appendChild(element('span', 'ops-item-state', (item.effective_state || item.state) + (item.pinned ? ' · 置顶' : '')));
       card.appendChild(head);
       card.appendChild(element(
         'p',
@@ -131,6 +131,7 @@
       if (item.state === 'draft') actions.appendChild(actionButton('发布', 'poll', item.id, 'publish'));
       if (item.state === 'published' && item.effective_state !== 'closed') actions.appendChild(actionButton('立即结束', 'poll', item.id, 'close', true));
       if (['published', 'closed'].includes(item.state)) {
+        actions.appendChild(actionButton(item.pinned ? '取消置顶' : '置顶', 'poll', item.id, item.pinned ? 'unpin' : 'pin'));
         if (item.feed_visibility !== 'show') actions.appendChild(actionButton('设为持续显示', 'poll', item.id, 'feed_show'));
         if (item.feed_visibility !== 'hide') actions.appendChild(actionButton('对玩家隐藏', 'poll', item.id, 'feed_hide'));
         if (item.feed_visibility !== 'auto') actions.appendChild(actionButton('恢复默认', 'poll', item.id, 'feed_auto'));
@@ -151,7 +152,7 @@
       const card = element('article', 'ops-item');
       const head = element('div', 'ops-item-head');
       head.appendChild(element('h3', 'ops-item-title', `#${item.id} ${item.title || ''}`));
-      head.appendChild(element('span', 'ops-item-state', item.effective_state || item.state));
+      head.appendChild(element('span', 'ops-item-state', (item.effective_state || item.state) + (item.pinned ? ' · 置顶' : '')));
       card.appendChild(head);
       card.appendChild(element('p', 'ops-item-body', item.description || ''));
       const entries = element('ol', 'ops-option-list');

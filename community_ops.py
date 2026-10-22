@@ -217,6 +217,7 @@ def _poll_payload(conn, row, *, viewer_user_id=None, reveal_results=False, now=N
             if 'feed_visibility' in row.keys()
             else 'auto'
         ),
+        'pinned': bool(row['pinned'] if 'pinned' in row.keys() else 0),
         'player_visible': _poll_player_visible(row, now),
         'starts_at': str(row['starts_at']),
         'ends_at': str(row['ends_at']),
@@ -346,7 +347,7 @@ def get_community_feed(viewer_user_id=None, *, can_manage=False):
             WHERE state IN ('published', 'closed')
               AND feed_visibility != 'hide'
               AND starts_at <= ?
-            ORDER BY starts_at DESC, id DESC
+            ORDER BY pinned DESC, starts_at DESC, id DESC
             LIMIT 200
             ''',
             (now_iso,),
@@ -739,7 +740,7 @@ def mutate_community_poll(actor, poll_id, action, *, starts_at=None, ends_at=Non
     poll_id = _positive_id(poll_id, label='投票编号')
     action = str(action or '').strip().lower()
     if action not in {'publish', 'schedule', 'close', 'retract',
-                      'feed_show', 'feed_hide', 'feed_auto'}:
+                      'feed_show', 'feed_hide', 'feed_auto', 'pin', 'unpin'}:
         raise CommunityOpsError('INVALID_ACTION', '投票操作无效')
     now = _utc_now()
     now_iso = _iso(now)
@@ -783,6 +784,14 @@ def mutate_community_poll(actor, poll_id, action, *, starts_at=None, ends_at=Non
                 'previous_visibility': previous_visibility,
                 'feed_visibility': desired_visibility,
             })
+        elif action in {'pin', 'unpin'}:
+            pinned = action == 'pin'
+            changed = bool(row['pinned'] if 'pinned' in row.keys() else 0) != pinned
+            conn.execute(
+                'UPDATE community_polls SET pinned = ?, updated_by = ?, updated_at = ? WHERE id = ?',
+                (1 if pinned else 0, actor_user_id, now_iso, poll_id),
+            )
+            detail['pinned'] = pinned
         elif action in {'publish', 'schedule'}:
             if current_state in {'closed', 'retracted'}:
                 conn.rollback()

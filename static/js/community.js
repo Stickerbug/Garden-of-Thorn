@@ -205,6 +205,7 @@
     const article = createElement('article', 'community-card community-poll');
     const heading = createElement('div', 'community-card-heading');
     heading.appendChild(createElement('h3', '', item.question || '投票'));
+    if (item.pinned) heading.appendChild(createElement('span', 'community-badge is-pinned', '置顶'));
     if (item.reminder_due) heading.appendChild(createElement('span', 'community-badge is-reminder', '即将截止'));
     if (item.effective_state === 'closed') heading.appendChild(createElement('span', 'community-badge', '已结束'));
     article.appendChild(heading);

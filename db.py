@@ -3166,6 +3166,12 @@ def init_db(
                 'PRAGMA table_info(community_polls)'
             ).fetchall()
         }
+        if 'pinned' not in poll_columns:
+            # 2026-10-22：投票置顶（与公告同款）
+            conn.execute(
+                'ALTER TABLE community_polls '
+                'ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0 CHECK(pinned IN (0, 1))'
+            )
         if 'feed_visibility' not in poll_columns:
             conn.execute(
                 'ALTER TABLE community_polls '
