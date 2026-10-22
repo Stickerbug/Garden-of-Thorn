@@ -304,8 +304,14 @@
     if (!announcements.length && !polls.length && !chains.length) {
       feed.appendChild(createElement('p', 'community-empty muted', '目前没有正在展示的公告、投票或接龙。'));
     } else {
-      announcements.forEach((item) => feed.appendChild(renderAnnouncement(item)));
-      polls.forEach((item) => feed.appendChild(renderPoll(item)));
+      // 置顶优先于普通；同为置顶时投票排在公告上面（2026-10-22）
+      const rank = (item) => (item.pinned ? 0 : 1);
+      const pinnedPolls = polls.filter((item) => rank(item) === 0);
+      const pinnedAnnouncements = announcements.filter((item) => rank(item) === 0);
+      pinnedPolls.forEach((item) => feed.appendChild(renderPoll(item)));
+      pinnedAnnouncements.forEach((item) => feed.appendChild(renderAnnouncement(item)));
+      announcements.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderAnnouncement(item)));
+      polls.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderPoll(item)));
       chains.forEach((item) => feed.appendChild(renderChain(item)));
     }
     const manage = byId('community-manage-link');
