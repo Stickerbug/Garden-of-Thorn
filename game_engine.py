@@ -17353,15 +17353,17 @@ class GameEngine:
                 if not isinstance(store, dict) or not name:
                     return int(expr.get('default', 0) or 0)
                 return int(self._scalar_value(store.get(name, expr.get('default', 0)), 0))
-        if ref == 'count':
-            # 计数表达式（三叉戟"该卡牌标签数量×5"等）：对象可为集合/列表或数值。
-            subject = self._eval_expr(player_id, expr.get('of'), card)
-            if isinstance(subject, (set, frozenset, list, tuple, dict)):
-                return len(subject)
-            try:
-                return int(subject or 0)
-            except (TypeError, ValueError):
-                return 0
+            if ref == 'count':
+                # 计数表达式（三叉戟"该卡牌标签数量×5"等）：对象可为集合/列表或数值。
+                # 注意缩进：必须在 isinstance(expr, dict) 块内，否则非 dict 表达式
+                # 走到此处时 ref 尚未赋值（UnboundLocalError，R-32186）。
+                subject = self._eval_expr(player_id, expr.get('of'), card)
+                if isinstance(subject, (set, frozenset, list, tuple, dict)):
+                    return len(subject)
+                try:
+                    return int(subject or 0)
+                except (TypeError, ValueError):
+                    return 0
         return self._base_eval_expr(player_id, expr, card)
 
     def _eval_condition(self, player_id, cond, card=None):
