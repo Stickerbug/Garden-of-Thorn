@@ -8197,6 +8197,13 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
   display: block;
 }
 
+/* 三幕地图纵向堆叠容器（2026-10-23）：此前容器是单个 <svg>，分隔线/标签/
+   各幕 svg 塞进 SVG 里没有流式布局，三张地图全部叠在原点。 */
+.story-history-map-stack {
+  box-sizing: border-box;
+  padding: 6px 10px 0;
+}
+
 .story-history-relics {
   display: flex;
   flex-wrap: wrap;
