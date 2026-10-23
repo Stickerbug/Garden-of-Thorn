@@ -6205,7 +6205,12 @@ def _play_card(state, payload, seed, events, autoplay_depth=0):
     if int(combat.get('cards_played_this_turn') or 0) == 1:
         for enemy in _living_enemies(combat):
             miracle = max(0, int(enemy.get('miracle') or 0))
-            if 'miracle' in STORY_ENEMIES[enemy['def_id']].get('traits', ()) and miracle:
+            # Workbook 12（蝉）：若自身已有闪避则不触发奇迹（不消耗次数）。
+            if (
+                'miracle' in STORY_ENEMIES[enemy['def_id']].get('traits', ())
+                and miracle
+                and int(enemy.get('evade') or 0) <= 0
+            ):
                 enemy['miracle'] = miracle - 1
                 events.append({
                     'type': 'enemy_gain',

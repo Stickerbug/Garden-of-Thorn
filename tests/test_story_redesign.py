@@ -698,6 +698,10 @@ def test_rain_frog_grants_player_sturdy_that_preserves_shield_for_one_boundary()
     combat['shield'] = 9
     _turn_boundary(state, 'rain-frog-sturdy:boundary', events)
 
+    # Workbook 12：集沙给予2层坚固，第二个边界后才清零。
+    assert combat['sturdy'] == 1
+    assert combat['shield'] >= 9
+    _turn_boundary(state, 'rain-frog-sturdy:boundary2', events)
     assert combat['sturdy'] == 0
     assert combat['shield'] >= 9
     assert any(

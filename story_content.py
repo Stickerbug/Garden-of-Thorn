@@ -3817,7 +3817,7 @@ STORY_ENEMIES.update({
         _move('凝聚', 'Condense', _effect('gain_shield', 12, lunatic_amount=15), _effect('self_heal', 6, lunatic_amount=9)),
     ), script='random_intent', traits=('chaos',), lunatic_health=57),
     'palm_tree': _enemy('棕榈树', 'Palm Tree', 36, (
-        _move('固守', 'Hold Fast', _effect('gain_shield', 7, lunatic_amount=9), _effect('player_status', 1, status='weak')),
+        _move('固守', 'Hold Fast', _effect('player_status', 1, status='weak')),
         _move('旋转', 'Spin', _effect('damage', 2, hits=3)),
     ), traits=('shelter',), initial={'shelter': 5}, lunatic_initial={'shelter': 8}, lunatic_health=40),
     'cactus': _enemy('仙人掌', 'Cactus', 27, (
@@ -3834,7 +3834,7 @@ STORY_ENEMIES.update({
         _move('狂乱攻击', 'Frenzied Strike', _effect('damage', 20, lunatic_amount=23)),
     ), script='bandage_beetle', traits=('bandage',), initial={'bandage': 1}, lunatic_health=71),
     'scorpion': _enemy('蝎子', 'Scorpion', 42, (
-        _move('迷惑', 'Confound', _effect('gain_shield', 8, lunatic_amount=11), _effect('player_status', 2, status='weak')),
+        _move('迷惑', 'Confound', _effect('gain_shield', 8, lunatic_amount=11)),
         _move('蛰针', 'Sting', _effect('damage', 8, lunatic_amount=9), _effect('player_status', 3, status='poison', lunatic_amount=4)),
     ), lunatic_health=47),
     'tumbleweed': _enemy('风滚草', 'Tumbleweed', 44, (
@@ -3852,8 +3852,8 @@ STORY_ENEMIES.update({
     ), initial={'evil_eye': 1}, lunatic_health=95),
     'fossil': _enemy('化石', 'Fossil', 76, (
         _move('沉睡', 'Slumber', _effect('gain_charging', 5, lunatic_amount=6)),
-        _move('惊醒', 'Awaken', _effect('damage', 14, lunatic_amount=16), _effect('gain_power', 3)),
-    ), script='fossil', traits=('turn_shield', 'charging_up'), initial={'turn_shield': 10}, lunatic_health=84),
+        _move('惊醒', 'Awaken', _effect('damage', 14, lunatic_amount=16), _effect('gain_power', 3), _effect('gain_shield', 20, lunatic_amount=25)),
+    ), script='fossil', traits=('charging_up',), initial={'sturdy': 99, 'shield': 20}, lunatic_health=84),
     'shiny_ladybug': _enemy('闪亮瓢虫', 'Shiny Ladybug', 132, (
         _move('迷幻', 'Dazzle', _effect('player_status', 1, status='weak'), _effect('add_draw_card', 1, card_id='confused'), _effect('gain_shield', 14, lunatic_amount=17)),
         _move('再生', 'Regenerate', _effect('self_heal', 14, lunatic_amount=17), _effect('gain_power', 3, lunatic_amount=4)),
@@ -4116,7 +4116,7 @@ STORY_ENEMIES['cicada']['lunatic_initial'] = {'miracle': 5}
 STORY_ENEMIES['bandage_beetle']['move_order'] = (0, 1)
 STORY_ENEMIES['hive']['move_order'] = (0, 1, 2)
 STORY_ENEMIES['fossil']['move_order'] = (0,)
-STORY_ENEMIES['fossil']['lunatic_initial'] = {'turn_shield': 12}
+STORY_ENEMIES['fossil']['lunatic_initial'] = {'shield': 25}
 STORY_ENEMIES['shiny_ladybug']['move_order'] = (0, 1, 0, 1, 0, 1, 3)
 STORY_ENEMIES['worm']['move_order'] = (0, 1, 2)
 STORY_ENEMIES['desert_centipede']['move_order'] = (0, 1, 2)
@@ -4201,10 +4201,46 @@ _MOVE_EFFECT('mechanical_rat', 0, 0, 'lunatic_amount', 20)
 _MOVE_EFFECT('mechanical_rat', 1, 0, 'amount', 22)
 _MOVE_EFFECT('mechanical_rat', 1, 0, 'lunatic_amount', 26)
 
+# Workbook 12 sync (2026-10-22 沙漠怪物数据更新):
+# 蝉 扬尘 5D/6D；冲撞 7D/8D 且力量 1/1。
+_MOVE_EFFECT('cicada', 0, 0, 'amount', 5)
+_MOVE_EFFECT('cicada', 0, 0, 'lunatic_amount', 6)
+_MOVE_EFFECT('cicada', 1, 0, 'amount', 7)
+_MOVE_EFFECT('cicada', 1, 0, 'lunatic_amount', 8)
+_MOVE_EFFECT('cicada', 1, 1, 'amount', 1)
+_MOVE_EFFECT('cicada', 1, 1, 'lunatic_amount', 1)
+# 砂岩 滚动 6D/7D；粉碎 13D/15D。
+_MOVE_EFFECT('sandstone', 0, 0, 'amount', 6)
+_MOVE_EFFECT('sandstone', 0, 0, 'lunatic_amount', 7)
+_MOVE_EFFECT('sandstone', 1, 0, 'amount', 13)
+_MOVE_EFFECT('sandstone', 1, 0, 'lunatic_amount', 15)
+# 蝎子 蛰针 4D/5D，中毒 5/6。
+_MOVE_EFFECT('scorpion', 1, 0, 'amount', 4)
+_MOVE_EFFECT('scorpion', 1, 0, 'lunatic_amount', 5)
+_MOVE_EFFECT('scorpion', 1, 1, 'amount', 5)
+_MOVE_EFFECT('scorpion', 1, 1, 'lunatic_amount', 6)
+# 雨蛙 集沙 11D/13D 且坚固 2/2；蓄力 3/4；冲刺 23D/26D。
+_MOVE_EFFECT('rain_frog', 0, 0, 'amount', 11)
+_MOVE_EFFECT('rain_frog', 0, 0, 'lunatic_amount', 13)
+_MOVE_EFFECT('rain_frog', 0, 1, 'amount', 2)
+_MOVE_EFFECT('rain_frog', 0, 1, 'lunatic_amount', 2)
+_MOVE_EFFECT('rain_frog', 1, 0, 'amount', 3)
+_MOVE_EFFECT('rain_frog', 1, 0, 'lunatic_amount', 4)
+_MOVE_EFFECT('rain_frog', 2, 0, 'amount', 23)
+_MOVE_EFFECT('rain_frog', 2, 0, 'lunatic_amount', 26)
+# 化石 沉睡蓄力 4/5。
+_MOVE_EFFECT('fossil', 0, 0, 'amount', 4)
+_MOVE_EFFECT('fossil', 0, 0, 'lunatic_amount', 5)
+# 闪亮瓢虫 狂怒 14D/15D。
+_MOVE_EFFECT('shiny_ladybug', 2, 0, 'amount', 14)
+_MOVE_EFFECT('shiny_ladybug', 2, 0, 'lunatic_amount', 15)
+
 _HEALTH = {
-    'sandstone': (23, 26),
-    'fossil': (65, 74),
-    'shiny_ladybug': (98, 104),
+    'sandstone': (17, 20),
+    'fossil': (45, 51),
+    'shiny_ladybug': (78, 84),
+    'worm': (187, 196),
+    'desert_centipede': (43, 49),
     'jungle_firefly': (65, 74),
     'jungle_wasp': (39, 43),
     'jungle_fly': (41, 46),
