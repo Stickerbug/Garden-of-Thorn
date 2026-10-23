@@ -3698,7 +3698,7 @@ STORY_ENEMIES = {
         _move('呵护', 'Care', _effect('allies_heal', 13)),
         _move('保护', 'Protect', _effect('damage', 8), _effect('player_status', 1, status='weak')),
     )),
-    'garden_rock': _enemy('岩石', 'Rock', 48, (
+    'garden_rock': _enemy('岩石', 'Rock', 52, (
         _move('滚动', 'Roll', _effect('gain_status', 1, status='rockfall'), _effect('player_status', 1, status='weak')),
         _move('坚固', 'Solid', _effect('allies_shield', 8)),
     ), script='garden_rock'),
@@ -3706,7 +3706,7 @@ STORY_ENEMIES = {
         _move('种子', 'Seed', _effect('damage', 1, hits=3), _effect('player_status', 1, status='vulnerable')),
         _move('喷发', 'Erupt', _effect('damage', 8), _effect('gain_power', 2), _effect('player_status', 1, status='fragile')),
     )),
-    'centipede': _enemy('蜈蚣体节', 'Centipede Segment', 52, (
+    'centipede': _enemy('蜈蚣体节', 'Centipede Segment', 41, (
         _move('扭动', 'Twist', _effect('damage', 2, hits=3)),
         _move('冲击', 'Impact', _effect('damage', 8)),
         _move('防护', 'Protect', _effect('adjacent_shield', 10), _effect('player_status', 1, status='fragile')),
@@ -3756,9 +3756,9 @@ _GARDEN_LUNATIC_HEALTH = {
     'bee': 43,
     'wasp': 35,
     'ladybug': 47,
-    'garden_rock': 54,
+    'garden_rock': 59,
     'dandelion': 36,
-    'centipede': 59,
+    'centipede': 48,
     'spider': 53,
     'sunflower': 44,
     'avocado': 85,
