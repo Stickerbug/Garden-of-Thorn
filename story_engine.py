@@ -11987,6 +11987,152 @@ def _resolve_new_event_12(state, event_id, option_id, payload, seed, events):
             'source': event_id,
         })
         return
+    if event_id == 'crusher_machine' and option_id == 'decompose_self':
+        # 2026-10-24：删除的3张牌由玩家自选（事件文本无「随机」），
+        # 沿用图书馆两段式：先结算失去30%最大生命值，再逐张自选删除。
+        room = state.get('room') or {}
+        before_max = int(player.get('max_health') or 1)
+        loss = max(1, math.ceil(before_max * 0.3))
+        player['max_health'] = max(1, before_max - loss)
+        player['health'] = min(int(player.get('health') or 0), player['max_health'])
+        removable = [
+            card for card in player.get('deck', [])
+            if not _card_has_tag(card, 'eternal')
+        ]
+        if not removable:
+            _fail('NO_REMOVABLE_CARDS', '牌组中没有可以删除的牌')
+        remaining = min(3, len(removable))
+        room['crusher_remaining'] = remaining
+        room['choices'] = [{
+            'id': 'crusher_remove_card',
+            'label': {'zh': '删除一张牌', 'en': 'Remove a Card'},
+            'selection': 'remove',
+        }]
+        room['options'] = room['choices']
+        room['keep_open'] = True
+        _record_event_progress(room, option_id, {
+            'zh': f'失去{loss}点最大生命值。选择要删除的牌（还需{remaining}张）。',
+            'en': f'Lost {loss} maximum H. Choose cards to remove ({remaining} more).',
+        })
+        return
+    if event_id == 'crusher_machine' and option_id == 'crusher_remove_card':
+        room = state.get('room') or {}
+        remaining = max(0, int(room.get('crusher_remaining') or 0))
+        if remaining <= 0:
+            _fail('INVALID_CRUSHER_STAGE', '裂解机已停止运转')
+        card = _deck_card(player, payload)
+        _ensure_card_removable(card)
+        player['deck'].remove(card)
+        events.append({
+            'type': 'card_removed',
+            'card_instance_id': card['instance_id'],
+            'def_id': card['def_id'],
+            'source': event_id,
+        })
+        remaining -= 1
+        if remaining > 0 and any(
+            not _card_has_tag(item, 'eternal') for item in player.get('deck', [])
+        ):
+            room['crusher_remaining'] = remaining
+            room['keep_open'] = True
+            _record_event_progress(room, option_id, {
+                'zh': f'还需选择{remaining}张要删除的牌。',
+                'en': f'Choose {remaining} more card(s) to remove.',
+            })
+        else:
+            room.pop('crusher_remaining', None)
+        return
+    if event_id == 'enchanter' and option_id == 'enchant':
+        # 2026-10-24：升级的牌由玩家自选（每失去一本附魔书升级一张，无「随机」）。
+        room = state.get('room') or {}
+        books = list(player.get('enchantment_books') or [])
+        if not books:
+            _fail('NO_ENCHANTMENT_BOOK', '当前没有任何附魔书可以失去')
+        for book in books:
+            _remove_enchantment_book(state, book['instance_id'], events, reason=event_id)
+        remaining = len(books)
+        room['enchanter_remaining'] = remaining
+        room['choices'] = [{
+            'id': 'enchanter_upgrade_card',
+            'label': {'zh': '升级一张牌', 'en': 'Upgrade a Card'},
+            'selection': 'upgrade',
+        }]
+        room['options'] = room['choices']
+        room['keep_open'] = True
+        _record_event_progress(room, option_id, {
+            'zh': f'失去了{remaining}本附魔书。选择要升级的牌（还需{remaining}张）。',
+            'en': f'Lost {remaining} enchantment book(s). Choose cards to upgrade ({remaining} more).',
+        })
+        return
+    if event_id == 'enchanter' and option_id == 'enchanter_upgrade_card':
+        room = state.get('room') or {}
+        remaining = max(0, int(room.get('enchanter_remaining') or 0))
+        if remaining <= 0:
+            _fail('INVALID_ENCHANTER_STAGE', '附魔师已没有剩余的强化次数')
+        card = _deck_card(player, payload)
+        if not _card_is_upgradable(card):
+            _fail('CARD_NOT_UPGRADABLE', '请选择一张可升级的牌')
+        _upgrade_cards(state, [card], seed, events, event_id)
+        remaining -= 1
+        if remaining > 0 and any(
+            _card_is_upgradable(item) for item in player.get('deck', [])
+        ):
+            room['enchanter_remaining'] = remaining
+            room['keep_open'] = True
+            _record_event_progress(room, option_id, {
+                'zh': f'还需选择{remaining}张要升级的牌。',
+                'en': f'Choose {remaining} more card(s) to upgrade.',
+            })
+        else:
+            room.pop('enchanter_remaining', None)
+        return
+    if event_id == 'herald' and option_id == 'resist':
+        # 2026-10-24：变化的2张牌由玩家自选（无「随机」）；完成后才获得疲倦。
+        room = state.get('room') or {}
+        candidates = [
+            card for card in player.get('deck', [])
+            if not _card_has_tag(card, 'eternal')
+        ]
+        if not candidates:
+            _fail('NO_TRANSFORM_CARD', '当前没有可变化为的牌')
+        remaining = min(2, len(candidates))
+        room['herald_remaining'] = remaining
+        room['choices'] = [{
+            'id': 'herald_transform_card',
+            'label': {'zh': '变化一张牌', 'en': 'Transform a Card'},
+            'selection': 'transform',
+            'candidate_ids': [card['instance_id'] for card in candidates],
+        }]
+        room['options'] = room['choices']
+        room['keep_open'] = True
+        _record_event_progress(room, option_id, {
+            'zh': f'选择要变化的牌（还需{remaining}张），完成后获得1张[[card:fatigued]]。',
+            'en': f'Choose cards to transform ({remaining} more); gain 1 [[card:fatigued]] afterwards.',
+        })
+        return
+    if event_id == 'herald' and option_id == 'herald_transform_card':
+        room = state.get('room') or {}
+        remaining = max(0, int(room.get('herald_remaining') or 0))
+        if remaining <= 0:
+            _fail('INVALID_HERALD_STAGE', '传令官的视线已经移开')
+        card = _deck_card(player, payload)
+        if _card_has_tag(card, 'eternal'):
+            _fail('ETERNAL_CARD_LOCKED', '永恒牌无法变化')
+        _transform_card_same_type(state, card, seed, events, event_id)
+        remaining -= 1
+        if remaining > 0 and any(
+            not _card_has_tag(item, 'eternal') for item in player.get('deck', [])
+        ):
+            room['herald_remaining'] = remaining
+            room['keep_open'] = True
+            _record_event_progress(room, option_id, {
+                'zh': f'还需选择{remaining}张要变化的牌。',
+                'en': f'Choose {remaining} more card(s) to transform.',
+            })
+        else:
+            room.pop('herald_remaining', None)
+            _gain_deck_card(state, 'fatigued', events, source=event_id)
+        return
     rng = _rng(state, seed, f'event12:{event_id}:{option_id}')
     if hint == 'copy_card_many':
         if payload.get('card_instance_id'):
@@ -12004,12 +12150,6 @@ def _resolve_new_event_12(state, event_id, option_id, payload, seed, events):
         _gain_deck_card(state, 'rose', events, source=event_id)
         _gain_deck_card(state, 'basic', events, source=event_id)
         _gain_deck_card(state, 'basic', events, source=event_id)
-    elif hint == 'lose_max_health_percent_and_remove':
-        before_max = int(player.get('max_health') or 1)
-        loss = max(1, math.ceil(before_max * 0.3))
-        player['max_health'] = max(1, before_max - loss)
-        player['health'] = min(int(player.get('health') or 0), player['max_health'])
-        _remove_random_deck_cards(state, 3, events, source=event_id, rng=rng)
     elif hint == 'gain_enchantment_books':
         amount = 2 if event_id == 'library' else 1
         for _ in range(amount):
@@ -12048,11 +12188,6 @@ def _resolve_new_event_12(state, event_id, option_id, payload, seed, events):
             'def_id': card['def_id'],
             'source': event_id,
         })
-    elif hint == 'books_to_upgrades':
-        count = len(player.get('enchantment_books') or [])
-        for book in list(player.get('enchantment_books') or []):
-            _remove_enchantment_book(state, book['instance_id'], events, reason=event_id)
-        _upgrade_random_cards(state, max(1, count), seed, events, event_id)
     elif hint == 'midas_touch':
         room = state.get('room') or {}
         touches = max(0, int(room.get('midas_touches') or 0))
@@ -12086,11 +12221,6 @@ def _resolve_new_event_12(state, event_id, option_id, payload, seed, events):
             if _card_has_tag(card, 'eternal'):
                 continue
             _transform_card_same_type(state, card, seed, events, event_id)
-    elif hint == 'transform_two_and_fatigued':
-        candidates = [card for card in player.get('deck', []) if not _card_has_tag(card, 'eternal')]
-        for card in rng.sample(candidates, min(2, len(candidates))):
-            _transform_card_same_type(state, card, seed, events, event_id)
-        _gain_deck_card(state, 'fatigued', events, source=event_id)
     elif hint == 'anvil_upgrade':
         card = _deck_card(player, payload)
         if not _card_is_upgradable(card):
