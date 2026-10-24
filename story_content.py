@@ -3529,7 +3529,7 @@ STORY_RELICS = {
     'opening_lightning': _relic('开幕雷击', 'Opening Lightning', '战斗开始时对所有生物造成9D。', rarity='rare', script='opening_damage', amount=9),
     'solid_barrier': _relic('坚固壁垒', 'Solid Barrier', '本场战斗第一次受伤时回复2E。', rarity='rare', script='first_hit_elixir', amount=2),
     'sharpen': _relic('磨刀', 'Sharpen', '获得时升级2张牌。', rarity='rare', script='gain_upgrade', amount=2),
-    'blade': _relic('利刃', 'Blade', '本场战斗第一次造成伤害后，对目标施加1层易伤。', rarity='rare', script='first_attack_vulnerable', amount=1),
+    'blade': _relic('利刃', 'Blade', '本场战斗第一次命中敌人后，对目标施加1层易伤。', rarity='rare', script='first_attack_vulnerable', amount=1),
     'steady': _relic('稳扎稳打', 'Steady', '所有基础牌的数值+2。', rarity='rare', script='primary_bonus', amount=2),
     'rich': _relic(
         '富裕',

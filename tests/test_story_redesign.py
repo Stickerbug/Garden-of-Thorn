@@ -1444,3 +1444,63 @@ def test_every_story_card_has_a_real_localized_name():
     assert STORY_CARDS['mage_honey_shield']['name']['en'] == 'Magic Honey'
     assert STORY_CARDS['capacitor']['name']['en'] == 'Capacitor'
     assert STORY_CARDS['electronic_missile']['name']['en'] == 'Electron Missile'
+
+
+def test_blade_triggers_on_first_hit_even_when_fully_blocked():
+    """利刃（2026-10-24 改版）：第一次「命中」敌人即施加1层易伤。
+
+    ——攻击段未被闪避就算命中（伤害被护盾完全挡下同样触发）；
+    毒等非攻击伤害与被闪避的攻击段都不再触发。
+    """
+    # 1) 攻击命中但被护盾完全挡下：仍然触发。
+    state = _started_state('blade-blocked')
+    _gain_relic(state, 'blade', 'blade-blocked', [])
+    _start_combat(
+        state,
+        {'type': 'combat'},
+        'blade-blocked',
+        [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    enemy = combat['enemies'][0]
+    enemy['shield'] = 99
+    events = []
+    dealt = _enemy_physical_damage(state, enemy, 5, 1, events, 'test')
+    assert dealt == 0
+    assert combat['blade_used'] is True
+    assert int(enemy.get('vulnerable') or 0) == 1
+
+    # 2) 非攻击伤害（例如毒）不再触发利刃。
+    state2 = _started_state('blade-poison')
+    _gain_relic(state2, 'blade', 'blade-poison', [])
+    _start_combat(
+        state2,
+        {'type': 'combat'},
+        'blade-poison',
+        [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat2 = state2['combat']
+    enemy2 = combat2['enemies'][0]
+    events2 = []
+    _enemy_raw_damage(state2, enemy2, 5, events2, 'poison', player_caused=True)
+    assert not combat2.get('blade_used')
+    assert not enemy2.get('vulnerable')
+
+    # 3) 被闪避的攻击段不算命中。
+    state3 = _started_state('blade-evaded')
+    _gain_relic(state3, 'blade', 'blade-evaded', [])
+    _start_combat(
+        state3,
+        {'type': 'combat'},
+        'blade-evaded',
+        [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    enemy3 = state3['combat']['enemies'][0]
+    enemy3['evade'] = 3
+    events3 = []
+    _enemy_physical_damage(state3, enemy3, 5, 1, events3, 'test')
+    assert not state3['combat'].get('blade_used')
+    assert not enemy3.get('vulnerable')

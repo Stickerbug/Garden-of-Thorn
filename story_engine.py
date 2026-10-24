@@ -1256,9 +1256,14 @@ def _stacked_percentage_reduction(value, percent, count):
     return value * (remaining ** count) // (100 ** count)
 
 
-def _trigger_blade(state, enemy, dealt, events):
+def _trigger_blade(state, enemy, events):
+    """利刃（2026-10-24 改版）：本场战斗第一次命中敌人后施加1层易伤。
+
+    「命中」＝攻击段未被闪避——伤害被护盾/无敌完全挡下、甚至0伤攻击
+    也算命中；毒、烧、反伤、开局闪电等非攻击伤害不再触发。
+    """
     combat = state.get('combat') or {}
-    if dealt <= 0 or not enemy or combat.get('blade_used') or not _has_relic(state, 'blade'):
+    if not enemy or combat.get('blade_used') or not _has_relic(state, 'blade'):
         return
     combat['blade_used'] = True
     _apply_status(
@@ -2816,16 +2821,12 @@ def _enemy_raw_damage(
     if int(enemy.get('health') or 0) <= 0:
         if not propagate:
             _propagate_centipede_linked(state, enemy, dealt, events)
-        if player_caused and not propagate:
-            _trigger_blade(state, enemy, dealt, events)
         return dealt
     _after_enemy_health_damage(state, enemy, dealt, events)
     if dealt and STORY_ENEMIES[enemy['def_id']].get('script') == 'swell':
         enemy['temporary_power'] = int(enemy.get('temporary_power') or 0) + 1
     if not propagate:
         _propagate_centipede_linked(state, enemy, dealt, events)
-    if player_caused and not propagate:
-        _trigger_blade(state, enemy, dealt, events)
     return dealt
 
 
@@ -3294,7 +3295,7 @@ def _enemy_physical_damage(
         _trigger_enemy_attack_reactions(state, enemy, amount, events, source)
         _propagate_centipede_linked(state, enemy, dealt, events)
     if resolved_hit:
-        _trigger_blade(state, enemy, total, events)
+        _trigger_blade(state, enemy, events)
     if not resolved_hit:
         return total
     if int(enemy.get('health') or 0) <= 0:

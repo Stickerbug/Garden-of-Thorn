@@ -738,7 +738,8 @@ def test_updated_story_relic_and_garden_enemy_balance():
     assert STORY_ENEMIES['worker_ant']['max_health'] == 32
     assert STORY_ENEMIES['wasp']['moves'][0]['effects'][0]['amount'] == 6
     assert STORY_ENEMIES['wasp']['moves'][0]['effects'][0]['lunatic_amount'] == 8
-    assert STORY_ENEMIES['centipede']['max_health'] == 52
+    # Workbook 同步（2026-10-23）：蜈蚣体节 HP 52 -> 41。
+    assert STORY_ENEMIES['centipede']['max_health'] == 41
     assert STORY_ENEMIES['avocado']['moves'][0]['name']['en'] == 'Expand'
     assert STORY_ENEMIES['avocado']['moves'][0]['effects'][1]['amount'] == 2
     assert STORY_ENEMIES['spider_yoba']['moves'][1]['effects'][0]['amount'] == 13
