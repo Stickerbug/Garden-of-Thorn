@@ -98,3 +98,25 @@ class StoryMusicPolicyTests(unittest.TestCase):
 
     def test_leaving_story_resets_pool(self):
         self.assertIn("stopStoryMusic({ reset: true });", self.source)
+
+
+class StoryOrbitMirrorTests(unittest.TestCase):
+    """轨道使（2026-10-24）：触发点镜像到右侧 + 恒顺时针旋转。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (ROOT / "static" / "js" / "story.js").read_text(encoding="utf-8")
+
+    def test_trigger_angle_is_right_side(self):
+        # CSS rotate(90deg)+translateY(-r) 落在中心右侧（旧值 -90 为左侧）
+        self.assertIn("const STORY_ORBIT_TRIGGER_ANGLE = 90;", self.source)
+        self.assertNotIn("const STORY_ORBIT_TRIGGER_ANGLE = -90;", self.source)
+
+    def test_rotation_is_always_clockwise(self):
+        # 旧算法取最短路径（可能逆时针）；新算法恒为 [0,360) 正向增量
+        # （敌方机械轨道 animateStoryMechanicalTrackActivation 保留最短路径，不在范围）
+        orbit_start = self.source.index("const STORY_ORBIT_TRIGGER_ANGLE")
+        orbit_end = self.source.index("function settleStoryOrbitTrigger")
+        orbit_block = self.source[orbit_start:orbit_end]
+        self.assertIn("delta = ((delta % 360) + 360) % 360;", orbit_block)
+        self.assertNotIn("((delta + 540) % 360) - 180", orbit_block)

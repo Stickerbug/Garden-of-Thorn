@@ -13081,8 +13081,9 @@
 
     // ------------------------------------------------ 轨道/召唤（表15）
     // 机械花式步进轨道：轮盘不连续公转；每次旋转由事件驱动——轮盘转到
-    // 触发点（正上方 -90°）→ 扣耐久 → 效果结算 →（归零）消散 → 下一位置。
-    const STORY_ORBIT_TRIGGER_ANGLE = -90;
+    // 触发点（2026-10-24 镜像反转：右侧 +90°，原左侧）→ 扣耐久 → 效果
+    // 结算 →（归零）消散 → 下一位置。
+    const STORY_ORBIT_TRIGGER_ANGLE = 90;
     const storyOrbitMotions = new Map();
 
     function storyOrbitMotion() {
@@ -13284,8 +13285,10 @@
         if (index < 0) return;
         const cardAngle = 360 / Math.max(1, items.length) * index;
         const absoluteAngle = cardAngle + Number(motion.angle || 0);
+        // 2026-10-24：恒顺时针旋转（CSS 正角=顺时针）——不再取最短路径
+        // （旧算法可能逆时针转），始终正向转到触发点。
         let delta = STORY_ORBIT_TRIGGER_ANGLE - absoluteAngle;
-        delta = ((delta + 540) % 360) - 180;
+        delta = ((delta % 360) + 360) % 360;
         const targetAngle = Number(motion.angle || 0) + delta;
         // 演出速度档位（2/3/5×）等比缩短步进旋转时长。
         const duration = storyMotionDuration(Math.max(300, Math.min(620, 280 + Math.abs(delta) * 1.7)));
