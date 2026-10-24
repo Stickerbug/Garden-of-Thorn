@@ -24,3 +24,46 @@ class ReplayVideoExportBridgeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReplaySubjectiveViewTests(unittest.TestCase):
+    """回放主观/旁观视角（2026-10-24）：还原对局可见度。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (ROOT / "static" / "js" / "game.js").read_text(encoding="utf-8")
+
+    def test_subjective_visibility_transform_exists(self):
+        self.assertIn("function applyReplaySubjectiveVisibility", self.source)
+        self.assertIn("function replaySubjectiveHiddenEnemyView", self.source)
+        self.assertIn("function replaySubjectiveTeammateView", self.source)
+        self.assertIn("function replayFrameOpensEnemyHandWindow", self.source)
+
+    def test_subjective_mode_wires_into_frame_rendering(self):
+        self.assertIn("let accountReplayViewMode = 'spectate';", self.source)
+        self.assertIn("accountReplayViewMode === 'subjective'", self.source)
+        self.assertIn("applyReplaySubjectiveVisibility(replayState, frame);", self.source)
+        self.assertIn("isSpectating = !videoPlayerView && !subjectiveView;", self.source)
+
+    def test_viewmode_toggle_is_rendered_and_clickable(self):
+        self.assertIn("function renderReplayViewModeButtons", self.source)
+        self.assertIn('data-account-replay-viewmode="${mode.id}"', self.source)
+        self.assertIn("accountReplayViewMode = viewMode.dataset.accountReplayViewmode", self.source)
+
+    def test_enemy_hiding_preserves_counts_and_revealed_cards(self):
+        # 敌方手牌清空但保留 hand_count；revealed 旗帜牌进入 revealed_tag_cards
+        self.assertIn("hidden.hand = [];", self.source)
+        self.assertIn("hidden.hand_count = Number(player.hand_count", self.source)
+        self.assertIn("flags.includes('revealed')", self.source)
+        self.assertIn("hidden.revealed_tag_cards = revealed;", self.source)
+
+    def test_teammate_blind_and_deck_order_rules_match_live_game(self):
+        # 2v2：自己失明时队友手牌显示问号（设计9.22），队友牌堆乱序
+        self.assertIn("__blind_for_teammate: true", self.source)
+        self.assertIn("deck_order_hidden = true", self.source)
+
+    def test_reveal_window_restoration_predicates(self):
+        # 从敌方手牌选牌（磁铁/重构机）：resolve 帧 target_instance_id 或
+        # choose_from_enemy_hand 窗口帧 → 该帧还原敌方手牌
+        self.assertIn("choice.target_instance_id != null", self.source)
+        self.assertIn("'choose_from_enemy_hand'", self.source)

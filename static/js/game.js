@@ -2128,6 +2128,9 @@ Object.assign(I18N.en, {
     replay_pause: 'Pause', replay_next: 'Next', replay_instant: 'Instant',
     replay_winner: 'Winner: {0}', replay_round: 'Round {0}', replay_frame_empty: 'No timeline data.',
     replay_loading_progress: 'Loaded {0}/{1} frames', replay_prepare: 'Preparing replay...',
+    replay_view_spectate: 'Spectator', replay_view_subjective: 'Player view',
+    replay_view_spectate_hint: 'Omniscient: every hand is visible',
+    replay_view_subjective_hint: 'Recreate in-match visibility: enemy hands hidden, blind respected',
 });
 Object.assign(I18N.zh, {
     account_replays: '最近回放', replay_viewer: '回放查看器', replay_view: '查看',
@@ -2141,6 +2144,9 @@ Object.assign(I18N.zh, {
     replay_pause: '暂停', replay_next: '下一步', replay_instant: '立即',
     replay_winner: '胜者：{0}', replay_round: '第{0}回合', replay_frame_empty: '暂无时间线数据。',
     replay_loading_progress: '已加载 {0}/{1} 帧', replay_prepare: '正在准备回放...',
+    replay_view_spectate: '旁观', replay_view_subjective: '主观',
+    replay_view_spectate_hint: '全知视角：所有手牌可见',
+    replay_view_subjective_hint: '还原对局可见度：敌方手牌隐藏、失明生效',
 });
 Object.assign(I18N.fr, {
     account_replays: 'Replays récents', replay_viewer: 'Lecteur de replay', replay_view: 'Voir',
@@ -2154,6 +2160,9 @@ Object.assign(I18N.fr, {
     replay_pause: 'Pause', replay_next: 'Suiv.', replay_instant: 'Instant',
     replay_winner: 'Vainqueur : {0}', replay_round: 'Tour {0}', replay_frame_empty: 'Aucune timeline.',
     replay_loading_progress: '{0}/{1} frames chargées', replay_prepare: 'Préparation du replay...',
+    replay_view_spectate: 'Spectateur', replay_view_subjective: 'Vue joueur',
+    replay_view_spectate_hint: 'Vue omnisciente : toutes les mains sont visibles',
+    replay_view_subjective_hint: 'Restaure la visibilité du match : mains adverses cachées, cécité respectée',
 });
 Object.assign(I18N.ja, {
     account_replays: '最近のリプレイ', replay_viewer: 'リプレイビューア', replay_view: '表示',
@@ -2167,6 +2176,9 @@ Object.assign(I18N.ja, {
     replay_pause: '一時停止', replay_next: '次へ', replay_instant: '即時',
     replay_winner: '勝者: {0}', replay_round: 'ラウンド {0}', replay_frame_empty: 'タイムラインなし。',
     replay_loading_progress: '{0}/{1}フレーム読込済み', replay_prepare: 'リプレイ準備中...',
+    replay_view_spectate: '観戦', replay_view_subjective: '主観',
+    replay_view_spectate_hint: '全知視点：すべての手札が見える',
+    replay_view_subjective_hint: '対戦中の視界を再現：敵の手札は非表示、失明も再現',
 });
 Object.assign(I18N.en, { chief_designer_prefix: 'Chief Designer' });
 Object.assign(I18N.zh, { admin_prefix: '\u7ba1\u7406\u5458', login_admin_reserved: '\u6b64\u6635\u79f0\u88ab\u7ba1\u7406\u5458\u5360\u7528' });
@@ -5740,6 +5752,7 @@ let accountReplaySpeed = 1;
 let accountReplayTimer = null;
 let accountReplayData = null;
 let accountReplayPerspective = 0;
+let accountReplayViewMode = 'spectate'; // 'spectate'（旁观全知） | 'subjective'（主观还原可见度）
 let accountReplayReturnContext = null;
 let accountReplayTotalFrames = 0;
 let accountReplayLoading = false;
@@ -21420,6 +21433,97 @@ function specialPublicReplayFields(player) {
     };
 }
 
+function replayFrameOpensEnemyHandWindow(frame, seat) {
+    // 「从敌方区域选牌」的揭示窗口（磁铁/重构机/夺取等）：
+    // - resolve/结算帧：choice 带目标手牌实例（target_instance_id）且目标是该敌方；
+    // - play_card 帧：结果停在 choose_from_enemy_hand 窗口（引擎 5145 行同款条件）。
+    const payload = frame && typeof frame === 'object' ? frame.payload : null;
+    if (!payload || typeof payload !== 'object') return false;
+    const choice = payload.choice && typeof payload.choice === 'object' ? payload.choice : null;
+    if (choice) {
+        const targetId = normalizePlayerId(choice.target_player_id ?? choice.target_player);
+        if (targetId === seat && (
+            choice.target_instance_id != null
+            || (Array.isArray(choice.target_instance_ids) && choice.target_instance_ids.length)
+        )) {
+            return true;
+        }
+    }
+    const result = payload.result && typeof payload.result === 'object' ? payload.result : null;
+    if (result && String(result.choice_type || '') === 'choose_from_enemy_hand') {
+        const targetId = normalizePlayerId(choice ? (choice.target_player_id ?? choice.target_player) : payload.target_player_id);
+        if (targetId === seat) return true;
+    }
+    return false;
+}
+
+function replaySubjectiveHiddenEnemyView(player, frame, seat) {
+    // 对局中敌方的真实可见度：只有各区数量；带「揭示」标记（revealed 旗帜）的
+    // 手牌仍然可见；该帧处于"从其区域选牌"窗口时完整还原（磁铁等）。
+    const hidden = { ...player };
+    const fullHand = Array.isArray(player.hand) ? player.hand : [];
+    hidden.hand_count = Number(player.hand_count != null ? player.hand_count : fullHand.length);
+    hidden.deck_count = Number(player.deck_count != null ? player.deck_count : (Array.isArray(player.deck) ? player.deck.length : 0));
+    hidden.discard_count = Number(player.discard_count != null ? player.discard_count : (Array.isArray(player.discard) ? player.discard.length : 0));
+    hidden.exile_count = Number(player.exile_count != null ? player.exile_count : (Array.isArray(player.exile) ? player.exile.length : 0));
+    hidden.hand = [];
+    hidden.deck = [];
+    hidden.discard = [];
+    hidden.exile = [];
+    delete hidden.deck_ordered;
+    delete hidden.discard_ordered;
+    const revealed = fullHand.filter(card => {
+        const flags = Array.isArray(card && card.flags) ? card.flags : [];
+        return flags.includes('revealed') && !isReplayExportSublimeCard(card);
+    });
+    if (revealed.length) hidden.revealed_tag_cards = revealed;
+    else delete hidden.revealed_tag_cards;
+    if (replayFrameOpensEnemyHandWindow(frame, seat)) {
+        hidden.hand = fullHand.slice();
+    }
+    return hidden;
+}
+
+function replaySubjectiveTeammateView(player, viewerBlind) {
+    // 2v2（设计 9.22）：队友手牌/牌堆/弃牌/放逐互相可见——牌堆乱序下发；
+    // 自己失明任意层时队友手牌只显示问号（连牌型也不可见）。
+    const view = { ...player };
+    if (Array.isArray(view.deck) && view.deck.length) {
+        view.deck = view.deck.slice().sort((a, b) =>
+            String((a || {}).def_id || '').localeCompare(String((b || {}).def_id || '')));
+        view.deck_order_hidden = true;
+    }
+    const fullHand = Array.isArray(view.hand) ? view.hand : [];
+    if (Number(viewerBlind) > 0) {
+        view.hand = fullHand.map(() => ({
+            card_type: '',
+            __blind_for_teammate: true,
+            __blind_level: Math.max(1, Math.floor(Number(viewerBlind))),
+        }));
+        view.hand_hidden_by_blind = true;
+    }
+    view.hand_count = Number(player.hand_count != null ? player.hand_count : fullHand.length);
+    return view;
+}
+
+function applyReplaySubjectiveVisibility(state, frame) {
+    if (!state || typeof state !== 'object') return;
+    const youId = normalizePlayerId(state.your_id ?? state.spectate_perspective) ?? 0;
+    const players = Array.isArray(state.spectate_players) ? state.spectate_players : [];
+    if (!players.length) return;
+    const me = players[youId] || {};
+    const viewerBlind = Math.max(0, Number(me.blind) || 0);
+    const teammateId = state.mode === '2v2' ? normalizePlayerId(state.teammate_id) : null;
+    players.forEach((player, seat) => {
+        if (seat === youId || !player || typeof player !== 'object') return;
+        const patched = seat === teammateId
+            ? replaySubjectiveTeammateView(player, viewerBlind)
+            : replaySubjectiveHiddenEnemyView(player, frame, seat);
+        Object.keys(player).forEach(key => delete player[key]);
+        Object.assign(player, patched);
+    });
+}
+
 function replayTimeText(ms) {
     const total = Math.max(0, Math.floor(Number(ms || 0) / 1000));
     const minutes = Math.floor(total / 60);
@@ -21573,6 +21677,7 @@ function ensureAccountReplayPlaybackBar() {
                 <button class="mini-btn replay-speed-btn" type="button" data-account-replay-live-speed="instant">»</button>
                 <button class="mini-btn replay-icon-btn" type="button" data-account-replay-live-control="next" title="下一步">›</button>
             </div>
+            <div id="account-replay-viewmodes" class="account-replay-perspectives account-replay-viewmodes"></div>
             <div id="account-replay-live-perspectives" class="account-replay-live-perspectives"></div>
             <input id="account-replay-live-progress" class="account-replay-progress" type="range" min="0" max="0" value="0">
             <div id="account-replay-load-progress" class="account-replay-load-progress hidden">
@@ -21609,6 +21714,14 @@ function ensureAccountReplayPlaybackBar() {
             stopAccountReplayPlayback();
             accountReplayPerspective = Number(perspective.dataset.accountReplayPerspective) || 0;
             renderAccountReplayFrame();
+            return;
+        }
+        const viewMode = event.target.closest('[data-account-replay-viewmode]');
+        if (viewMode) {
+            stopAccountReplayPlayback();
+            accountReplayViewMode = viewMode.dataset.accountReplayViewmode === 'subjective' ? 'subjective' : 'spectate';
+            renderAccountReplayPlaybackBar();
+            renderAccountReplayFrame();
         }
     });
     const liveProgress = bar.querySelector('#account-replay-live-progress');
@@ -21620,6 +21733,19 @@ function ensureAccountReplayPlaybackBar() {
         });
     }
     return bar;
+}
+
+function renderReplayViewModeButtons(container) {
+    if (!container) return;
+    const modes = [
+        { id: 'spectate', label: UI.replay_view_spectate || '旁观', hint: UI.replay_view_spectate_hint || '' },
+        { id: 'subjective', label: UI.replay_view_subjective || '主观', hint: UI.replay_view_subjective_hint || '' },
+    ];
+    container.innerHTML = modes.map(mode => `
+        <button class="mini-btn account-replay-perspective-btn account-replay-viewmode-btn ${accountReplayViewMode === mode.id ? 'active' : ''}" type="button" data-account-replay-viewmode="${mode.id}" title="${escapeHtml(mode.hint)}">
+            ${escapeHtml(mode.label)}
+        </button>
+    `).join('');
 }
 
 function renderReplayPerspectiveButtons(container, snapshot) {
@@ -21680,6 +21806,7 @@ function renderAccountReplayPlaybackBar() {
     const toggleBtn = bar.querySelector('[data-account-replay-live-control="toggle"]');
     if (toggleBtn) toggleBtn.textContent = accountReplayControlsCollapsed ? '▾' : '▴';
     renderReplayPerspectiveButtons($('account-replay-live-perspectives'), snapshot);
+    renderReplayViewModeButtons($('account-replay-viewmodes'));
     bar.querySelectorAll('[data-account-replay-live-speed]').forEach(btn => {
         const value = btn.dataset.accountReplayLiveSpeed === 'instant' ? 'instant' : Number(btn.dataset.accountReplayLiveSpeed || 1);
         btn.classList.toggle('active', value === accountReplaySpeed);
@@ -21880,14 +22007,21 @@ function renderAccountReplayFrame() {
     try {
         const replayState = buildReplaySpectateState(frame, accountReplayPerspective);
         const videoPlayerView = isReplayVideoExportPlayerView();
+        // 主观视角（2026-10-24）：还原该座位在对局中的真实可见度——
+        // 敌方手牌/牌堆/弃牌/放逐只余数量（revealed 标记与揭示窗口除外），
+        // 自己的失明与 2v2 队友可见规则照常渲染。
+        const subjectiveView = !videoPlayerView && accountReplayViewMode === 'subjective';
         if (videoPlayerView) {
             applyReplayExportPlayerVisibility(replayState);
             replayState.spectating = false;
             replayState.replay_mode = false;
+        } else if (subjectiveView) {
+            applyReplaySubjectiveVisibility(replayState, frame);
+            replayState.spectating = false;
         }
         replayMode = true;
-        isSpectating = !videoPlayerView;
-        playerId = videoPlayerView ? accountReplayPerspective : -1;
+        isSpectating = !videoPlayerView && !subjectiveView;
+        playerId = (videoPlayerView || subjectiveView) ? accountReplayPerspective : -1;
         spectatePerspective = accountReplayPerspective;
         gameState = replayState;
         phase = replayState.phase || 'action';
