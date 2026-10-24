@@ -15372,6 +15372,10 @@
         }
     }
 
+    // 精英战曲（2026-10-24）：每次进入精英战都从头播放（场景曲才是暂停
+    // 续播）——打完精英回到场景音乐会续上之前的进度，再遇精英则重头起。
+    const STORY_MUSIC_RESTART_KEYS = new Set(['elite']);
+
     function playStoryMusicForKey(key) {
         const src = STORY_MUSIC_SOURCES[key];
         if (!src) return;
@@ -15390,6 +15394,12 @@
         }
         storyMusicCurrentKey = key;
         const entry = storyMusicEntry(key);
+        if (STORY_MUSIC_RESTART_KEYS.has(key)) {
+            try {
+                entry.audio.pause();
+                entry.audio.currentTime = 0;
+            } catch (err) { /* 忽略 */ }
+        }
         entry.audio.volume = Number.isFinite(entry.audio.volume) ? entry.audio.volume : 0;
         if (entry.audio.volume > 0.02) {
             // 已在播/已淡入过：直接续住，无需再淡入。

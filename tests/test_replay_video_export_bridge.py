@@ -120,3 +120,13 @@ class StoryOrbitMirrorTests(unittest.TestCase):
         orbit_block = self.source[orbit_start:orbit_end]
         self.assertIn("delta = ((delta % 360) + 360) % 360;", orbit_block)
         self.assertNotIn("((delta + 540) % 360) - 180", orbit_block)
+
+
+class StoryMusicEliteRestartTests(unittest.TestCase):
+    """精英战曲每次进入从头播放（2026-10-24）；场景曲保持暂停续播。"""
+
+    def test_elite_is_in_restart_set(self):
+        source = (ROOT / "static" / "js" / "story.js").read_text(encoding="utf-8")
+        self.assertIn("const STORY_MUSIC_RESTART_KEYS = new Set(['elite']);", source)
+        self.assertIn("STORY_MUSIC_RESTART_KEYS.has(key)", source)
+        self.assertIn("entry.audio.currentTime = 0;", source)
