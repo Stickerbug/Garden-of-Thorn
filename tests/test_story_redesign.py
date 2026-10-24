@@ -1614,3 +1614,30 @@ def test_active_discard_auto_discards_all_when_hand_insufficient_or_exact():
     combat = state['combat']
     assert not combat.get('pending_card_choice')
     assert extra['instance_id'] not in [card['instance_id'] for card in combat['hand']]
+
+
+def test_single_biome_stage_boss_goes_straight_to_next_map():
+    """2026-10-24：一/二层Boss完成+奖励选完后直接进入下一层地图，
+    不再经过 stage_choice 中转界面（二/三层各只有一个群系）。"""
+    from story_mode import generate_story_map
+    from story_engine import _complete_current_node, _prepare_boss_node_encounters
+
+    for from_stage, next_biome in ((1, 'jungle'), (2, 'factory')):
+        state = _started_state(f'stage-skip-{from_stage}')
+        state['map'] = generate_story_map(f'stage-skip-{from_stage}', from_stage, 'garden', 'normal')
+        _prepare_boss_node_encounters(state, f'stage-skip-{from_stage}')
+        floors = state['map']['floors']
+        node = floors[-1]['nodes'][0]
+        state['stage'] = from_stage
+        state['current_floor'] = len(floors)
+        state['current_node_id'] = node['id']
+        state['phase'] = 'room'
+        state['room'] = {'type': 'combat'}
+        events = []
+        _complete_current_node(state, events, f'stage-skip-{from_stage}')
+        assert state['phase'] == 'map', state['phase']
+        assert state['stage'] == from_stage + 1
+        assert state['biome'] == next_biome
+        assert not state.get('room')
+        assert any(event.get('type') == 'stage_started' for event in events)
+        assert state['map']['floors'][0]['nodes'][0]['id']

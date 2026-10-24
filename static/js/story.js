@@ -15242,11 +15242,62 @@
         'stage2-boss': '/static/audio/story/stage2-boss.mp3',
         'stage3-factory': '/static/audio/story/stage3-factory.mp3',
         'stage3-boss': '/static/audio/story/stage3-boss.mp3',
+        // 三层Boss后的神秘人物事件专属曲（童祭），离开该界面即停。
+        mysterious: '/static/audio/story/tongji.mp3',
     };
+    const STORY_MUSIC_FADE_IN_SECONDS = 5;
+    const STORY_MUSIC_FADE_OUT_SECONDS = 1;
 
-    let storyMusicAudio = null;
+    // 层内切曲改暂停/续播（2026-10-24）：每首曲子一个常驻 Audio，
+    // 切走时1s淡出后暂停、切回时从暂停处5s淡入续播，不再从头开始。
+    const storyMusicPool = new Map();
     let storyMusicCurrentKey = '';
     let storyMusicUnlocked = false;
+    let storyMusicLastRunId = '';
+
+    function storyMusicEntry(key) {
+        let entry = storyMusicPool.get(key);
+        if (!entry) {
+            const audio = new Audio(STORY_MUSIC_SOURCES[key]);
+            audio.loop = true;
+            audio.preload = 'auto';
+            entry = { audio, fadeTimer: null };
+            storyMusicPool.set(key, entry);
+        }
+        return entry;
+    }
+
+    function storyMusicClearFade(entry) {
+        if (entry && entry.fadeTimer) {
+            clearInterval(entry.fadeTimer);
+            entry.fadeTimer = null;
+        }
+    }
+
+    function storyMusicFadeTo(entry, targetVolume, seconds, onDone) {
+        if (!entry) return;
+        storyMusicClearFade(entry);
+        const audio = entry.audio;
+        const start = Number.isFinite(audio.volume) ? audio.volume : 0;
+        const target = Math.max(0, Math.min(1, Number(targetVolume) || 0));
+        if (seconds <= 0.05) {
+            audio.volume = target;
+            if (onDone) onDone();
+            return;
+        }
+        const steps = Math.max(2, Math.round(seconds * 20));
+        const delta = (target - start) / steps;
+        let progress = 0;
+        entry.fadeTimer = setInterval(() => {
+            progress += 1;
+            audio.volume = Math.max(0, Math.min(1, start + delta * progress));
+            if (progress >= steps) {
+                storyMusicClearFade(entry);
+                audio.volume = target;
+                if (onDone) onDone();
+            }
+        }, Math.round(seconds * 1000 / steps));
+    }
 
     function storyMusicEnabled() {
         try {
@@ -15267,6 +15318,13 @@
 
     function storyMusicKeyFor(state) {
         if (!state) return '';
+        const phase = String(state.phase || '');
+        // 终局界面（三层Boss后的结局/结算）：离开神秘人物事件后音乐结束。
+        if (['complete', 'game_over', 'terminal'].includes(phase)) return '';
+        // 初始赐福界面（进入游戏前）不放音乐——完成赐福进入地图后才开始。
+        if (phase === 'blessing') return '';
+        // 神秘人物事件：播放童祭而非三层背景音乐。
+        if (phase === 'room' && String(state?.room?.event_id || '') === 'mysterious_person') return 'mysterious';
         const stage = Math.max(1, Math.min(3, Number(state.stage) || 1));
         const node = currentNode(state);
         const inCombat = state.phase === 'combat';
@@ -15279,37 +15337,85 @@
         return `stage${stage}-${biome}`;
     }
 
-    function stopStoryMusic() {
-        storyMusicCurrentKey = '';
-        if (storyMusicAudio) {
+    function storyMusicResetPool() {
+        // 换局/离开故事：全部曲子回到开头，下一局从零播起。
+        storyMusicPool.forEach((entry) => {
+            storyMusicClearFade(entry);
             try {
-                storyMusicAudio.pause();
+                entry.audio.pause();
+                entry.audio.currentTime = 0;
+                entry.audio.volume = 0;
             } catch (err) { /* 忽略 */ }
+        });
+        storyMusicCurrentKey = '';
+    }
+
+    function stopStoryMusic(options = {}) {
+        const reset = Boolean(options.reset);
+        const currentKey = storyMusicCurrentKey;
+        storyMusicCurrentKey = '';
+        if (reset) {
+            storyMusicResetPool();
+            return;
+        }
+        if (currentKey) {
+            const entry = storyMusicPool.get(currentKey);
+            if (entry) {
+                // 1s 淡出后暂停（保留进度，供切回时续播）。
+                storyMusicFadeTo(entry, 0, STORY_MUSIC_FADE_OUT_SECONDS, () => {
+                    try { entry.audio.pause(); } catch (err) { /* 忽略 */ }
+                });
+            }
         }
     }
 
     function playStoryMusicForKey(key) {
         const src = STORY_MUSIC_SOURCES[key];
         if (!src) return;
-        if (storyMusicCurrentKey === key && storyMusicAudio && !storyMusicAudio.paused) return;
-        storyMusicCurrentKey = key;
-        if (!storyMusicAudio) {
-            storyMusicAudio = new Audio(src);
-            storyMusicAudio.loop = true;
-            storyMusicAudio.preload = 'auto';
-        } else if (storyMusicAudio.src !== new URL(src, location.href).href) {
-            storyMusicAudio.src = src;
+        if (storyMusicCurrentKey === key) {
+            const entry = storyMusicPool.get(key);
+            if (entry && !entry.audio.paused) return;
         }
-        storyMusicAudio.volume = storyMusicVolume();
-        storyMusicAudio.play().catch(() => { /* 等待用户交互后重试 */ });
+        const previousKey = storyMusicCurrentKey;
+        if (previousKey && previousKey !== key) {
+            const previous = storyMusicPool.get(previousKey);
+            if (previous) {
+                storyMusicFadeTo(previous, 0, STORY_MUSIC_FADE_OUT_SECONDS, () => {
+                    try { previous.audio.pause(); } catch (err) { /* 忽略 */ }
+                });
+            }
+        }
+        storyMusicCurrentKey = key;
+        const entry = storyMusicEntry(key);
+        entry.audio.volume = Number.isFinite(entry.audio.volume) ? entry.audio.volume : 0;
+        if (entry.audio.volume > 0.02) {
+            // 已在播/已淡入过：直接续住，无需再淡入。
+            const playPromise = entry.audio.play();
+            if (playPromise && playPromise.catch) playPromise.catch(() => { /* 等待用户交互后重试 */ });
+            return;
+        }
+        const playPromise = entry.audio.play();
+        if (playPromise && playPromise.catch) playPromise.catch(() => { /* 等待用户交互后重试 */ });
+        // 5s 淡入（新曲从0起、切回曲从暂停处续播）。
+        storyMusicFadeTo(entry, storyMusicVolume(), STORY_MUSIC_FADE_IN_SECONDS);
     }
 
     function updateStoryMusic(state) {
+        const runId = activeRun?.id || activeRun?.run_id || '';
+        if (runId && storyMusicLastRunId && runId !== storyMusicLastRunId) {
+            storyMusicResetPool();
+        }
+        if (runId) storyMusicLastRunId = runId;
         if (!storyMusicEnabled() || !state) {
+            stopStoryMusic(state ? {} : { reset: true });
+            return;
+        }
+        const key = storyMusicKeyFor(state);
+        if (!key) {
             stopStoryMusic();
             return;
         }
-        playStoryMusicForKey(storyMusicKeyFor(state));
+        playStoryMusicForKey(key);
     }
 
     function unlockStoryMusic() {
@@ -15340,7 +15446,8 @@
             $('story-aim-layer')?.classList.add('hidden');
             renderStoryCharacterOptions();
             showView('story-empty');
-            stopStoryMusic();
+            // 离开故事模式：重置曲目进度，下一局从零播起。
+            stopStoryMusic({ reset: true });
             restoreStoryScrollPositions(scrollPositions);
             return;
         }

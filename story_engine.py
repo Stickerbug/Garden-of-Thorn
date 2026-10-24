@@ -10204,12 +10204,18 @@ def _complete_current_node(state, events, seed=None):
                 }
         elif int(state.get('stage') or 1) < len(STORY_STAGES):
             next_stage = int(state.get('stage') or 1) + 1
-            state['phase'] = 'stage_choice'
-            state['room'] = {
-                'type': 'stage_choice',
-                'stage': next_stage,
-                'biomes': list(STORY_STAGES[next_stage - 1]['biomes']),
-            }
+            next_biomes = list(STORY_STAGES[next_stage - 1]['biomes'])
+            if len(next_biomes) == 1:
+                # 2026-10-24：单群系阶段（二/三层）不再经过中转选择界面，
+                # Boss奖励选完直接进入下一层地图。
+                _advance_to_stage(state, next_stage, next_biomes[0], False, seed, events)
+            else:
+                state['phase'] = 'stage_choice'
+                state['room'] = {
+                    'type': 'stage_choice',
+                    'stage': next_stage,
+                    'biomes': next_biomes,
+                }
         else:
             state['phase'] = 'room'
             state['completed'] = False
@@ -11318,25 +11324,14 @@ def _enter_node(state, payload, seed, events):
     events.append({'type': 'room_entered', 'room_type': node['type']})
 
 
-def _resolve_stage_choice(state, payload, seed, events):
+def _advance_to_stage(state, stage, biome, boss_rush, seed, events):
+    """阶段推进的共用结算体（治疗→换图→进入地图相位）。
+
+    2026-10-24：一二层Boss打完且奖励选完后，单群系阶段（二三层各只有一个
+    群系）不再经过 stage_choice 中转界面，直接调用本助手进入下一层地图。
+    """
     from story_mode import generate_boss_rush_map, generate_story_map
 
-    room = state.get('room') or {}
-    if state.get('phase') != 'stage_choice':
-        _fail('INVALID_STAGE_CHOICE', '无法选择该区域')
-    biome = str(payload.get('biome') or '')
-    if not biome:
-        biomes = list(room.get('biomes') or [])
-        if not biomes:
-            _fail('INVALID_STAGE_CHOICE', '当前没有可用的区域')
-        biome = _rng(state, seed, 'stage_choice_biome').choice(biomes)
-    if biome not in room.get('biomes', []):
-        _fail('INVALID_STAGE_CHOICE', '无法选择该区域')
-    boss_rush = bool(
-        room.get('boss_rush')
-        or state.get('journey_mode') == 'boss_rush'
-    )
-    stage = int(room['stage'])
     player = state['player']
     if _difficulty(state) in ('hard', 'lunatic'):
         target_health = math.ceil(int(player.get('max_health') or 1) * 0.8)
@@ -11387,6 +11382,25 @@ def _resolve_stage_choice(state, payload, seed, events):
         'biome': biome,
         'mode': 'boss_rush' if boss_rush else 'standard',
     })
+
+
+def _resolve_stage_choice(state, payload, seed, events):
+    room = state.get('room') or {}
+    if state.get('phase') != 'stage_choice':
+        _fail('INVALID_STAGE_CHOICE', '无法选择该区域')
+    biome = str(payload.get('biome') or '')
+    if not biome:
+        biomes = list(room.get('biomes') or [])
+        if not biomes:
+            _fail('INVALID_STAGE_CHOICE', '当前没有可用的区域')
+        biome = _rng(state, seed, 'stage_choice_biome').choice(biomes)
+    if biome not in room.get('biomes', []):
+        _fail('INVALID_STAGE_CHOICE', '无法选择该区域')
+    boss_rush = bool(
+        room.get('boss_rush')
+        or state.get('journey_mode') == 'boss_rush'
+    )
+    _advance_to_stage(state, int(room['stage']), biome, boss_rush, seed, events)
 
 
 def _restock_shop_item(state, item, seed, events, item_type):

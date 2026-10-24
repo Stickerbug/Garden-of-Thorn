@@ -67,3 +67,34 @@ class ReplaySubjectiveViewTests(unittest.TestCase):
         # choose_from_enemy_hand 窗口帧 → 该帧还原敌方手牌
         self.assertIn("choice.target_instance_id != null", self.source)
         self.assertIn("'choose_from_enemy_hand'", self.source)
+
+
+class StoryMusicPolicyTests(unittest.TestCase):
+    """故事模式音乐策略（2026-10-24）：淡入淡出/静音页/童祭/暂停续播。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.source = (ROOT / "static" / "js" / "story.js").read_text(encoding="utf-8")
+
+    def test_fade_durations_are_configured(self):
+        self.assertIn("STORY_MUSIC_FADE_IN_SECONDS = 5", self.source)
+        self.assertIn("STORY_MUSIC_FADE_OUT_SECONDS = 1", self.source)
+
+    def test_pool_pause_resume_instead_of_restart(self):
+        self.assertIn("const storyMusicPool = new Map();", self.source)
+        self.assertIn("function storyMusicEntry(key)", self.source)
+        self.assertIn("function storyMusicResetPool()", self.source)
+
+    def test_silent_pages_blessing_and_endings(self):
+        self.assertIn("if (phase === 'blessing') return '';", self.source)
+        self.assertIn("'complete', 'game_over', 'terminal'", self.source)
+
+    def test_mysterious_person_uses_tongji(self):
+        self.assertIn("mysterious: '/static/audio/story/tongji.mp3'", self.source)
+        self.assertIn("event_id || '' === 'mysterious_person'", self.source.replace(
+            "String(state?.room?.event_id || '') === 'mysterious_person'",
+            "event_id || '' === 'mysterious_person'"))
+        self.assertIn("'mysterious_person') return 'mysterious'", self.source)
+
+    def test_leaving_story_resets_pool(self):
+        self.assertIn("stopStoryMusic({ reset: true });", self.source)
