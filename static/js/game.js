@@ -17961,7 +17961,9 @@ function connectSocket(serverUrl) {
         const nick = getChatDisplayName(data);
         if (phase === 'lobby') {
             appendLobbyChat(nick, data.text, data);
-        } else if (phase === 'draft' || phase === 'event_select') {
+        } else if (phase === 'draft' || phase === 'event_select' || phase === 'mod_draw') {
+            // 2026-10-24：模组抽取/禁用阶段与选牌同待遇——聊天进入相位聊天
+            // 面板（此前落进对战战报，而该阶段战报不可见，等于不能聊）。
             appendPhaseChat(nick, data.text, data, data);
         } else {
             appendGameChat(nick, data.text, data, data);

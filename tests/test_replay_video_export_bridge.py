@@ -130,3 +130,21 @@ class StoryMusicEliteRestartTests(unittest.TestCase):
         self.assertIn("const STORY_MUSIC_RESTART_KEYS = new Set(['elite']);", source)
         self.assertIn("STORY_MUSIC_RESTART_KEYS.has(key)", source)
         self.assertIn("entry.audio.currentTime = 0;", source)
+
+
+class ModDrawPhaseChatTests(unittest.TestCase):
+    """模组抽取/禁用阶段聊天（2026-10-24）：与选牌同待遇进相位聊天面板。"""
+
+    def test_mod_draw_chat_routes_to_phase_panel(self):
+        source = (ROOT / "static" / "js" / "game.js").read_text(encoding="utf-8")
+        self.assertIn(
+            "phase === 'draft' || phase === 'event_select' || phase === 'mod_draw'",
+            source,
+        )
+
+    def test_mod_draw_view_shows_phase_chat_panel(self):
+        source = (ROOT / "static" / "js" / "game.js").read_text(encoding="utf-8")
+        self.assertIn(
+            "viewId === 'view-draft' || viewId === 'view-event-select' || viewId === 'view-mod-draw'",
+            source,
+        )
