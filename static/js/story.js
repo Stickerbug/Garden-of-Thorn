@@ -8610,8 +8610,19 @@
         const values = cardValues(card);
         const effects = values?.effects || [];
         const combat = combatState || {};
-        for (const effect of effects) {
+        for (const [effectIndex, effect] of effects.entries()) {
             const type = String(effect?.type || '');
+            if (type === 'active_discard') {
+                // 2026-10-24：剩余手牌不足/刚好等于丢弃数——不弹选择窗，
+                // 直接打出（服务端结算分支丢弃全部剩余手牌）。
+                const source = (combat.hand || []).filter((item) => isStoryCardChoiceCandidate(item, card));
+                const requested = Math.max(1, Number(effect.amount || 1));
+                const laterNeedsWindow = effects.slice(effectIndex + 1).some((other) => (
+                    ['choose_exile', 'copy_hand_card', 'make_card_free', 'active_discard', 'recover_exiled', 'discard_to_draw_top']
+                        .includes(String(other?.type || ''))
+                ));
+                if (source.length <= requested && !laterNeedsWindow) return null;
+            }
             if (['choose_exile', 'copy_hand_card', 'make_card_free', 'active_discard'].includes(type)) {
                 const exact = ['copy_hand_card', 'make_card_free'].includes(type) || Boolean(effect.exact);
                 const source = (combat.hand || []).filter((item) => isStoryCardChoiceCandidate(item, card));

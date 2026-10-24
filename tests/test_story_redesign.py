@@ -1504,3 +1504,113 @@ def test_blade_triggers_on_first_hit_even_when_fully_blocked():
     _enemy_physical_damage(state3, enemy3, 5, 1, events3, 'test')
     assert not state3['combat'].get('blade_used')
     assert not enemy3.get('vulnerable')
+
+
+def test_active_discard_auto_discards_all_when_hand_insufficient_or_exact():
+    """2026-10-24：丢弃X张牌——剩余手牌不足/刚好等于X时可直接打出且不弹选择窗，
+    结算时直接丢弃全部剩余手牌。"""
+    from story_content import STORY_CARDS
+
+    assert 'active_discard' in {
+        effect.get('type')
+        for effect in STORY_CARDS['enchanted_amulet'].get('effects') or ()
+    }
+
+    # 1) 剩余2张 = 丢弃2张（附魔护身符）：不弹窗，全部丢弃。
+    state = _started_state('discard-exact')
+    _start_combat(
+        state, {'type': 'combat'}, 'discard-exact', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    amulet = _new_card(state, 'enchanted_amulet')
+    extra1 = _new_card(state, 'rose')
+    extra2 = _new_card(state, 'rose')
+    combat['hand'] = [amulet, extra1, extra2]
+    state, events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': amulet['instance_id']},
+        'discard-exact',
+    )
+    combat = state['combat']
+    assert not combat.get('pending_card_choice')
+    hand_ids = [card['instance_id'] for card in combat['hand']]
+    assert extra1['instance_id'] not in hand_ids
+    assert extra2['instance_id'] not in hand_ids
+
+    # 2) 剩余1张 < 丢弃2张：同样直接全弃。
+    state = _started_state('discard-insufficient')
+    _start_combat(
+        state, {'type': 'combat'}, 'discard-insufficient', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    amulet = _new_card(state, 'enchanted_amulet')
+    extra = _new_card(state, 'rose')
+    combat['hand'] = [amulet, extra]
+    state, events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': amulet['instance_id']},
+        'discard-insufficient',
+    )
+    combat = state['combat']
+    assert not combat.get('pending_card_choice')
+    # 附魔护身符丢弃后抽等量的牌——手牌里只应剩新抽的牌，被弃的 extra 不在。
+    assert extra['instance_id'] not in [card['instance_id'] for card in combat['hand']]
+
+    # 3) 剩余0张：照常打出，无事发生。
+    state = _started_state('discard-empty')
+    _start_combat(
+        state, {'type': 'combat'}, 'discard-empty', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    amulet = _new_card(state, 'enchanted_amulet')
+    combat['hand'] = [amulet]
+    state, events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': amulet['instance_id']},
+        'discard-empty',
+    )
+    combat = state['combat']
+    assert not combat.get('pending_card_choice')
+    assert combat['hand'] == []
+
+    # 4) 剩余充足（exact 卡：火把丢弃1张，手上有2张其他牌）：仍需选择。
+    state = _started_state('discard-more')
+    _start_combat(
+        state, {'type': 'combat'}, 'discard-more', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    torch = _new_card(state, 'torch')
+    combat['hand'] = [torch] + [_new_card(state, 'rose') for _ in range(2)]
+    try:
+        apply_story_action(
+            state, 'play_card',
+            {'card_instance_id': torch['instance_id']},
+            'discard-more',
+        )
+    except StoryActionError as exc:
+        assert '选择' in str(exc)
+    else:
+        raise AssertionError('手牌充足时丢弃牌仍应要求选择')
+
+    # 5) exact 卡剩余刚好等于丢弃数（火把+1张其他牌）：不弹窗直接全弃。
+    state = _started_state('discard-torch-exact')
+    _start_combat(
+        state, {'type': 'combat'}, 'discard-torch-exact', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    torch = _new_card(state, 'torch')
+    extra = _new_card(state, 'rose')
+    combat['hand'] = [torch, extra]
+    state, events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': torch['instance_id']},
+        'discard-torch-exact',
+    )
+    combat = state['combat']
+    assert not combat.get('pending_card_choice')
+    assert extra['instance_id'] not in [card['instance_id'] for card in combat['hand']]

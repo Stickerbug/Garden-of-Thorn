@@ -3538,6 +3538,14 @@ def _validate_card_selections(combat, card, values, payload):
                 required = 0
             elif effect_type == 'active_discard' and available < maximum:
                 required = available
+            elif (
+                effect_type == 'active_discard'
+                and available == maximum
+                and not selected
+            ):
+                # 2026-10-24：剩余手牌刚好等于丢弃数——不弹选择窗，
+                # 结算分支直接丢弃全部剩余手牌（不足的情形上面已钳到 available）。
+                required = 0
             else:
                 required = maximum
             if exact and available < required:
@@ -3592,6 +3600,16 @@ def _repeated_card_selection_spec(combat, card, values):
                 effect_type in ('copy_hand_card', 'make_card_free')
                 or bool(effect.get('exact'))
             )
+            if effect_type == 'active_discard' and len(cards) <= requested:
+                # 2026-10-24：剩余手牌不足/刚好等于丢弃数——重复结算也不开窗，
+                # 空选择由 active_discard 结算分支兜底全弃。
+                return {
+                    'possible': True,
+                    'payload_key': 'selected_card_ids',
+                    'minimum': 0,
+                    'maximum': 0,
+                    'cards': [],
+                }
             required = (
                 0
                 if effect_type == 'choose_exile' and not cards
@@ -4767,6 +4785,16 @@ def _resolve_effect(state, card, values, effect, targets, payload, seed, events,
             _notify_exiled(state, selected_card, events, seed)
     elif effect_type == 'active_discard':
         selected = _selected_cards(combat, payload, card)
+        if not selected:
+            # 2026-10-24：剩余手牌不足/刚好等于丢弃数时不弹选择窗，
+            # 直接丢弃全部剩余手牌（与 draw_then_discard 同口径）。
+            candidates = [
+                item for item in combat['hand']
+                if item is not card and 'sublime' not in _card_tags(_card_values(item))
+            ]
+            requested = max(1, int(amount or 1))
+            if 0 < len(candidates) <= requested:
+                selected = candidates
         discarded = _actively_discard_cards(
             state,
             selected,
