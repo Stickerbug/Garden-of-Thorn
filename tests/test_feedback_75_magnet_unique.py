@@ -1,7 +1,7 @@
 """反馈中心 #75 的回归测试（多人引擎）。
 
-磁铁跨玩家偷取唯一牌时，若自己已有同名唯一牌，按既有唯一牌规则处理：
-保留偷来的牌，并向牌组加入 1 张虚空；自己没持有同名唯一牌时正常获得。
+磁铁跨玩家偷取唯一牌时，若自己已有同名唯一牌，按 2026-10-19 唯一牌新规则
+处理：偷来的副本放逐，1 张虚空加入手中；自己没持有同名唯一牌时正常获得。
 """
 
 import unittest
@@ -69,10 +69,16 @@ def _play_card(engine, engine_class, player_id, card, target_id, extra_choice=No
     if engine_class is GameEngine2v2:
         result = engine.play_card(player_id, card.instance_id, target_id, choice)
         # 2v2 纯等待窗（#282 设计）到点结算：测试直调时手动放行
-        if isinstance(engine.pending_response, dict) and engine.pending_response.get('forced_wait'):
-            engine.resolve_forced_response()
+        _settle_forced_wait(engine)
         return result
     return engine.play_card(player_id, card.instance_id, choice)
+
+
+def _settle_forced_wait(engine):
+    guard = 0
+    while isinstance(engine.pending_response, dict) and engine.pending_response.get('forced_wait') and guard < 10:
+        guard += 1
+        engine.resolve_forced_response()
 
 
 class MagnetUniqueStealTests(unittest.TestCase):
@@ -107,6 +113,7 @@ class MagnetUniqueStealTests(unittest.TestCase):
             return result, stolen, enemy_id
         if result.get("needs_choice"):
             engine.resolve_choice(0, {"target_instance_id": stolen.instance_id})
+            _settle_forced_wait(engine)
         return result, stolen, enemy_id
 
     def test_stealing_a_unique_card_you_already_own_adds_one_void(self):
@@ -121,9 +128,10 @@ class MagnetUniqueStealTests(unittest.TestCase):
                 player = engine.players[0]
                 void_id = engine._void_resolve_card_def_id("void:void")
                 self.assertIsNotNone(void_id)
-                # 偷来的牌保留在自己手上（和强制复制唯一牌一样），另外加 1 张虚空
-                self.assertEqual(2, sum(card.def_id == UNIQUE_ID for card in player.hand))
-                self.assertEqual([void_id], [card.def_id for card in player.deck])
+                # 2026-10-19 唯一牌新规则：偷来的副本放逐，1 张虚空加入手中
+                self.assertEqual(1, sum(card.def_id == UNIQUE_ID for card in player.hand))
+                self.assertIn(void_id, [card.def_id for card in player.hand])
+                self.assertIn(stolen.def_id, [card.def_id for card in player.exile])
                 self.assertNotIn(stolen, engine.players[enemy_id].hand)
 
     def test_stealing_a_unique_card_you_do_not_own_has_no_penalty(self):
