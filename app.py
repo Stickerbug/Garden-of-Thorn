@@ -27793,6 +27793,10 @@ def api_public_feedback_summary():
             'success': True,
             'authenticated': bool(user),
             'is_staff': is_staff,
+            # 2026-10-26：提交过不公开反馈的作者可见不公开标签页。
+            'has_internal_issues': bool(
+                user_id and public_feedback.viewer_has_internal_issues(user_id)
+            ),
             'author_unread_count': (
                 public_feedback.public_feedback_author_unread_count(user_id)
                 if user_id

@@ -529,6 +529,21 @@ def _sort_sql(sort):
     )
 
 
+def viewer_has_internal_issues(viewer_user_id) -> bool:
+    """当前用户是否提交过不公开反馈（决定其可见不公开标签页）。"""
+    try:
+        viewer_id = int(viewer_user_id) if viewer_user_id not in (None, '') else None
+    except (TypeError, ValueError):
+        return False
+    if not viewer_id:
+        return False
+    with closing(db.get_db_connection()) as conn:
+        return bool(conn.execute(
+            'SELECT 1 FROM public_issues WHERE kind = ? AND author_user_id = ? LIMIT 1',
+            ('internal', viewer_id),
+        ).fetchone())
+
+
 def list_public_issues(
     viewer_user_id=None,
     *,
@@ -555,17 +570,37 @@ def list_public_issues(
         )
         if kind not in PUBLIC_ISSUE_KINDS:
             kind = 'all'
-        internal_allowed = viewer_is_staff or bool(include_hidden)
+        # 2026-10-26修复：提交过不公开反馈的作者可进入不公开列表（只见自己的）。
+        try:
+            viewer_id_int = int(viewer_user_id) if viewer_user_id not in (None, '') else None
+        except (TypeError, ValueError):
+            viewer_id_int = None
+        viewer_has_internal = False
+        if viewer_id_int:
+            viewer_has_internal = bool(conn.execute(
+                'SELECT 1 FROM public_issues WHERE kind = ? AND author_user_id = ? LIMIT 1',
+                ('internal', viewer_id_int),
+            ).fetchone())
+        internal_allowed = viewer_is_staff or bool(include_hidden) or viewer_has_internal
         if kind == 'internal' and not internal_allowed:
             raise PublicFeedbackError('ISSUE_NOT_FOUND', '问题不存在', 404)
         if not include_hidden and kind != 'internal':
-            where.append('p.visible = 1')
+            if viewer_id_int:
+                # 作者始终能在对应列表看到自己被隐藏的反馈。
+                where.append('(p.visible = 1 OR p.author_user_id = ?)')
+                params.append(viewer_id_int)
+            else:
+                where.append('p.visible = 1')
         if kind == 'all':
             if not include_hidden or not internal_allowed:
                 where.append("p.kind <> 'internal'")
         else:
             where.append('p.kind = ?')
             params.append(kind)
+        if kind == 'internal' and not viewer_is_staff and not include_hidden and viewer_id_int:
+            # 非Staff作者的不公开列表：只展示自己提交的。
+            where.append('p.author_user_id = ?')
+            params.append(viewer_id_int)
         status_key = str(status or '').strip().lower()
         if status_key:
             allowed = (

@@ -209,6 +209,7 @@
     detail: null,
     account: null,
     isStaff: false,
+    hasInternal: false,
     authorUnread: 0,
     staffUnread: 0,
     watcherUnread: 0,
@@ -586,7 +587,7 @@
     if (fbSendBtn) fbSendBtn.textContent = t('fb_send_btn');
     updateInboxBadge();
     const internalTab = $('fc-tab-internal');
-    if (internalTab) internalTab.hidden = !state.isStaff;
+    if (internalTab) internalTab.hidden = !state.isStaff && !state.hasInternal;
   }
 
   function updateTabs() {
@@ -596,7 +597,7 @@
     const internalTab = $('fc-tab-internal');
     if (internalTab) {
       internalTab.classList.toggle('is-active', state.kind === 'internal');
-      internalTab.hidden = !state.isStaff;
+      internalTab.hidden = !state.isStaff && !state.hasInternal;
     }
     $('fc-open-title').textContent = `${kindLabel(state.kind)}列表`;
   }
@@ -611,6 +612,7 @@
     try {
       const summary = await api('/api/public-feedback/summary');
       state.isStaff = !!summary.is_staff;
+      state.hasInternal = !!summary.has_internal_issues;
       state.authorUnread = Number(summary.author_unread_count || 0);
       state.staffUnread = Number(summary.staff_unread_count || 0);
       state.watcherUnread = Number(summary.watcher_unread_count || 0);
@@ -620,7 +622,7 @@
     $('fc-create').hidden = !canCreate;
     $('fc-list-create').hidden = !canCreate;
     const internalTab = $('fc-tab-internal');
-    if (internalTab) internalTab.hidden = !state.isStaff;
+    if (internalTab) internalTab.hidden = !state.isStaff && !state.hasInternal;
   }
 
   function renderAccount() {
