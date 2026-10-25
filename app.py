@@ -1464,6 +1464,8 @@ except Exception:
 players = {}
 rooms = {}
 invites = {}
+# 操纵现实（2026-10-25）：邀请携带的特殊模式旗标（inviter_sid -> {'reality': bool}）。
+invite_special_modes = {}
 solo_sessions = {}
 tutorial_sessions = set()
 ai_test_sessions = {}
@@ -5457,6 +5459,7 @@ def clear_pending_match_invites_for_sids_locked(sids):
     for inviter_sid, target_sid in list(invites.items()):
         if inviter_sid in participant_sids or target_sid in participant_sids:
             del invites[inviter_sid]
+            invite_special_modes.pop(inviter_sid, None)
     for match_key in list(pending_team_matches):
         if any(leader_sid in team_leaders for leader_sid in match_key):
             del pending_team_matches[match_key]
@@ -31765,6 +31768,11 @@ def on_invite(data):
                 'reason': 'mod_unlock_choice_required',
             })
             return
+        # 操纵现实：娱乐1v1邀请可携带特殊模式旗标。
+        invite_special_modes[sid] = {
+            'reality': bool(data.get('reality')) and inviter_match_mode == 'casual_1v1',
+        }
+
         if inviter_match_mode in RANKED_MATCH_MODES:
             eligible, reason = ranked_match_eligibility([inviter, target])
             if not eligible:
@@ -31998,6 +32006,9 @@ def on_accept_invite(data):
                 emit_match_start_failed([inviter_sid, sid], pool_issue, reason='content_temporarily_disabled')
                 return
         clear_pending_match_invites_for_sids_locked([inviter_sid, sid])
+        # 操纵现实：接受邀请时读取邀请方携带的特殊模式旗标。
+        room_reality_mode = bool((invite_special_modes.get(inviter_sid) or {}).get('reality'))
+        invite_special_modes.pop(inviter_sid, None)
         room = GameRoom(
             room_id,
             [inviter_sid, sid],
@@ -32025,6 +32036,7 @@ def on_accept_invite(data):
                 if casual_shared_mod_signature(shared_profile) != casual_shared_mod_signature(casual_shared_mod_profile(accepter)):
                     raise ValueError('娱乐模组或社区模组选择不一致')
                 room.casual_shared_mod_profile = shared_profile
+                room.reality_mode = room_reality_mode
                 start_casual_room_or_event_select(room, shared_profile)
             except Exception as exc:
                 _abort_casual_room_to_lobby_locked(room, str(exc), reason='mod_mismatch')

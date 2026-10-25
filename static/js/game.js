@@ -28449,6 +28449,11 @@ function renderLobby(data) {
             btn.className = 'btn btn-primary';
             btn.onclick = () => {
                 debugLog('[client] invite target_sid=', p.sid);
+                // 娱乐1v1：先选特殊模式（操纵现实等），再发邀请。
+                if (activePvpMatchMode === 'casual_1v1') {
+                    showInviteSpecialModesModal(p.sid, p.nickname || p.name || '');
+                    return;
+                }
                 socket.emit('invite', { target_sid: p.sid });
                 updateStatus(UI.invite_sent);
             };
@@ -38686,6 +38691,37 @@ function showInviteConfirmModal({ title, message, preview, confirmText, onConfir
         ok.onclick = () => {
             hideModal();
             if (typeof onConfirm === 'function') onConfirm();
+        };
+    }
+}
+
+function showInviteSpecialModesModal(targetSid, targetName) {
+    // 娱乐1v1邀请的特殊模式清单（2026-10-25）：勾选后随邀请携带。
+    const zh = currentLang === 'zh';
+    showModal(`
+        <h3>${escapeHtml(zh ? '特殊模式' : 'Special Modes')}</h3>
+        <p>${escapeHtml(zh ? `邀请 ${targetName || '?'} 进行娱乐 1v1 对局` : `Invite ${targetName || '?'} to a casual 1v1 match`)}</p>
+        <label class="invite-special-mode-row" for="invite-special-reality">
+            <input type="checkbox" id="invite-special-reality">
+            <span>
+                <strong>${escapeHtml(zh ? '操纵现实' : 'Reality Manipulation')}</strong>
+                <small>${escapeHtml(zh ? '开局随机三个全局事件，双方各可禁用一个，其余整场生效' : 'Three random global events; each player may ban one, the rest apply all game')}</small>
+            </span>
+        </label>
+        <div class="modal-buttons">
+            <button class="btn btn-danger" id="invite-special-cancel">${escapeHtml(UI.cancel || (zh ? '取消' : 'Cancel'))}</button>
+            <button class="btn btn-primary" id="invite-special-ok">${escapeHtml(UI.invite || (zh ? '邀请' : 'Invite'))}</button>
+        </div>
+    `);
+    const cancelBtn = $('invite-special-cancel');
+    const okBtn = $('invite-special-ok');
+    if (cancelBtn) cancelBtn.onclick = hideModal;
+    if (okBtn) {
+        okBtn.onclick = () => {
+            const reality = !!$('invite-special-reality')?.checked;
+            hideModal();
+            socket.emit('invite', { target_sid: targetSid, reality });
+            updateStatus(UI.invite_sent);
         };
     }
 }
