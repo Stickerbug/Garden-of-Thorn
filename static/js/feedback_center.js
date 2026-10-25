@@ -1997,6 +1997,11 @@
     $('fc-tab-suggestion').addEventListener('click', () => {
       navigateKind('suggestion');
     });
+    // 修复（2026-10-26）：不公开标签页从未绑定点击事件——管理员/作者
+    // 看得到标签却点不进去。
+    $('fc-tab-internal').addEventListener('click', () => {
+      navigateKind('internal');
+    });
     $('fc-tab-appeal').addEventListener('click', () => {
       history.pushState({}, '', '/feedback-center/appeal');
       void renderAppealView();
