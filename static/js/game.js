@@ -17246,9 +17246,21 @@ function connectSocket(serverUrl) {
         if (rejectLobbyInvitationOutsideLobby('invite_received', data)) return;
         playInviteAudio();
         const grPreview = renderInviteGrPreview(data.gr_preview || data);
+        // 特殊模式（2026-10-25）：显示邀请方勾选的模式。
+        const zhInvite = currentLang === 'zh';
+        const specialModes = [];
+        if (data.reality) {
+            specialModes.push(zhInvite
+                ? '<b class="invite-special-badge">操纵现实</b>'
+                : '<b class="invite-special-badge">Reality Manipulation</b>');
+        }
+        const specialRow = specialModes.length
+            ? `<div class="invite-special-modes">${zhInvite ? '特殊模式：' : 'Special modes: '}${specialModes.join(' ')}</div>`
+            : '';
         showModal(`
             <h3>${UI.invite_received}</h3>
             <p>${data.inviter_name} ${UI.invite_message}</p>
+            ${specialRow}
             ${grPreview}
             <div class="modal-buttons">
                 <button class="btn btn-primary" id="invite-accept">${UI.accept}</button>

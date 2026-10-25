@@ -9657,6 +9657,9 @@ def _complete_mod_draw_locked(room):
 def start_casual_room_or_event_select(room, shared_profile=None, *, rematch=False):
     """Start the official draw phase for casual 1v1/2v2 rooms."""
     if room_match_mode(room) not in MOD_DRAW_MATCH_MODES:
+        if getattr(room, 'reality_mode', False):
+            _begin_reality_ban_locked(room)
+            return
         _casual_room_begin_event_select(room)
         return
     try:
@@ -31768,10 +31771,12 @@ def on_invite(data):
                 'reason': 'mod_unlock_choice_required',
             })
             return
-        # 操纵现实：娱乐1v1邀请可携带特殊模式旗标。
-        invite_special_modes[sid] = {
-            'reality': bool(data.get('reality')) and inviter_match_mode == 'casual_1v1',
-        }
+        # 操纵现实：娱乐1v1邀请可携带特殊模式旗标。确认弹窗的二次提交
+        # （confirmed=true）不带 reality 键时保留首次存储，避免覆盖丢失。
+        if 'reality' in (data or {}) or sid not in invite_special_modes:
+            invite_special_modes[sid] = {
+                'reality': bool(data.get('reality')) and inviter_match_mode == 'casual_1v1',
+            }
 
         if inviter_match_mode in RANKED_MATCH_MODES:
             eligible, reason = ranked_match_eligibility([inviter, target])
@@ -31888,6 +31893,7 @@ def on_invite(data):
         'gr_preview': target_gr_preview,
         'mode': inviter_mode,
         'match_mode': inviter_match_mode,
+        'reality': bool((invite_special_modes.get(sid) or {}).get('reality')),
     }, room=target_sid)
 
     def _invite_timeout(inviter_sid):
@@ -32041,6 +32047,10 @@ def on_accept_invite(data):
             except Exception as exc:
                 _abort_casual_room_to_lobby_locked(room, str(exc), reason='mod_mismatch')
                 return
+        elif getattr(room, 'reality_mode', False):
+            # 操纵现实（修复 2026-10-25）：娱乐1v1不经过模组抽取链，
+            # 此前 reality ban 从未被触发——在这里直接进入 ban 阶段。
+            _begin_reality_ban_locked(room)
         elif room.mode == 'urf':
             room.engine.start_game(mulligan=False)
             room.started_at = time.time()

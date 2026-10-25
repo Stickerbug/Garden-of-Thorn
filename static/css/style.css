@@ -22806,3 +22806,19 @@ body.mulligan-open #modal {
 .invite-special-mode-row small {
   color: var(--muted, #a0aec0);
 }
+
+/* 被邀请弹窗：特殊模式徽标（2026-10-25） */
+.invite-special-modes {
+  margin: 6px 0 2px;
+}
+
+.invite-special-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  margin-left: 4px;
+  border-radius: 999px;
+  border: 1px solid #d69e2e;
+  background: rgba(214, 158, 46, 0.16);
+  color: #d69e2e;
+  font-size: 13px;
+}
