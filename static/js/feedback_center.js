@@ -807,6 +807,9 @@
       });
       if (state.status) params.set('status', state.status);
       if (state.search) params.set('q', state.search);
+      // 修复（2026-10-25）：staff 列表也带 include_hidden——隐藏的不公开反馈
+      // 出现在列表中可被重新打开（此前只能从通知点入且详情404）。
+      if (state.isStaff) params.set('include_hidden', '1');
       const data = await api(`/api/public-feedback/issues?${params.toString()}`);
       state.issues = Array.isArray(data.items) ? data.items : [];
       state.pages = Math.max(1, Number(data.pages || 1));
@@ -854,7 +857,10 @@
 
   async function openIssue(issueId, { replace = false } = {}) {
     try {
-      const hiddenQuery = state.kind === 'internal' && state.isStaff ? '?include_hidden=1' : '';
+      // 修复（2026-10-25）：被管理员设为不公开（隐藏）的普通反馈也打不开——
+      // 此前只有 internal 分类才带 include_hidden。放宽为 staff 一律携带
+      // （服务端校验权限，非 staff 携带无效）。
+      const hiddenQuery = state.isStaff ? '?include_hidden=1' : '';
       const data = await api(`/api/public-feedback/issues/${Number(issueId)}${hiddenQuery}`);
       state.detail = data.issue || null;
       state.kind = state.detail.kind;
