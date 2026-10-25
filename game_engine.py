@@ -5239,6 +5239,7 @@ class GameEngine(reality_events.RealityEngineMixin):
             'winner': self.winner,
             'reality_events': sorted(int(x) for x in (getattr(self, 'reality_events', None) or set())),
             'reality_vars': dict(getattr(self, 'reality_vars', None) or {}),
+            'reality_event_details': self.reality_event_details(),
             'you': you_data,
             'opponent': opp_data,
             'log': list(self.log),

@@ -29012,6 +29012,31 @@ function renderRealityBanner(container, events) {
     `;
 }
 
+let classicRealityEventsKey = '';
+
+function renderClassicRealityEvents(gs = {}) {
+    // 操纵现实（2026-10-25）：对局内顶栏常驻事件徽标（悬停显示描述）。
+    const host = $('classic-reality-events');
+    if (!host) return;
+    const events = Array.isArray(gs.reality_event_details) ? gs.reality_event_details : [];
+    const key = events.map(ev => `${ev.id}:${ev.name}`).join('|');
+    if (key === classicRealityEventsKey) return;
+    classicRealityEventsKey = key;
+    if (!events.length) {
+        host.replaceChildren();
+        return;
+    }
+    const zh = currentLang === 'zh';
+    host.title = zh ? '操纵现实：本局生效事件' : 'Reality: active events';
+    events.forEach(ev => {
+        const badge = document.createElement('span');
+        badge.className = 'classic-reality-event-badge';
+        badge.textContent = String(ev.name || `#${ev.id}`);
+        badge.title = String(ev.desc || '');
+        host.append(badge);
+    });
+}
+
 function renderDraft(data, isReroll, previousDraftState = null) {
     showView('view-draft');
     syncPhaseChatMatch(data || {});
@@ -31756,6 +31781,7 @@ function renderClassicBattle(gs) {
         const classicTimer = $('classic-turn-timer');
         if (classicTimer) classicTimer.textContent = formatClassicTurnTimerText(gs);
         $('classic-phase').textContent = vm.turn.phaseText || '';
+        renderClassicRealityEvents(gs);
         const actionHint = $('classic-action-hint');
         actionHint.textContent = selected ? getClassicPlayHint(selected) : (vm.turn.isMyTurn ? UI.your_turn : UI.opponent_turn);
         actionHint.classList.remove('ai-busy-hint');

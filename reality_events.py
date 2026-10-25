@@ -60,6 +60,18 @@ class RealityEngineMixin:
     ``self.reality_vars: Dict[str, int]``、``self.players``、``self.log_msg``、
     ``self.pn`` 等引擎常规成员。"""
 
+    def reality_event_details(self):
+        """本局生效事件明细（名称+描述），供对局内HUD显示。"""
+        events = sorted(int(x) for x in (getattr(self, 'reality_events', None) or set()))
+        if not events:
+            return []
+        return [
+            {'id': cid,
+             'name': str(REALITY_EVENTS.get(cid, {}).get('name') or cid),
+             'desc': str(REALITY_EVENTS.get(cid, {}).get('desc') or '')}
+            for cid in events
+        ]
+
     def reality_active(self, event_id: int) -> bool:
         return int(event_id) in (getattr(self, 'reality_events', None) or set())
 
