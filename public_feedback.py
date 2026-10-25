@@ -101,13 +101,32 @@ def _bounded_text(value, *, label, maximum):
     return normalized
 
 
-def _issue_row_conn(conn, issue_id, *, include_hidden=False):
+def _issue_row_conn(conn, issue_id, *, include_hidden=False, viewer_user_id=None):
     row = conn.execute('SELECT * FROM public_issues WHERE id = ?', (issue_id,)).fetchone()
     if row is None:
         raise PublicFeedbackError('ISSUE_NOT_FOUND', '问题不存在', 404)
-    if not include_hidden and not bool(row['visible']):
+    # 2026-10-25修复：作者本人始终可以查看自己的反馈（含被管理员隐藏的
+    # 不公开反馈）——此前作者一旦不是Staff就404，自己提交的反馈打不开。
+    if (
+        not include_hidden
+        and not bool(row['visible'])
+        and not _is_issue_author(row, viewer_user_id)
+    ):
         raise PublicFeedbackError('ISSUE_NOT_FOUND', '问题不存在', 404)
     return row
+
+
+def _is_issue_author(row, viewer_user_id):
+    try:
+        viewer_id = int(viewer_user_id) if viewer_user_id not in (None, '') else None
+    except (TypeError, ValueError):
+        viewer_id = None
+    if viewer_id is None or row is None:
+        return False
+    try:
+        return int(row['author_user_id']) == viewer_id
+    except (TypeError, ValueError):
+        return False
 
 
 def _is_staff_conn(conn, user_id):
@@ -133,12 +152,13 @@ def _issue_accessible_to_conn(conn, row, viewer_user_id=None, *, include_hidden=
     ``include_hidden`` escape hatch is reserved for console/Staff flows, and
     never widens what regular players can see.
     """
-    if not bool(row['visible']) and not include_hidden:
+    if not bool(row['visible']) and not include_hidden and not _is_issue_author(row, viewer_user_id):
         return False
     if str(row['kind'] or '').strip().lower() == 'internal':
         if include_hidden:
             return True
-        return _is_staff_conn(conn, viewer_user_id)
+        # 2026-10-25修复：作者本人也可查看自己的不公开反馈。
+        return _is_staff_conn(conn, viewer_user_id) or _is_issue_author(row, viewer_user_id)
     return True
 
 
@@ -759,7 +779,9 @@ def get_public_issue(
     except (TypeError, ValueError):
         viewer_id = None
     with closing(db.get_db_connection()) as conn:
-        row = _issue_row_conn(conn, issue_id, include_hidden=include_hidden)
+        row = _issue_row_conn(
+            conn, issue_id, include_hidden=include_hidden, viewer_user_id=viewer_id,
+        )
         is_staff = _is_staff_conn(conn, viewer_id) if viewer_id else False
         if not _issue_accessible_to_conn(
             conn,

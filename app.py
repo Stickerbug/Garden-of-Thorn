@@ -24425,7 +24425,21 @@ def feedback_center_issue_page(issue_key):
         return redirect('/feedback-center/bug')
     if key.startswith('GI-'):
         user = _current_account_user()
-        if not user or not feedback_is_staff(user.get('id')):
+        viewer_id = user.get('id') if user else None
+        allowed = bool(viewer_id and feedback_is_staff(viewer_id))
+        if not allowed and viewer_id:
+            # 2026-10-25修复：作者本人也可打开自己的不公开反馈页面。
+            try:
+                issue_id = int(key.split('-', 1)[1])
+                with closing(get_db_connection()) as conn:
+                    row = conn.execute(
+                        'SELECT author_user_id FROM public_issues WHERE id = ?',
+                        (issue_id,),
+                    ).fetchone()
+                allowed = bool(row and int(row['author_user_id']) == int(viewer_id))
+            except Exception:
+                allowed = False
+        if not allowed:
             return redirect('/feedback-center/bug')
     return render_template(
         'feedback_center.html',
