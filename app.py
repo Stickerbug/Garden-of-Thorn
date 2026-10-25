@@ -18263,6 +18263,22 @@ def broadcast_lobby():
         threading.Thread(target=_broadcast_lobby_worker, name='lobby-broadcast', daemon=True).start()
 
 
+def _reality_banner_payload(room):
+    """操纵现实：本局生效事件（供选牌/配装界面顶部横幅）。"""
+    engine = getattr(room, 'engine', None)
+    events = sorted(int(x) for x in (getattr(engine, 'reality_events', None) or set()))
+    if not events:
+        return {}
+    from reality_events import REALITY_EVENTS
+    return {
+        'reality_events': [
+            {'id': cid, 'name': REALITY_EVENTS.get(cid, {}).get('name', str(cid)),
+             'desc': REALITY_EVENTS.get(cid, {}).get('desc', '')}
+            for cid in events
+        ],
+    }
+
+
 def send_draft_state(room, pidx):
     sid = room.player_sids[pidx]
     if not room_player_session_is_current(room, sid):
@@ -18326,6 +18342,7 @@ def send_draft_state(room, pidx):
         'selected_opening_events': _selected_opening_event_names(engine),
         'room_chat_history': room_chat_history_for_sid(room, sid),
         **_pregame_timer_payload(room, pidx, your_status),
+        **_reality_banner_payload(room),
     }
     payload.update(_watched_pregame_timer_payload(room, pidx))
     payload.update(instance_payload())
