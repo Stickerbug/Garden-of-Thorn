@@ -6745,6 +6745,17 @@ def _room_timer_worker():
                     engine = getattr(room, 'engine', None)
                     if engine is None or getattr(engine, 'game_over', False):
                         continue
+                    if getattr(room, 'reality_ban_active', False):
+                        # 操纵现实：ban 阶段到点自动结算（未提交者视为跳过）。
+                        if not _room_has_blocking_disconnect(room):
+                            _clear_pregame_deadline_pause(room)
+                            reality_deadline = (
+                                room.pregame_deadlines.get((-1, 'reality_ban'))
+                                if hasattr(room, 'pregame_deadlines') else None
+                            )
+                            if reality_deadline is not None and now >= float(reality_deadline):
+                                _complete_reality_ban_locked(room)
+                        continue
                     if getattr(room, 'mod_draw_active', False):
                         if _room_has_blocking_disconnect(room):
                             _pause_pregame_deadlines_locked(room, now)
@@ -9396,6 +9407,119 @@ def send_mod_draw_state(room, targets=None):
         socketio.emit('mod_draw_state', mod_draw_state_payload(room, pidx), room=sid)
 
 
+
+
+# ---------------------------------------------------------------------------
+# 操纵现实（2026-10-24）：开局随机三个全局事件，双方各可 ban 一个。
+# ---------------------------------------------------------------------------
+
+REALITY_BAN_SECONDS = 30
+
+
+def _begin_reality_ban_locked(room):
+    import random as _random
+    from reality_events import REALITY_EVENTS, REALITY_EVENT_COUNT
+    candidates = sorted(_random.sample(list(REALITY_EVENTS.keys()), REALITY_EVENT_COUNT))
+    room.reality_ban_active = True
+    room.reality_candidates = candidates
+    room.reality_bans = {}
+    room.reality_submitted = {}
+    if hasattr(room, 'pregame_deadlines'):
+        room.pregame_deadlines[(-1, 'reality_ban')] = time.time() + REALITY_BAN_SECONDS
+    record_room_replay_keyframe(room, 'reality_ban_start')
+    for pidx in range(len(room.player_sids)):
+        send_reality_ban_state(room, pidx)
+
+
+def send_reality_ban_state(room, pidx=None):
+    from reality_events import REALITY_EVENTS
+    candidates = list(getattr(room, 'reality_candidates', []) or [])
+    payload = {
+        'candidates': [
+            {'id': cid, **{k: v for k, v in REALITY_EVENTS.get(cid, {}).items()}}
+            for cid in candidates
+        ],
+        'submitted': dict(getattr(room, 'reality_submitted', {}) or {}),
+        'bans': {str(k): v for k, v in (getattr(room, 'reality_bans', {}) or {}).items()},
+        'deadline': (getattr(room, 'pregame_deadlines', {}) or {}).get((-1, 'reality_ban')),
+    }
+    targets = range(len(room.player_sids)) if pidx is None else [pidx]
+    for index in targets:
+        sid = room.player_sids[index]
+        emit_room_game_phase(room, sid, 'reality_ban', **payload)
+
+
+def _complete_reality_ban_locked(room):
+    if not getattr(room, 'reality_ban_active', False):
+        return False
+    room.reality_ban_active = False
+    candidates = list(getattr(room, 'reality_candidates', []) or [])
+    banned = set()
+    for ban in (getattr(room, 'reality_bans', {}) or {}).values():
+        if ban:
+            banned.add(int(ban))
+    active = [cid for cid in candidates if cid not in banned]
+    room.reality_last_result = {
+        'candidates': candidates,
+        'banned': sorted(banned),
+        'active': active,
+        'completed_at': iso_now(),
+    }
+    if hasattr(room, 'pregame_deadlines'):
+        room.pregame_deadlines.pop((-1, 'reality_ban'), None)
+    room.reality_candidates = []
+    room.reality_bans = {}
+    room.reality_submitted = {}
+    try:
+        room.engine.reality_events = set(int(x) for x in active)
+    except Exception as exc:
+        admin_event('error', f'reality apply failed: {exc}')
+    for sid in room.player_sids:
+        emit_room_game_phase(room, sid, 'reality_ban_complete', **{
+            'candidates': candidates,
+            'banned': sorted(banned),
+            'active': list(active),
+        })
+    record_room_replay_action(room, 'reality_events', None, {'active': list(active)})
+    _casual_room_begin_event_select(room)
+    return True
+
+
+@socketio.on('reality_ban_pick')
+def on_reality_ban_pick(data):
+    sid = request.sid
+    data = socket_guard('reality_ban_pick', data, require_player=True, allow_empty=True)
+    if data is None:
+        return
+    with _lock:
+        player = players.get(sid)
+        room = rooms.get(player.get('room_id')) if player else None
+        if room is None or not getattr(room, 'reality_ban_active', False):
+            emit('server_error', {'message': '本局不在操纵现实阶段', 'reason': 'reality_ban_inactive'})
+            return
+        pidx = room.player_index(sid)
+        if pidx < 0 or not room_player_session_is_current(room, sid):
+            return
+        if (getattr(room, 'reality_submitted', {}) or {}).get(pidx):
+            emit('server_error', {'message': '已提交禁用，无法再修改', 'reason': 'reality_ban_submitted'})
+            return
+        raw = (data or {}).get('ban')
+        try:
+            ban_id = int(raw) if raw else 0
+        except (TypeError, ValueError):
+            ban_id = 0
+        if ban_id and ban_id not in (getattr(room, 'reality_candidates', []) or []):
+            emit('server_error', {'message': '无效的禁用事件', 'reason': 'reality_ban_invalid'})
+            return
+        # 每人最多 ban 一个（0 = 跳过）。
+        room.reality_bans[pidx] = ban_id or None
+        room.reality_submitted[pidx] = True
+        send_reality_ban_state(room)
+        submitted = getattr(room, 'reality_submitted', {}) or {}
+        if all(bool(submitted.get(index)) for index in range(len(room.player_sids))):
+            _complete_reality_ban_locked(room)
+
+
 def _casual_room_begin_event_select(room):
     room.engine.start_event_select_first()
     record_room_replay_keyframe(room, 'event_select_start')
@@ -9519,6 +9643,10 @@ def _complete_mod_draw_locked(room):
             'banned_mods': sorted(banned),
             'protected_mods': sorted(protected),
         })
+    # 操纵现实：模组抽取完成后先进入全局事件 ban 阶段（未开启则直接配装）。
+    if getattr(room, 'reality_mode', False):
+        _begin_reality_ban_locked(room)
+        return True
     _casual_room_begin_event_select(room)
     return True
 
@@ -30912,6 +31040,7 @@ def on_accept_team_match(data):
                 broadcast_lobby()
                 return
             room.casual_shared_mod_profile = shared_profile
+            room.reality_mode = bool((data or {}).get('reality'))
             start_casual_room_or_event_select(room, shared_profile)
         else:
             room.engine.start_event_select_first()

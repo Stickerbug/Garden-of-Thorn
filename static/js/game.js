@@ -7966,7 +7966,7 @@ function showView(viewId) {
 
 function isNetworkMatchPhase(value = phase) {
     return !soloMode && !replayMode && [
-        'mod_draw', 'mod_draw_complete', 'draft', 'event_select', 'event_reveal', 'event_sub_choice', 'mulligan', 'playing', 'action', 'draw', 'response', 'choice', 'game_over', 'reconnecting',
+        'mod_draw', 'mod_draw_complete', 'reality_ban', 'reality_ban_complete', 'draft', 'event_select', 'event_reveal', 'event_sub_choice', 'mulligan', 'playing', 'action', 'draw', 'response', 'choice', 'game_over', 'reconnecting',
     ].includes(String(value || ''));
 }
 
@@ -17414,6 +17414,23 @@ function connectSocket(serverUrl) {
             }
         }
         phase = nextPhase;
+        if (phase === 'reality_ban') {
+            renderRealityBanState(data);
+            return;
+        }
+        if (phase === 'reality_ban_complete') {
+            const activeEvents = Array.isArray(data.active) ? data.active : [];
+            const bannedEvents = Array.isArray(data.banned) ? data.banned : [];
+            showActionToast(
+                lt({
+                    zh: `操纵现实生效：${activeEvents.length}个全局事件${bannedEvents.length ? `（禁用${bannedEvents.length}个）` : ''}`,
+                    en: `Reality active: ${activeEvents.length} global event(s)${bannedEvents.length ? ` (${bannedEvents.length} banned)` : ''}`,
+                    fr: `Réalité active : ${activeEvents.length} événement(s) global(aux)`,
+                    ja: `現実操作発動：全局イベント${activeEvents.length}個`,
+                }),
+            );
+            return;
+        }
         if (phase === 'mod_draw_complete') {
             const finalMods = Array.isArray(data.official_mods) ? data.official_mods : [];
             showActionToast(
@@ -28060,6 +28077,41 @@ function setModUnlockState(state, forceShow = false) {
     updateOfficialUnlockHint();
     renderModUnlockModal(forceShow);
     renderOfficialModList();
+}
+
+let realityBanState = null;
+
+function renderRealityBanState(data = {}) {
+    realityBanState = data;
+    const options = $('reality-ban-options');
+    if (options) {
+        const candidates = Array.isArray(data.candidates) ? data.candidates : [];
+        options.replaceChildren();
+        candidates.forEach((event) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-magic reality-ban-option';
+            btn.dataset.eventId = String(event.id || '');
+            btn.innerHTML = `<strong>${escapeHtml(event.name || `#${event.id}`)}</strong><span class="info-text">${escapeHtml(event.desc || '')}</span>`;
+            btn.addEventListener('click', () => {
+                if (window.__gtnConfirm && !window.__gtnConfirm('禁用该事件？', '禁用后本场对局不再生效，无法撤销。')) return;
+                socket.emit('reality_ban_pick', { ban: Number(event.id) || 0 });
+            });
+            options.append(btn);
+        });
+    }
+    const skipBtn = $('btn-reality-ban-skip');
+    if (skipBtn) {
+        skipBtn.onclick = () => socket.emit('reality_ban_pick', { ban: 0 });
+    }
+    const timer = $('reality-ban-timer');
+    if (timer) {
+        const deadline = Number(data.deadline) || 0;
+        timer.textContent = deadline > 0
+            ? lt({ zh: `剩余 ${Math.max(0, Math.ceil(deadline - Date.now() / 1000))} 秒`, en: `${Math.max(0, Math.ceil(deadline - Date.now() / 1000))}s left` })
+            : '';
+    }
+    showView('view-reality-ban');
 }
 
 function renderModDrawState(data = {}) {

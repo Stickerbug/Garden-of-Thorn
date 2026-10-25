@@ -20,6 +20,7 @@ from cards import (
 )
 from runtime_errors import MOD_RUNTIME_ERROR_MESSAGE, record_mod_runtime_error
 import official_statuses
+import reality_events
 from mod_runtime_v2 import (
     ATOMIC_OP_MACROS,
     apply_param_synonyms,
@@ -1012,7 +1013,7 @@ class PlayerState:
             self.m_gained_this_turn = True
 
 
-class GameEngine:
+class GameEngine(reality_events.RealityEngineMixin):
     # Round 40 / 批次 AE-2：``assembler_effect`` 与其兜底奖励表
     # （``DEFAULT_ASSEMBLER_REWARDS``）已删除——重构机改成卡数据里的通用步骤
     # （请求选牌 → 放逐 → 随机奖励表 → 造牌 / 迅捷 / 碎片），奖励表本身留在
@@ -2290,6 +2291,41 @@ class GameEngine:
                 source=self.pn(player_id),
             ))
 
+    def _resolve_reality_draw_choice(self, player_id: int, pending: dict, choice: dict) -> dict:
+        import random as _random
+        from cards import CARD_DEFS
+        ps = self.players[player_id]
+        cards_list = pending.get('cards') or []
+        cancelled = choice is None or (isinstance(choice, dict) and bool(choice.get('cancelled')))
+        if cancelled:
+            # 取消=放弃本次三选一（不抽牌）。
+            self.pending_choice = None
+            self._continue_turn_start_auto_settlement(player_id)
+            return {'success': True, 'cancelled': True}
+        seq = str(choice.get('reality_seq') or (pending.get('cards') or [{}])[0].get('instance_id', ''))
+        # 刷新：消耗一次重抽机会，重掷当前窗口选项。
+        if isinstance(choice, dict) and choice.get('reroll'):
+            charges = max(0, int(ps.custom_vars.get('reality_redraw_charges', 0) or 0))
+            if charges <= 0:
+                return {'success': False, 'error': '没有重抽机会'}
+            ps.custom_vars['reality_redraw_charges'] = charges - 1
+            fresh = self.reality_turn_start_draw_choices(player_id, len(cards_list))
+            if fresh:
+                fresh['operation_id'] = pending.get('operation_id')
+                fresh['player_id'] = player_id
+                self.pending_choice = fresh
+                return {'success': True, 'needs_choice': True, 'choice_type': 'reality_draw'}
+            return {'success': True }
+        def_id = str(choice.get('def_id') or '')
+        if def_id not in CARD_DEFS:
+            return {'success': False, 'error': '无效选择'}
+        self.pending_choice = None
+        for item in cards_list:
+            self.resolve_reality_draw_choice(player_id, def_id, 0)
+        self.log_msg(f"{self.pn(player_id)}完成了操纵现实三选一")
+        self._continue_turn_start_auto_settlement(player_id)
+        return {'success': True}
+
     def _apply_forced_target_choice(self, player_id: int, card: Optional[CardInstance], choice):
         target_id = self._forced_target_for_card(player_id, card)
         if target_id is None:
@@ -2320,8 +2356,29 @@ class GameEngine:
             return []
         target_id = self._choice_target_from_choice(choice, -1)
         if target_id < 0 and getattr(card, 'card_type', '') == 'thorn' and len(self.players) == 2:
+            # 操纵现实（事件20）：取消攻击牌默认指向对手（可指向自己）。
             target_id = 1 - player_id
-        return [target_id] if 0 <= target_id < len(self.players) else []
+        if 0 <= target_id < len(self.players):
+            # 操纵现实（事件20）：强制与上次目标不同——与上次相同时自动改指
+            # 另一名可选中玩家（1v1 即改为指向自己，自指限制已一并取消）。
+            if (
+                self.reality_forces_distinct_target()
+                and isinstance(choice, dict)
+                and self._choice_target_from_choice(choice, -1) >= 0
+            ):
+                last = self.reality_last_target(player_id)
+                if last is not None and int(last) == int(target_id):
+                    alternatives = [
+                        index for index in range(len(self.players))
+                        if index != target_id
+                        and self._target_can_be_selected(player_id, index, allow_self=True)
+                    ]
+                    if alternatives:
+                        target_id = alternatives[0]
+                        self.log_msg(f'{self.pn(player_id)}的操纵现实：目标强制改为{self.pn(target_id)}')
+                self.reality_record_last_target(player_id, target_id)
+            return [target_id]
+        return []
 
     def _card_target_reaction_relation(self, actor_id: int, target_id: int, relation: str) -> bool:
         """Enemy / friendly / teammate filter declared by a targeted reaction."""
@@ -3741,6 +3798,9 @@ class GameEngine:
         self.current_player: int = 0
         self.first_player: int = 0
         self.round_num: int = 0
+        # 操纵现实（2026-10-24）：全局事件集合与引擎级变量。
+        self.reality_events: Set[int] = set()
+        self.reality_vars: Dict[str, float] = {}
         self.phase: str = 'waiting'
         self._game_start_applied: bool = False
         # AI 入口自选血量（50-1000，仅 AI 一侧）：{player_id: hp}，
@@ -5184,6 +5244,8 @@ class GameEngine:
             'round_num': self.round_num,
             'game_over': self.game_over,
             'winner': self.winner,
+            'reality_events': sorted(int(x) for x in (getattr(self, 'reality_events', None) or set())),
+            'reality_vars': dict(getattr(self, 'reality_vars', None) or {}),
             'you': you_data,
             'opponent': opp_data,
             'log': list(self.log),
@@ -5239,9 +5301,14 @@ class GameEngine:
                 if 'team_limited' not in normalize_card_flags(getattr(c.card_def, 'flags', set()) or set())
             ]
             self.draft_type_order = []
-            for card_type, count in DRAFT_RATIO.items():
+            # 操纵现实：事件1/9/17/19 改写类型配额；事件11魔法权重翻倍。
+            reality_ratio = reality_events.reality_adjusted_draft_ratio(
+                DRAFT_RATIO, getattr(self, 'reality_events', None) or set(),
+            )
+            for card_type, count in reality_ratio.items():
                 self.draft_type_order.extend([card_type] * count)
             random.shuffle(self.draft_type_order)
+            self.reality_adjust_draft_weights(self.draft_pool)
         # Ensure draft_picks is initialized
         if not self.draft_picks[player_id]:
             self.draft_picks[player_id] = []
@@ -5336,6 +5403,8 @@ class GameEngine:
         if self._draft_unique_pick_is_duplicate(player_id, def_id):
             return False
         self.draft_picks[player_id].append(def_id)
+        # 操纵现实（事件12）：每次选卡额外获得一张复制（进卡组）。
+        self.reality_after_draft_pick(player_id, def_id)
         self._generate_draft_options_for_player(player_id)
         return True
 
@@ -5673,9 +5742,17 @@ class GameEngine:
             ps.health = INITIAL_HEALTH
             ps.max_health = BASE_MAX_HEALTH
             ps.base_max_health = BASE_MAX_HEALTH
+            # 操纵现实：事件4/6 初始血量加成（后手覆盖与AI覆盖仍在其后生效）。
+            reality_health_bonus = self.reality_initial_max_health_bonus()
+            if reality_health_bonus:
+                ps.health += reality_health_bonus
+                ps.max_health += reality_health_bonus
+                ps.base_max_health += reality_health_bonus
             ps.elixir = INITIAL_ELIXIR
             ps.magic = INITIAL_MAGIC
             self._reset_achievement_match_stats(i)
+        # 操纵现实：事件19 污水入卡组；事件12 全卡放逐。
+        self.reality_after_decks_built()
         for pid in range(len(self.players)):
             self._enforce_unique_cards_for_player(pid)
         for i in range(2):
@@ -5723,6 +5800,8 @@ class GameEngine:
         # Keep v2/custom opening events deferred for now because some may
         # intentionally operate on the opening hand.
         self._apply_deferred_opening_events_after_initial_draw()
+        # 操纵现实：开局终置（事件19双方+10灼烧；事件6泰坦倍率初始化）。
+        self.reality_game_start_setup()
         if self.mulligan_enabled:
             # 新开局规则：初始手牌就绪后进入调度阶段——玩家可把任意手牌
             # 塞入抽牌堆并洗牌、再抽取等量（首次抽牌不触发「到手牌时」
@@ -6853,6 +6932,11 @@ class GameEngine:
                 return 0
         if not (0 <= player_id < len(self.players)):
             return 0
+        # 操纵现实（事件6）：全局伤害倍率（含灼烧/中毒等状态伤害）。
+        if getattr(self, 'reality_events', None):
+            titan = self.reality_damage_multiplier()
+            if titan > 1.0:
+                amount = int(round(amount * titan))
         from engine_runtime_support import blocks_special_effect_damage, maybe_defer_direct_damage, try_declared_damage_absorb
         if maybe_defer_direct_damage(
             self,
@@ -7452,7 +7536,8 @@ class GameEngine:
         return reduced
 
     def _apply_late_round_fire_pressure(self):
-        if self.round_num < LATE_ROUND_FIRE_START:
+        fire_start = 1 if self.reality_active(8) else LATE_ROUND_FIRE_START
+        if self.round_num < fire_start:
             return
         applied = 0
         for ps in self.players:
@@ -10982,6 +11067,9 @@ class GameEngine:
             pending_player_id = -1
         if pending_player_id != int(player_id):
             return {'success': False, 'error': '不是你的选择操作'}
+        # 操纵现实（事件7）：三选一抽牌窗口——重抽或定选。
+        if pending.get('kind') == 'reality_draw':
+            return self._resolve_reality_draw_choice(player_id, pending, choice)
         choice_type = pending.get('choice_type', '')
         if pending.get('bio_dna_turn_start'):
             if int(pending.get('player_id', -1)) != int(player_id):
@@ -14857,6 +14945,8 @@ class GameEngine:
         self._save_last_turn_damage_snapshot(player_id)
         self._expire_bandages_after_action(player_id)
         self._clear_turn_card_tracking(player_id)
+        # 操纵现实（2026-10-24）：事件2 丢弃所有非反制手牌；事件13 手中牌迅捷+1。
+        self.reality_end_of_turn(player_id)
         if self.game_over:
             return
         if player_id == self.first_player:
@@ -17670,6 +17760,9 @@ class GameEngine:
     def _card_is_self_only(self, card: Optional[CardInstance]) -> bool:
         if card is None:
             return False
+        # 操纵现实（事件20）：取消所有"不选择目标"tag 的限制。
+        if self.reality_cancel_target_restrictions():
+            return False
         flags = set(getattr(card, 'flags', set()) or set())
         card_def = getattr(card, 'card_def', None)
         if card_def is not None:
@@ -19330,6 +19423,15 @@ class GameEngine:
             sluggish_reduction = ps.sluggish if not self._is_status_immune(player_id) else 0
             from formal_logic_runtime import consume_draw_reduction
             draw_count = max(0, DRAW_PER_TURN - sluggish_reduction - consume_draw_reduction(self, player_id))
+            # 操纵现实：事件2/5 每回合多抽；事件7 抽牌改为三选一窗口。
+            draw_count += self.reality_extra_draw_count(player_id)
+            if self.reality_replaces_turn_draw():
+                pending = self.reality_turn_start_draw_choices(player_id, draw_count)
+                if pending:
+                    pending['operation_id'] = f'reality-draw:{player_id}:{self.round_num}'
+                    pending['player_id'] = player_id
+                    self.pending_choice = pending
+                    return
             if self._queue_foresight_replace_choice(player_id, draw_count, 'turn_start_after_foresight'):
                 self._pending_turn_start_early_owner_equipment = set(early_owner_turn_start_equipment)
                 return
@@ -19620,6 +19722,11 @@ class GameEngine:
         hits = clamp_damage_hits(hits)
         if source_card is not None:
             self._clamp_card_layers(source_card)
+        # 操纵现实（事件6）：全局伤害倍率（攻击伤害同样放大）。
+        if getattr(self, 'reality_events', None):
+            titan = self.reality_damage_multiplier()
+            if titan > 1.0:
+                amount = int(round(amount * titan))
         ps = self.players[target_id]
         if ps.health <= 0 and self._game_over_defer_depth <= 0:
             return 0
@@ -24839,6 +24946,16 @@ class GameEngine:
     def _garden_return_first_played_card(self, player_id: int, card: CardInstance):
         if not self._valid_player_id(player_id) or card is None:
             return
+        # 操纵现实（2026-10-24）：出牌消耗公共汇点——事件13沉重+1、
+        # 15/16第三张牌触发、18打出的牌进对手弃牌堆。
+        if getattr(self, 'reality_events', None):
+            self.reality_after_card_played(player_id, card)
+            if self.reality_played_card_destination(player_id, card):
+                # 事件18接管去向：从本家弃牌堆移除（若已被丢入）。
+                try:
+                    self.players[player_id].discard.remove(card)
+                except ValueError:
+                    pass
         if int(getattr(self, 'current_player', -1)) != player_id or self.phase != 'action':
             return
         marker = f"{int(getattr(self, '_turn_boundary_id', 0) or 0)}:{player_id}"

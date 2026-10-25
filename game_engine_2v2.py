@@ -32,6 +32,9 @@ class GameEngine2v2(GameEngine):
 
     def __init__(self):
         self.num_players = 4
+        # 操纵现实（2026-10-24）：与 1v1 同款全局事件状态。
+        self.reality_events: set = set()
+        self.reality_vars: dict = {}
         self.teams: List[List[int]] = [[0, 1], [2, 3]]
         self.players = [PlayerState(i) for i in range(4)]
         self.current_player: int = 0
