@@ -32011,10 +32011,9 @@ def on_accept_invite(data):
             if pool_issue:
                 emit_match_start_failed([inviter_sid, sid], pool_issue, reason='content_temporarily_disabled')
                 return
-        clear_pending_match_invites_for_sids_locked([inviter_sid, sid])
-        # 操纵现实：接受邀请时读取邀请方携带的特殊模式旗标。
+        # 操纵现实：必须在 clear_pending 之前读取旗标（清理会顺带删除旗标）。
         room_reality_mode = bool((invite_special_modes.get(inviter_sid) or {}).get('reality'))
-        invite_special_modes.pop(inviter_sid, None)
+        clear_pending_match_invites_for_sids_locked([inviter_sid, sid])
         room = GameRoom(
             room_id,
             [inviter_sid, sid],
@@ -32034,6 +32033,9 @@ def on_accept_invite(data):
         accepter['room_id'] = room_id
         accepter['status'] = 'in_game'
         room.engine.player_names = [inviter['nickname'], accepter['nickname']]
+        # 操纵现实：建房即落位（修复2026-10-25：此前只在模组抽取分支内赋值，
+        # 娱乐1v1走 elif 分支时属性从未被设置）。
+        room.reality_mode = room_reality_mode
         room.store_player_profile(inviter_sid, 0, inviter)
         room.store_player_profile(sid, 1, accepter)
         if casual_mod_draw:
@@ -32042,7 +32044,6 @@ def on_accept_invite(data):
                 if casual_shared_mod_signature(shared_profile) != casual_shared_mod_signature(casual_shared_mod_profile(accepter)):
                     raise ValueError('娱乐模组或社区模组选择不一致')
                 room.casual_shared_mod_profile = shared_profile
-                room.reality_mode = room_reality_mode
                 start_casual_room_or_event_select(room, shared_profile)
             except Exception as exc:
                 _abort_casual_room_to_lobby_locked(room, str(exc), reason='mod_mismatch')
