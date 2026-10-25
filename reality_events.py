@@ -189,22 +189,29 @@ class RealityEngineMixin:
         return self.reality_active(7)
 
     def reality_turn_start_draw_choices(self, player_id: int, count: int) -> Optional[dict]:
-        """事件7：本回合的抽牌改为三选一（权重=对应类型在选牌配额中的次数）。"""
+        """事件7：本回合的抽牌改为三选一（权重=对应类型在选牌配额中的次数）。
+
+        每个窗口只呈现一次三选一；多次抽牌通过 ``remaining`` 逐窗连续结算。
+        """
         if not self.reality_active(7) or count <= 0:
             return None
-        options = []
-        for _ in range(count):
-            pick = self._reality_draw_option(player_id, len(options))
-            if pick is not None:
-                options.append(pick)
-        if not options:
+        pick = self._reality_draw_option(player_id, 0)
+        if pick is None:
             return None
         return {
             'kind': 'reality_draw',
+            'choice_type': 'reality_draw',
             'title': {'zh': '操纵现实：三选一', 'en': 'Reality: choose one'},
             'minimum': 1,
             'maximum': 1,
-            'cards': options,
+            'cards': [pick],
+            'remaining': int(count),
+            'choice_params': {
+                'options': list(pick.get('options') or []),
+                'title': '操纵现实：三选一',
+                'cancellable': False,
+                'reality_remaining': int(count),
+            },
         }
 
     def _reality_draw_option(self, player_id: int, seq: int) -> Optional[dict]:

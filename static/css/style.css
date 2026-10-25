@@ -22822,3 +22822,57 @@ body.mulligan-open #modal {
   color: #d69e2e;
   font-size: 13px;
 }
+
+/* 操纵现实ban界面（2026-10-25反馈：选项与文字太小）——放大为整行卡片 */
+#view-reality-ban .mod-draw-container {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 20px 24px;
+}
+
+#view-reality-ban h2 {
+  font-size: 26px;
+  margin-bottom: 6px;
+}
+
+#view-reality-ban .event-desc {
+  font-size: 15px;
+  margin-bottom: 12px;
+}
+
+#reality-ban-options {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  text-align: left;
+}
+
+.reality-ban-option {
+  display: block;
+  width: 100%;
+  min-height: 76px;
+  padding: 14px 18px !important;
+  border-width: 2px;
+  border-radius: 12px;
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: normal;
+}
+
+.reality-ban-option strong {
+  display: block;
+  font-size: 19px;
+  margin-bottom: 6px;
+}
+
+.reality-ban-option .info-text {
+  display: block;
+  font-size: 15px;
+  opacity: 0.92;
+}
+
+#btn-reality-ban-skip {
+  margin-top: 14px;
+  font-size: 16px;
+  padding: 10px 22px;
+}

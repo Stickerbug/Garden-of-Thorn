@@ -38123,7 +38123,31 @@ async function showChoiceUI(data) {
     const choiceTargetId = data.target_player_id != null ? normalizePlayerId(data.target_player_id) : null;
     const choiceTargetData = () => (choiceTargetId != null ? (getPlayerDataById(choiceTargetId) || {}) : (gameState.you || {}));
     let choiceResult = null;
-    if (choiceType === 'choose_attack_from_hand') {
+    if (choiceType === 'reality_draw') {
+        // 操纵现实（事件7·发现）：三选一抽牌 + 重抽（有充能时）。
+        const zhReality = currentLang === 'zh';
+        const drawOptions = Array.isArray(choiceParams.options) ? choiceParams.options.map(id => String(id)) : [];
+        const redrawCharges = Math.max(0, Number((gameState.you || {}).reality_redraw_charges) || 0);
+        const optionCards = drawOptions.map(id => cardChoiceOption({ def_id: id, instance_id: `reality-${id}` }));
+        if (redrawCharges > 0) {
+            optionCards.push({
+                label: zhReality ? `↻ 重抽（剩${redrawCharges}次）` : `↻ Redraw (${redrawCharges} left)`,
+                description: zhReality ? '消耗一次重抽机会，重新生成三个选项' : 'Spend a redraw charge to reroll the options',
+            });
+        }
+        const sel = await simpleChoice(
+            choiceTitle(zhReality ? '操纵现实：三选一' : 'Reality: choose one'),
+            optionCards,
+            { cancellable: false, message: zhReality ? '选择一张牌直接加入手牌' : 'Choose a card into your hand' },
+        );
+        if (sel >= 0 && sel < drawOptions.length) {
+            choiceResult = { def_id: drawOptions[sel] };
+        } else if (sel >= 0 && sel === optionCards.length - 1 && redrawCharges > 0) {
+            choiceResult = { reroll: true };
+        } else {
+            choiceResult = { cancelled: true };
+        }
+    } else if (choiceType === 'choose_attack_from_hand') {
         const attacks = ((gameState.you || {}).hand || []).filter(c => {
             const cd = getCardDef(c.def_id);
             return cd && cd.card_type === 'thorn';

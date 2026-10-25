@@ -2320,8 +2320,17 @@ class GameEngine(reality_events.RealityEngineMixin):
         if def_id not in CARD_DEFS:
             return {'success': False, 'error': '无效选择'}
         self.pending_choice = None
-        for item in cards_list:
-            self.resolve_reality_draw_choice(player_id, def_id, 0)
+        # 修复2026-10-25：一次结算只发所选的一张牌（原实现循环按窗口数连发）。
+        self.resolve_reality_draw_choice(player_id, def_id, 0)
+        remaining = int(pending.get('remaining') or 0) - 1
+        if remaining > 0:
+            nxt = self.reality_turn_start_draw_choices(player_id, remaining)
+            if nxt:
+                nxt['operation_id'] = pending.get('operation_id')
+                nxt['player_id'] = player_id
+                nxt['remaining'] = remaining
+                self.pending_choice = nxt
+                return {'success': True, 'needs_choice': True, 'choice_type': 'reality_draw'}
         self.log_msg(f"{self.pn(player_id)}完成了操纵现实三选一")
         self._continue_turn_start_auto_settlement(player_id)
         return {'success': True}
@@ -5742,12 +5751,6 @@ class GameEngine(reality_events.RealityEngineMixin):
             ps.health = INITIAL_HEALTH
             ps.max_health = BASE_MAX_HEALTH
             ps.base_max_health = BASE_MAX_HEALTH
-            # 操纵现实：事件4/6 初始血量加成（后手覆盖与AI覆盖仍在其后生效）。
-            reality_health_bonus = self.reality_initial_max_health_bonus()
-            if reality_health_bonus:
-                ps.health += reality_health_bonus
-                ps.max_health += reality_health_bonus
-                ps.base_max_health += reality_health_bonus
             ps.elixir = INITIAL_ELIXIR
             ps.magic = INITIAL_MAGIC
             self._reset_achievement_match_stats(i)
@@ -5762,6 +5765,15 @@ class GameEngine(reality_events.RealityEngineMixin):
                 ps.max_health = SECOND_PLAYER_HEALTH
                 ps.base_max_health = SECOND_PLAYER_HEALTH
                 self._reset_achievement_match_stats(i)
+        # 操纵现实（修复2026-10-25）：事件4/6 初始血量加成放在后手覆盖之后
+        # ——此前早于覆盖执行，后手的+50会被覆盖重置吞掉。
+        reality_health_bonus = self.reality_initial_max_health_bonus()
+        if reality_health_bonus:
+            for i in range(2):
+                ps = self.players[i]
+                ps.health += reality_health_bonus
+                ps.max_health += reality_health_bonus
+                ps.base_max_health += reality_health_bonus
         # AI 入口自选血量：在快照与内置开局效果之前覆盖，
         # 使回复/「回到对局开始时数值」类效果与新血量一致。
         for i, override_hp in (getattr(self, 'player_health_overrides', None) or {}).items():
