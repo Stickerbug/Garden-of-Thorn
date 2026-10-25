@@ -2368,24 +2368,8 @@ class GameEngine(reality_events.RealityEngineMixin):
             # 操纵现实（事件20）：取消攻击牌默认指向对手（可指向自己）。
             target_id = 1 - player_id
         if 0 <= target_id < len(self.players):
-            # 操纵现实（事件20）：强制与上次目标不同——与上次相同时自动改指
-            # 另一名可选中玩家（1v1 即改为指向自己，自指限制已一并取消）。
-            if (
-                self.reality_forces_distinct_target()
-                and isinstance(choice, dict)
-                and self._choice_target_from_choice(choice, -1) >= 0
-            ):
-                last = self.reality_last_target(player_id)
-                if last is not None and int(last) == int(target_id):
-                    alternatives = [
-                        index for index in range(len(self.players))
-                        if index != target_id
-                        and self._target_can_be_selected(player_id, index, allow_self=True)
-                    ]
-                    if alternatives:
-                        target_id = alternatives[0]
-                        self.log_msg(f'{self.pn(player_id)}的操纵现实：目标强制改为{self.pn(target_id)}')
-                self.reality_record_last_target(player_id, target_id)
+            # 操纵现实（事件20）的重定向与记录已由 play_card 的攻击牌分支统一
+            # 处理（此处曾有一份重复逻辑导致二次改向，2026-10-25 移除）。
             return [target_id]
         return []
 
@@ -9943,9 +9927,31 @@ class GameEngine(reality_events.RealityEngineMixin):
             if not self._target_can_be_selected(
                 player_id,
                 target_id,
-                allow_self=('self_target' in card_flags or forced_target_id == target_id),
+                allow_self=(
+                    self.reality_cancel_target_restrictions()
+                    or 'self_target' in card_flags
+                    or forced_target_id == target_id
+                ),
             ):
                 return {'success': False, 'error': '没有可选中的玩家'}
+            # 操纵现实（事件20·鲁莽攻击）：所有卡强制与上次目标不同——相同则
+            # 改指另一名可选中玩家（1v1 即改指自己，自指限制已取消）。
+            if (
+                self.reality_forces_distinct_target()
+                and isinstance(choice, dict)
+                and self._choice_target_from_choice(choice, -1) >= 0
+            ):
+                last_target = self.reality_last_target(player_id)
+                if last_target is not None and int(last_target) == int(target_id):
+                    alternatives = [
+                        index for index in range(len(self.players))
+                        if index != target_id
+                        and self._target_can_be_selected(player_id, index, allow_self=True)
+                    ]
+                    if alternatives:
+                        target_id = alternatives[0]
+                        self.log_msg(f'{self.pn(player_id)}的操纵现实：目标强制改为{self.pn(target_id)}')
+                self.reality_record_last_target(player_id, target_id)
             # Preserve the attack target across a later card/equipment picker.
             # Picker payloads also carry target_player_id for the zone owner.
             choice = dict(choice or {})
