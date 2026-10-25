@@ -75,15 +75,17 @@ class Gb399CandyStickTests(unittest.TestCase):
         worker.start()
         worker.join(timeout=20)
         self.assertFalse(worker.is_alive(), '糖棍打出后引擎未终止（无限旋转回归）')
+        # 2026-10-26 改版：花瓣携带旋转+随机伤害；变形只在打出时结算（花瓣不带），
+        # 耐久不再被变形重置，链式旋转靠耐久消耗自然终止。
         for effect_types in result['effects']:
             self.assertNotIn('orbit_transform_all', effect_types)
-            self.assertNotIn('rotate_orbit', effect_types)
 
-    def test_candy_stick_petal_triggers_only_random_damage(self):
+    def test_candy_stick_petal_triggers_rotation_and_damage(self):
+        # 2026-10-26 改版：花瓣被转到时「旋转一次轨道+随机伤害」。
         values = _card_values(_new_card(_orbiter_combat('gb399b'), 'candy_stick', False))
         self.assertEqual(
             [e.get('type') for e in values['orbit_effects']],
-            ['random_damage'],
+            ['rotate_orbit', 'random_damage'],
         )
 
     def test_lentil_rotate_into_candy_stick_petals_terminates(self):

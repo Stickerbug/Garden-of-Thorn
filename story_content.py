@@ -2865,23 +2865,37 @@ STORY_CARDS.update({
     ),
     'candy_stick': _card(
         'CandyStick', '糖棍', 'Joystick', 2, 'thorn', 'ultra',
-        '将轨道上所有花瓣变为糖棍花瓣，旋转轨道1次，对目标造成6D',
-        description_en='Turn all petals into Joystick petals, rotate once, deal 6 D to the target',
+        '旋转一次轨道，对目标造成6D，若非在轨道上触发：将轨道上所有牌变为糖棍',
+        description_en='Rotate the orbit once, deal 6 D to the target; if not triggered from the orbit: turn all cards on the orbit into Joystick',
         owner='orbiter', orbit=2,
-        # GB-399：糖棍花瓣被转到时只结算随机伤害（不享受力量、随机目标），
-        # 不再继承打出效果（否则变形→旋转→再变形的链会无限自旋）。
-        # 表15 红标：手动打出时对目标（选定敌人）造成伤害。
-        orbit_effects=(_effect('random_damage', 6),),
+        # 2026-10-26 改版：花瓣被转到时「旋转一次轨道+对目标造成伤害」
+        # （旋转在轨道上也会触发——链式旋转靠耐久消耗自然终止）；
+        # 变形只在手动打出（非轨道触发）时结算，花瓣不再携带变形，
+        # GB-399 的无限自旋（变形重置耐久）不会复发。
+        orbit_effects=(
+            _effect('rotate_orbit', 1),
+            _effect('random_damage', 6),
+        ),
         effects=(
-            _effect('orbit_transform_all', 1, durability=2),
             _effect('rotate_orbit', 1),
             _effect('damage', 6),
-        ),
-        upgrade={'description': {'zh': '将轨道上所有花瓣变为糖棍+花瓣，旋转轨道1次，对目标造成9D', 'en': 'Turn all petals into Joystick+ petals, rotate once, deal 9 D to the target'}, 'orbit_effects': (_effect('random_damage', 9),), 'effects': (
             _effect('orbit_transform_all', 1, durability=2),
-            _effect('rotate_orbit', 1),
-            _effect('damage', 9),
-        )},
+        ),
+        upgrade={
+            'description': {
+                'zh': '旋转一次轨道，对目标造成9D，若非在轨道上触发：将轨道上所有牌变为糖棍+',
+                'en': 'Rotate once, deal 9 D to the target; if not triggered from the orbit: turn all orbit cards into Joystick+',
+            },
+            'orbit_effects': (
+                _effect('rotate_orbit', 1),
+                _effect('random_damage', 9),
+            ),
+            'effects': (
+                _effect('rotate_orbit', 1),
+                _effect('damage', 9),
+                _effect('orbit_transform_all', 1, durability=2),
+            ),
+        },
     ),
     'golden_cactus': _card(
         'GoldenCactus', '金仙人掌', 'Golden Cactus', 1, 'bloom', 'rare',
