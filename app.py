@@ -18449,6 +18449,7 @@ def send_event_state(room, pidx):
         'selected_opening_events': _selected_opening_event_names(engine),
         'room_chat_history': room_chat_history_for_sid(room, sid),
         **_pregame_timer_payload(room, pidx, 'event_select'),
+        **_reality_banner_payload(room),
     }
     payload.update(_watched_pregame_timer_payload(room, pidx))
     payload.update(instance_payload())

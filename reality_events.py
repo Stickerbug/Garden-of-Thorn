@@ -98,7 +98,14 @@ class RealityEngineMixin:
             self.log_msg('操纵现实：所有卡获得放逐')
 
     def reality_game_start_setup(self):
-        """对局正式开始（调度后）：事件19 双方+10灼烧；事件6 初始化伤害倍率。"""
+        """对局正式开始（调度后）：战报展示生效事件；事件19 双方+10灼烧；事件6 倍率初始化。"""
+        if self.reality_events:
+            from reality_events import REALITY_EVENTS
+            names = '、'.join(
+                str(REALITY_EVENTS.get(cid, {}).get('name') or cid)
+                for cid in sorted(self.reality_events)
+            )
+            self.log_msg(f'⚙ 操纵现实：本局生效事件——{names}')
         if self.reality_active(19):
             for ps in self.players:
                 ps.fire += 10

@@ -28982,6 +28982,36 @@ function updateEndTurnButtonLabels(gs) {
     if (classicTimer) classicTimer.textContent = formatClassicTurnTimerText(gs);
 }
 
+let realityBannerEvents = null;
+
+function renderRealityBanner(container, events) {
+    // 操纵现实（2026-10-25）：选牌/配装界面顶部展示本局生效事件。
+    if (!container) return;
+    const list = Array.isArray(events) && events.length ? events : null;
+    realityBannerEvents = list;
+    let banner = container.querySelector('.reality-events-banner');
+    if (!list) {
+        if (banner) banner.remove();
+        return;
+    }
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.className = 'reality-events-banner';
+        container.prepend(banner);
+    }
+    const zh = currentLang === 'zh';
+    banner.innerHTML = `
+        <div class="reality-events-banner-title">${zh ? '⚙ 操纵现实 · 本局生效事件' : '⚙ Reality · Active events'}</div>
+        <div class="reality-events-banner-items">
+            ${list.map(ev => `
+                <span class="reality-events-banner-item" title="${escapeHtml(ev.desc || '')}">
+                    <b>${escapeHtml(ev.name || `#${ev.id}`)}</b>
+                </span>
+            `).join('')}
+        </div>
+    `;
+}
+
 function renderDraft(data, isReroll, previousDraftState = null) {
     showView('view-draft');
     syncPhaseChatMatch(data || {});
@@ -28994,6 +29024,7 @@ function renderDraft(data, isReroll, previousDraftState = null) {
     const iJustPicked = picks.length > prevPicks;
     const shouldAnimate = isReroll || iJustPicked;
     updateDraftInfo(data);
+    renderRealityBanner(document.querySelector('#view-draft .draft-container, #view-draft'), data?.reality_events);
     const optionsEl = $('draft-options');
     if (optionsEl) {
         const optionIds = options.map(opt => {
@@ -29098,6 +29129,7 @@ function renderEventSelect(data) {
     syncPhaseChatMatch(data || {});
     updatePhaseChatChannelOptions(data || {});
     updatePregameTimerDisplay(data, 'event');
+    renderRealityBanner(document.querySelector('#view-event-select .event-container, #view-event-select'), data?.reality_events);
     const events = data.events || [];
     const myPick = data.my_pick;
     const container = $('event-options');

@@ -22876,3 +22876,36 @@ body.mulligan-open #modal {
   font-size: 16px;
   padding: 10px 22px;
 }
+
+/* 操纵现实：选牌/配装界面顶部事件横幅（2026-10-25） */
+.reality-events-banner {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid #d69e2e;
+  border-radius: 10px;
+  background: rgba(214, 158, 46, 0.1);
+}
+
+.reality-events-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #d69e2e;
+  margin-bottom: 6px;
+}
+
+.reality-events-banner-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reality-events-banner-item {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(214, 158, 46, 0.6);
+  background: rgba(214, 158, 46, 0.14);
+  color: #e9c46a;
+  font-size: 13px;
+  cursor: help;
+}
