@@ -19380,6 +19380,11 @@ class GameEngine(reality_events.RealityEngineMixin):
             self.players[player_id].custom_vars.pop('jurassic_magic_tooth_damage_this_turn', None)
         except Exception:
             pass
+        # 操纵现实（2026-10-25补）：回合开始钩子——事件2回复前清费；
+        # 事件7重抽充能/事件14虚无发放；事件15/16出牌计数按回合清零。
+        self.reality_turn_start_before_recovery(player_id)
+        self.reality_turn_start_tokens(player_id)
+        self.reality_turn_reset_play_counter(player_id)
         # 设计 2026-09-29：魔力加速改为「每回合第奇数张无M费牌回1M」，计数按回合清零。
         self._reset_magic_acceleration_turn_count(player_id)
         # 设计 9.29：ygg 无敌到「触发玩家下个回合开始」消失——到期的可能是
@@ -19513,6 +19518,17 @@ class GameEngine(reality_events.RealityEngineMixin):
                             player=self.pn(player_id),
                         ))
             elixir_recovery += self._opening_event_elixir_recovery_bonus(player_id)
+            # 操纵现实（2026-10-25补）：事件3/10回复量修正（钳≥0）；事件5多回5E；
+            # 事件11额外回5M；事件3/10回合爬坡与事件6泰坦倍率随回合推进。
+            elixir_recovery = max(0, elixir_recovery + self.reality_elixir_recovery_modifier(player_id))
+            if self.reality_active(5):
+                elixir_recovery += 5
+            extra_magic = self.reality_extra_magic_recovery(player_id)
+            if extra_magic:
+                ps.magic = min(int(getattr(ps, 'max_magic', 10) or 10), ps.magic + extra_magic)
+                self.log_msg(f"{self.pn(player_id)}的操纵现实：额外回复{extra_magic}M")
+            self.reality_turn_start_advance_ramps(player_id)
+            self.reality_advance_titan_multiplier()
             ps.gain_elixir(elixir_recovery)
             self.log_msg(f"{self.pn(player_id)}回复{elixir_recovery}E")
             self._trigger_v2_status_events_for_player(player_id, 'on_turn_start_after_recovery', {'player_id': player_id})
@@ -19651,6 +19667,17 @@ class GameEngine(reality_events.RealityEngineMixin):
                             player=self.pn(player_id),
                         ))
             elixir_recovery += self._opening_event_elixir_recovery_bonus(player_id)
+            # 操纵现实（2026-10-25补）：事件3/10回复量修正（钳≥0）；事件5多回5E；
+            # 事件11额外回5M；事件3/10回合爬坡与事件6泰坦倍率随回合推进。
+            elixir_recovery = max(0, elixir_recovery + self.reality_elixir_recovery_modifier(player_id))
+            if self.reality_active(5):
+                elixir_recovery += 5
+            extra_magic = self.reality_extra_magic_recovery(player_id)
+            if extra_magic:
+                ps.magic = min(int(getattr(ps, 'max_magic', 10) or 10), ps.magic + extra_magic)
+                self.log_msg(f"{self.pn(player_id)}的操纵现实：额外回复{extra_magic}M")
+            self.reality_turn_start_advance_ramps(player_id)
+            self.reality_advance_titan_multiplier()
             ps.gain_elixir(elixir_recovery)
             self.log_msg(f"{self.pn(player_id)}回复{elixir_recovery}E")
             self._trigger_v2_status_events_for_player(player_id, 'on_turn_start_after_recovery', {'player_id': player_id})
