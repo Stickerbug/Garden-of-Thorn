@@ -107,23 +107,25 @@ class UserTitleTests(unittest.TestCase):
         remaining = db.get_user_title_center(self.user['id'])
         self.assertEqual([item['id'] for item in remaining['items']], ['test:custom'])
 
-    def test_admin_role_is_limited_to_the_three_developer_accounts(self):
-        for index, username in enumerate(('Stickerbug', 'Eric', 'NetherDog'), start=1):
-            candidate, error = db.create_user(f'AdminCandidate{index}', 'Aa1!aaaa')
-            self.assertIsNone(error)
-            with db.get_db_connection() as conn:
-                conn.execute(
-                    'UPDATE users SET username = ?, username_lower = ? WHERE id = ?',
-                    (username, db.normalize_username_key(username), candidate['id']),
-                )
-                conn.commit()
-            _, profile, error = db.admin_set_user_role(candidate['id'], 'admin')
-            self.assertIsNone(error)
-            self.assertEqual(profile['role_type'], 'admin')
-
+    def test_admin_role_can_be_granted_to_any_account(self):
+        # 2026-10-25：解除管理员身份白名单限制——任意账号可被授予管理员。
         _, profile, error = db.admin_set_user_role(self.user['id'], 'admin')
-        self.assertIsNone(profile)
-        self.assertIn('Stickerbug、Eric 或 NetherDog', error)
+        self.assertIsNone(error)
+        self.assertEqual(profile['role_type'], 'admin')
+        _, _, clear_error = db.admin_set_user_role(self.user['id'], 'none')
+        self.assertIsNone(clear_error)
+
+        # Stickerbug 恒为管理员的保护仍然生效。
+        candidate, error = db.create_user('AdminCandidateSB', 'Aa1!aaaa')
+        self.assertIsNone(error)
+        with db.get_db_connection() as conn:
+            conn.execute(
+                'UPDATE users SET username = ?, username_lower = ? WHERE id = ?',
+                ('Stickerbug', db.normalize_username_key('Stickerbug'), candidate['id']),
+            )
+            conn.commit()
+        _, _, protect_error = db.admin_set_user_role(candidate['id'], 'staff')
+        self.assertIn('必须保持管理员身份', protect_error)
 
     def test_init_removes_legacy_role_generated_titles(self):
         with db.get_db_connection() as conn:

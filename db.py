@@ -11423,8 +11423,8 @@ def admin_set_user_role(identifier, role_type):
     if not normalized_type:
         return None, None, '身份类型必须是 admin/staff/tester/contributor/sponsor/none'
     user_key = normalize_username_key(user['username'])
-    if normalized_type == 'admin' and user_key not in ADMIN_ROLE_USERNAME_KEYS:
-        return None, None, '管理员身份只能授予 Stickerbug、Eric、NetherDog 或 Champion'
+    # 2026-10-25：解除管理员身份的账号白名单限制（ADMIN_ROLE_USERNAME_KEYS
+    # 仅保留给历史数据校验用）——任意账号可被授予管理员。
     if user_key == 'stickerbug' and normalized_type != 'admin':
         return None, None, 'Stickerbug 必须保持管理员身份'
     defaults = _role_defaults(normalized_type)
