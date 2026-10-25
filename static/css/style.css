@@ -22781,3 +22781,28 @@ body.mulligan-open .classic-command-panel {
 body.mulligan-open #modal {
   z-index: 12040;
 }
+
+/* 娱乐1v1邀请：特殊模式勾选列表（2026-10-25） */
+.invite-special-mode-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  border: 1px solid var(--border, #4a5568);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.invite-special-mode-row input {
+  margin-top: 3px;
+}
+
+.invite-special-mode-row strong {
+  display: block;
+}
+
+.invite-special-mode-row small {
+  color: var(--muted, #a0aec0);
+}
