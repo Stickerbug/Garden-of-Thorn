@@ -3053,7 +3053,8 @@ function hiddenFeaturesEnabled() {
     }
 }
 function migrateStoredUiStyle() {
-    let stored = localStorage.getItem('gtn_ui_style') || 'minimal';
+    // 2026-10-25：新人（无存储）默认经典UI；已保存偏好的老玩家不受影响。
+    let stored = localStorage.getItem('gtn_ui_style') || 'classic';
     if (!localStorage.getItem(UI_STYLE_MIGRATION_KEY) && stored === 'classic') {
         stored = 'minimal';
         localStorage.setItem('gtn_ui_style', stored);

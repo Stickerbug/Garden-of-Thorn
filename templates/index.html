@@ -63,7 +63,8 @@
   }
   const migrationKey = betaKey('gtn_ui_style_v2_migrated');
   const uiStyleKey = betaKey('gtn_ui_style');
-  let uiStyle = storage.getItem(uiStyleKey) || 'minimal';
+  // 2026-10-25：新人（无存储）默认经典UI；已保存偏好的老玩家不受影响。
+  let uiStyle = storage.getItem(uiStyleKey) || 'classic';
   if (!storage.getItem(migrationKey) && uiStyle === 'classic') {
     uiStyle = 'minimal';
     storage.setItem(uiStyleKey, 'minimal');
