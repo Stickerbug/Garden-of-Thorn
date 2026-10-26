@@ -3581,7 +3581,7 @@ STORY_RELICS = {
     'peaceful_mind': _relic('心如止水', 'Peaceful Mind', '获得时删除自己至多3张牌。', rarity='special', script='gain_remove', amount=3),
     'phoenix': _relic('凤凰天翔', 'Phoenix', '抵消每场战斗第一次生命值损失。', rarity='special', script='first_health_loss_immunity', amount=1),
     'sword_strategy': _relic('亮剑妙计', 'Sword Strategy', '每打出1张攻击牌，获得2层护盾。', rarity='special', script='attack_shield', amount=2),
-    'perfection': _relic('致臻化境', 'Perfection', '获得时，将牌组中的1张护身符变为附魔护身符。', rarity='special', script='enchant_starter', amount=1),
+    'perfection': _relic('致臻化境', 'Perfection', '附魔你的一张初始牌（护身符→附魔护身符 / 魔法基本→附魔魔法基本 / 更快→附魔更快）。', rarity='special', script='enchant_starter', amount=1),
     'easy_miracle': _relic('奇迹', 'Miracle', '每回合多回复1E。', rarity='special', script='turn_elixir', amount=1),
     'easy_peace': _relic('安宁', 'Tranquility', '回合开始时回复3H。', rarity='special', script='turn_heal', amount=3),
     'easy_study': _relic('勤学精进', 'Diligent Study', '之后获得的牌均已升级。', rarity='special', script='gained_cards_upgraded'),
