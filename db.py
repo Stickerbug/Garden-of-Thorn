@@ -11660,7 +11660,7 @@ CARD_DRAFT_STAT_SORTS = {
     'picked_games': 'picked_games',
     'win_games': 'win_games',
     'draw_games': 'draw_games',
-    'card_win_rate': 'CASE WHEN picked_games > 0 THEN CAST(win_games AS REAL) / picked_games ELSE 0 END',
+    'card_win_rate': 'CASE WHEN picked_count > 0 THEN CAST(win_games AS REAL) / picked_count ELSE 0 END',
     'winner_pick_rate': 'winner_pick_rate',
     'updated_at': 'updated_at',
 }
@@ -12356,7 +12356,7 @@ def list_card_draft_stats(mode='', sort='pick_rate', order='desc', limit=300, of
                     COALESCE(wins.draw_games, 0) AS draw_games,
                     COALESCE(wins.win_updated_at, '') AS win_updated_at,
                     CASE WHEN COALESCE(draft.shown_count, 0) > 0 THEN CAST(COALESCE(draft.picked_count, 0) AS REAL) / draft.shown_count * 100 ELSE 0 END AS pick_rate,
-                    CASE WHEN COALESCE(wins.picked_games, 0) > 0 THEN CAST(wins.win_games AS REAL) / wins.picked_games * 100 ELSE 0 END AS card_win_rate,
+                    CASE WHEN COALESCE(draft.picked_count, 0) > 0 THEN CAST(wins.win_games AS REAL) / draft.picked_count * 100 ELSE 0 END AS card_win_rate,
                     CASE WHEN COALESCE(wins.win_games, 0) > 0 AND {total_winner_picks} > 0 THEN CAST(wins.win_games AS REAL) / {total_winner_picks} * 100 ELSE 0 END AS winner_pick_rate
                 FROM {'wins LEFT JOIN draft ON draft.card_id = wins.card_id WHERE wins.win_games > 0' if winner_filter else 'draft LEFT JOIN wins ON wins.card_id = draft.card_id'}
             '''
@@ -12386,7 +12386,7 @@ def list_card_draft_stats(mode='', sort='pick_rate', order='desc', limit=300, of
                         COALESCE(wins.draw_games, 0) AS draw_games,
                         COALESCE(wins.updated_at, '') AS win_updated_at,
                         CASE WHEN COALESCE(draft.shown_count, 0) > 0 THEN CAST(COALESCE(draft.picked_count, 0) AS REAL) / draft.shown_count * 100 ELSE 0 END AS pick_rate,
-                        CASE WHEN COALESCE(wins.picked_games, 0) > 0 THEN CAST(wins.win_games AS REAL) / wins.picked_games * 100 ELSE 0 END AS card_win_rate,
+                        CASE WHEN COALESCE(draft.picked_count, 0) > 0 THEN CAST(wins.win_games AS REAL) / draft.picked_count * 100 ELSE 0 END AS card_win_rate,
                         CASE WHEN COALESCE(wins.win_games, 0) > 0 AND {total_winner_picks} > 0 THEN CAST(wins.win_games AS REAL) / {total_winner_picks} * 100 ELSE 0 END AS winner_pick_rate
                     FROM {win_table} AS wins
                     LEFT JOIN {draft_table} AS draft
@@ -12407,7 +12407,7 @@ def list_card_draft_stats(mode='', sort='pick_rate', order='desc', limit=300, of
                         COALESCE(wins.draw_games, 0) AS draw_games,
                         COALESCE(wins.updated_at, '') AS win_updated_at,
                         CASE WHEN draft.shown_count > 0 THEN CAST(draft.picked_count AS REAL) / draft.shown_count * 100 ELSE 0 END AS pick_rate,
-                        CASE WHEN COALESCE(wins.picked_games, 0) > 0 THEN CAST(wins.win_games AS REAL) / wins.picked_games * 100 ELSE 0 END AS card_win_rate,
+                        CASE WHEN COALESCE(draft.picked_count, 0) > 0 THEN CAST(wins.win_games AS REAL) / draft.picked_count * 100 ELSE 0 END AS card_win_rate,
                         CASE WHEN COALESCE(wins.win_games, 0) > 0 AND {total_winner_picks} > 0 THEN CAST(wins.win_games AS REAL) / {total_winner_picks} * 100 ELSE 0 END AS winner_pick_rate
                     FROM {draft_table} AS draft
                     LEFT JOIN {win_table} AS wins
