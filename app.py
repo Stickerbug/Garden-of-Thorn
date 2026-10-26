@@ -38043,12 +38043,18 @@ def _fancy_start_match(room):
         engine.opening_event_picks.append(event_id)
         engine.player_ready[pidx] = True
     engine.start_game(mulligan=True, skip_pregame_validation=True)
+    # 修复（2026-10-27）：调度阶段与常规开局同口径——设置兜底时限并用
+    # 即时状态广播（此前缺 _mulligan_deadline 且用异步广播，客户端
+    # 收不到 mulligan 状态，调度面板不出现）。
+    if getattr(engine, 'phase', None) == 'mulligan':
+        room._mulligan_deadline = time.time() + 60.0
     room.started_at = time.time()
     record_room_replay_keyframe(room, 'game_start')
     admin_event('game', f'room {room.room_id} started mode=fancy')
     for psid in room.player_sids:
         emit_room_game_phase(room, psid, 'playing')
-    broadcast_game_state(room)
+    _broadcast_game_state_now(room)
+    emit_initial_pending_interaction(room)
     return True
 
 @socketio.on('rematch')
