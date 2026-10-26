@@ -38040,6 +38040,10 @@ def on_rematch(data=None):
                         for psid in room.player_sids:
                             if psid in players:
                                 socketio.emit('server_error', {'message': f'随机卡组生成失败：{exc}'}, room=psid)
+                elif getattr(room, 'reality_mode', False):
+                    # 操纵现实（2026-10-26）：再来一次同样进入特殊模式对局。
+                    room.engine.reality_events = set()
+                    _begin_reality_ban_locked(room)
                 else:
                     room.engine.start_event_select_first()
                     record_room_replay_keyframe(room, 'event_select_start')
