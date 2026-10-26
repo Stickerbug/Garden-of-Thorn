@@ -9112,6 +9112,12 @@ def build_casual_mode_loadout(
     payload['_runtime_mode'] = engine_mode
     payload['_match_mode'] = canonical_match_mode
     state = player_mod_unlock_state(player)
+    # 2026-10-27 娱乐模式解禁：娱乐1v1/2v2 全部官方模组可用（天梯仍按段位门槛，
+    # 见 mod_unlocks.rank_tier_state）。
+    if canonical_match_mode in ('casual_1v1', 'casual_2v2'):
+        state = dict(state)
+        state['unlocked_official'] = list(mod_unlocks.official_mod_filenames())
+        state['entertainment_unlocked'] = True
     all_filenames = [
         str(getattr(mod, 'filename', '') or '')
         for mod in load_all_mods()
