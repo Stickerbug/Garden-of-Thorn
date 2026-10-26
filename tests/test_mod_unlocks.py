@@ -147,7 +147,7 @@ def test_casual_room_skips_draw_and_uses_own_selection(monkeypatch):
             gtn.players.pop(sid, None)
 
 
-def test_guest_ranked_room_skips_to_vanilla(monkeypatch):
+def test_guest_ranked_room_enters_mod_draw(monkeypatch):
     sid_a, sid_b = 'guest-a', 'guest-b'
     for sid in (sid_a, sid_b):
         gtn.players[sid] = {
@@ -172,9 +172,10 @@ def test_guest_ranked_room_skips_to_vanilla(monkeypatch):
         for sid in (sid_a, sid_b):
             gtn.players[sid]['room_id'] = room.room_id
         gtn.start_casual_room_or_event_select(room)
-        assert not room.mod_draw_active
-        assert room.casual_final_official_mods == []
-        assert room.engine.phase in ('event_select',)
+        # 2026-10-27 娱乐模式解禁所有模组：游客也解锁全部官方模组，
+        # 天梯（模组抽取模式）同样进入抽取阶段。
+        assert room.mod_draw_active
+        assert room.engine.phase in ('mod_draw', 'waiting')
     finally:
         gtn.rooms.pop(room.room_id, None)
         for sid in (sid_a, sid_b):

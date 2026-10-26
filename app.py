@@ -418,16 +418,9 @@ RETIRED_OFFICIAL_MOD_FILENAMES = {
 }
 # 设计组 2026-09 批量数值重做：生化 / 管道 / 虚空三个模组暂时停用（不可勾选）。
 # 2026-09-30 增补：极地同批停用。
-DESIGN_LOCKED_MOD_FILENAMES = {
-    'Bio Cards Addition.gtnmod',
-    'Bio Cards DLC.gtnmod',
-    'Sewers Cards Addition.gtnmod',
-    'Sewers Cards DLC.gtnmod',
-    'Void Card Addition.gtnmod',
-    'Void Cards DLC.gtnmod',
-    'Arctic Cards Addition.gtnmod',
-}
-DESIGN_LOCKED_MOD_REASON = '数值重做中，暂时停用'
+# 2026-10-27 娱乐模式解禁所有模组：设计锁定清空（Bio/Sewers/Void/Arctic 恢复可用）。
+DESIGN_LOCKED_MOD_FILENAMES = set()
+DESIGN_LOCKED_MOD_REASON = ''
 # 入口隐藏的模式（列表页移除，set_mode 拒绝；进行中的对局不受影响）。
 HIDDEN_MATCH_MODES = {'casual_urf', 'casual_random_deck'}
 DEFAULT_ENABLED_OFFICIAL_MOD_FILENAMES = {

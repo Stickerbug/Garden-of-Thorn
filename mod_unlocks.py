@@ -201,18 +201,9 @@ def rank_tier_state(rank_tier: int) -> dict:
     tier = max(1, int(rank_tier or 1))
     names = official_mod_filenames()
     required_tier = {name: need for need, name in RANK_UNLOCK_TABLE}
-    unlocked: list[str] = []
-    if VANILLA_MOD_FILENAME in names:
-        unlocked.append(VANILLA_MOD_FILENAME)
-    for name in names:
-        if name == VANILLA_MOD_FILENAME:
-            continue
-        need = required_tier.get(name)
-        if need is not None and tier >= need:
-            unlocked.append(name)
-    locked_next = sorted(
-        ((need, name) for name, need in required_tier.items() if name not in unlocked),
-    )
+    # 2026-10-27 娱乐模式解禁：所有官方模组不再按段位门槛解锁。
+    unlocked: list[str] = [name for name in names]
+    locked_next: list[tuple[int, str]] = []
     return {
         'rank_tier': tier,
         'rank_tier_label': _rank.rank_label(tier),
