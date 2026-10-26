@@ -17255,6 +17255,11 @@ function connectSocket(serverUrl) {
                 ? '<b class="invite-special-badge">操纵现实</b>'
                 : '<b class="invite-special-badge">Reality Manipulation</b>');
         }
+        if (data.fancy) {
+            specialModes.push(zhInvite
+                ? '<b class="invite-special-badge">花样百出</b>'
+                : '<b class="invite-special-badge">Fancy Decks</b>');
+        }
         const specialRow = specialModes.length
             ? `<div class="invite-special-modes">${zhInvite ? '特殊模式：' : 'Special modes: '}${specialModes.join(' ')}</div>`
             : '';
@@ -38790,6 +38795,267 @@ function showInviteConfirmModal({ title, message, preview, confirmText, onConfir
     }
 }
 
+/* ---------- 花样百出卡组（2026-10-26）：管理 + 构建（类单人训练场） ---------- */
+let fancyDecks = [];
+let fancyEditingSlot = 1;
+let fancyBuilderCards = [];
+let fancyBuilderName = '卡组1';
+let fancyBuilderEventId = 0;
+let fancySearchQuery = '';
+
+function fancyOpeningEventOptions() {
+    const events = getGalleryOpeningEvents();
+    return events.map(ev => ({ id: Number(ev.id), name: ev.name || `#${ev.id}` }));
+}
+
+function renderFancyDeckManager() {
+    const zh = currentLang === 'zh';
+    const slots = [1, 2, 3].map(slot => {
+        const deck = fancyDecks.find(d => d.slot === slot);
+        const cls = deck && deck.active ? ' fancy-deck-card active' : '';
+        const cards = deck ? deck.cards.length : 0;
+        return `
+            <div class="fancy-deck-card${cls}" data-fancy-slot="${slot}">
+                <div class="fancy-deck-card-head">
+                    <strong>${escapeHtml(deck ? (deck.name || `卡组${slot}`) : zh ? `空卡组 ${slot}` : `Empty ${slot}`)}</strong>
+                    ${deck && deck.active ? `<span class="fancy-deck-active-badge">${zh ? '启用中' : 'Active'}</span>` : ''}
+                </div>
+                <div class="fancy-deck-card-meta">${cards}/15 ${zh ? '张' : 'cards'}${deck && deck.opening_event_id ? ` · ${zh ? '配装' : 'Event'} #${deck.opening_event_id}` : ''}</div>
+                <div class="fancy-deck-card-actions">
+                    <button type="button" class="btn btn-small btn-primary" data-fancy-edit="${slot}">${zh ? '编辑' : 'Edit'}</button>
+                    ${deck && !deck.active ? `<button type="button" class="btn btn-small btn-bloom" data-fancy-activate="${slot}">${zh ? '启用' : 'Enable'}</button>` : ''}
+                    ${deck ? `<button type="button" class="btn btn-small btn-secondary" data-fancy-export="${slot}">${zh ? '导出码' : 'Export'}</button>` : ''}
+                    ${deck ? `<button type="button" class="btn btn-small btn-danger" data-fancy-delete="${slot}">${zh ? '删除' : 'Delete'}</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+    showModal(`
+        <h3>${escapeHtml(zh ? '🛠 花样百出卡组' : '🛠 Fancy Decks')}</h3>
+        <p>${escapeHtml(zh ? '从所有模组的卡中组一副15张卡组并选配装，启用后用于花样百出对局（最多保存3副）' : 'Build a 15-card deck from all mods, pick an opening event, enable it for fancy matches (max 3 decks)')}</p>
+        <div class="fancy-deck-grid">${slots}</div>
+        <div class="fancy-import-row">
+            <input type="text" id="fancy-import-input" placeholder="${zh ? '粘贴卡组代码导入（替换当前编辑的卡组）' : 'Paste deck code to import'}" maxlength="2000">
+            <button type="button" class="btn btn-secondary" id="fancy-import-btn">${zh ? '导入' : 'Import'}</button>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" id="fancy-manager-close">${zh ? '关闭' : 'Close'}</button>
+        </div>
+    `);
+    $('fancy-manager-close').onclick = hideModal;
+    document.querySelectorAll('[data-fancy-edit]').forEach(btn => {
+        btn.onclick = () => openFancyDeckBuilder(Number(btn.dataset.fancyEdit));
+    });
+    document.querySelectorAll('[data-fancy-activate]').forEach(btn => {
+        btn.onclick = async () => {
+            const slot = Number(btn.dataset.fancyActivate);
+            const deck = fancyDecks.find(d => d.slot === slot);
+            if (!deck) return;
+            await fetch('/api/fancy-decks', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot, name: deck.name, cards: deck.cards, opening_event_id: deck.opening_event_id, active: true }),
+            });
+            await loadFancyDecks();
+            renderFancyDeckManager();
+        };
+    });
+    document.querySelectorAll('[data-fancy-export]').forEach(btn => {
+        btn.onclick = async () => {
+            const slot = Number(btn.dataset.fancyExport);
+            const deck = fancyDecks.find(d => d.slot === slot);
+            if (!deck) return;
+            const resp = await fetch('/api/fancy-decks/code', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'encode', name: deck.name, cards: deck.cards, opening_event_id: deck.opening_event_id }),
+            });
+            const data = await resp.json();
+            if (data.code) {
+                const input = $('fancy-import-input');
+                if (input) { input.value = data.code; input.select(); }
+                try { document.execCommand('copy'); flashStatus(zh ? '卡组代码已复制到输入框' : 'Deck code filled & copied'); } catch (_) {}
+            }
+        };
+    });
+    document.querySelectorAll('[data-fancy-delete]').forEach(btn => {
+        btn.onclick = async () => {
+            const slot = Number(btn.dataset.fancyDelete);
+            if (!window.confirm(currentLang === 'zh' ? '删除该卡组？' : 'Delete this deck?')) return;
+            await fetch('/api/fancy-decks/delete', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slot }),
+            });
+            await loadFancyDecks();
+            renderFancyDeckManager();
+        };
+    });
+    const importBtn = $('fancy-import-btn');
+    if (importBtn) {
+        importBtn.onclick = async () => {
+            const code = ($('fancy-import-input') || {}).value || '';
+            const resp = await fetch('/api/fancy-decks/code', {
+                method: 'POST', credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'decode', code }),
+            });
+            const data = await resp.json();
+            if (!data.success) { flashStatus(data.error || '导入失败'); return; }
+            openFancyDeckBuilder(fancyEditingSlot, data.deck);
+        };
+    }
+}
+
+async function loadFancyDecks() {
+    try {
+        const resp = await fetch('/api/fancy-decks', { credentials: 'same-origin' });
+        const data = await resp.json();
+        fancyDecks = Array.isArray(data.decks) ? data.decks : [];
+    } catch (_) { fancyDecks = []; }
+}
+
+function openFancyDeckManager() {
+    loadFancyDecks().then(renderFancyDeckManager);
+}
+
+function openFancyDeckBuilder(slot, imported) {
+    const zh = currentLang === 'zh';
+    fancyEditingSlot = slot || 1;
+    const deck = imported || fancyDecks.find(d => d.slot === fancyEditingSlot);
+    fancyBuilderCards = deck ? [...deck.cards] : [];
+    fancyBuilderName = deck ? (deck.name || `卡组${slot}`) : `卡组${slot}`;
+    fancyBuilderEventId = deck ? (deck.opening_event_id || 0) : 0;
+    fancySearchQuery = '';
+    renderFancyDeckBuilder();
+}
+
+function renderFancyDeckBuilder() {
+    const zh = currentLang === 'zh';
+    const events = fancyOpeningEventOptions();
+    const eventOptions = `<option value="0">${zh ? '不选配装' : 'No event'}</option>` + events.map(ev =>
+        `<option value="${ev.id}" ${Number(fancyBuilderEventId) === ev.id ? 'selected' : ''}>${escapeHtml(ev.name)}</option>`).join('');
+    showModal(`
+        <h3>${escapeHtml(zh ? `🛠 组卡组 · 槽位${fancyEditingSlot}` : `🛠 Deck build · Slot ${fancyEditingSlot}`)}</h3>
+        <div class="fancy-builder-top">
+            <input type="text" id="fancy-name-input" value="${escapeHtml(fancyBuilderName)}" maxlength="24" placeholder="${zh ? '卡组名' : 'Deck name'}">
+            <select id="fancy-event-select">${eventOptions}</select>
+            <span id="fancy-deck-count" class="fancy-deck-count">${fancyBuilderCards.length}/15</span>
+        </div>
+        <div class="fancy-builder-body">
+            <aside class="fancy-card-browser">
+                <input type="text" id="fancy-card-search" placeholder="${zh ? '搜索卡牌' : 'Search cards'}" value="${escapeHtml(fancySearchQuery)}">
+                <div id="fancy-card-list" class="fancy-card-list"></div>
+            </aside>
+            <section class="fancy-deck-panel">
+                <div class="fancy-deck-head">
+                    <h3>${zh ? '我的卡组' : 'My Deck'}</h3>
+                    <button type="button" class="btn btn-small btn-danger" id="fancy-deck-clear">${zh ? '清空' : 'Clear'}</button>
+                </div>
+                <div id="fancy-deck-list" class="fancy-deck-list"></div>
+            </section>
+        </div>
+        <div class="modal-buttons">
+            <button class="btn btn-secondary" id="fancy-builder-back">${zh ? '返回管理' : 'Back'}</button>
+            <button class="btn btn-primary" id="fancy-builder-save">${zh ? '保存（并启用）' : 'Save (& Enable)'}</button>
+        </div>
+    `);
+    renderFancyCardList();
+    renderFancyDeckList();
+    const search = $('fancy-card-search');
+    if (search) search.oninput = () => { fancySearchQuery = search.value; renderFancyCardList(); };
+    const nameInput = $('fancy-name-input');
+    if (nameInput) nameInput.oninput = () => { fancyBuilderName = nameInput.value; };
+    const eventSel = $('fancy-event-select');
+    if (eventSel) eventSel.onchange = () => { fancyBuilderEventId = Number(eventSel.value) || 0; };
+    const clearBtn = $('fancy-deck-clear');
+    if (clearBtn) clearBtn.onclick = () => { fancyBuilderCards = []; renderFancyDeckBuilder(); };
+    $('fancy-builder-back').onclick = () => renderFancyDeckManager();
+    $('fancy-builder-save').onclick = saveFancyDeck;
+}
+
+function renderFancyCardList() {
+    const list = $('fancy-card-list');
+    if (!list) return;
+    const q = fancySearchQuery.trim().toLowerCase();
+    const defs = soloBrowserCardDefs();
+    const entries = Object.entries(defs)
+        .filter(([id, cd]) => {
+            if (!q) return true;
+            const name = getCardName(cd) || id;
+            return String(name).toLowerCase().includes(q) || id.toLowerCase().includes(q);
+        })
+        .sort((a, b) => (getCardName(a[1]) || a[0]).localeCompare(getCardName(b[1]) || b[0]));
+    list.innerHTML = '';
+    if (!entries.length) {
+        list.innerHTML = `<div class="fancy-card-empty">${currentLang === 'zh' ? '没有符合条件的牌' : 'No cards'}</div>`;
+        return;
+    }
+    entries.forEach(([id, cd]) => {
+        const row = document.createElement('div');
+        row.className = 'fancy-card-row';
+        const costE = getCardDisplayCostELabel({ def_id: id }, cd, cd.cost_e);
+        row.innerHTML = `<span>${escapeHtml(getCardName(cd) || id)}</span><small>${escapeHtml(getCardTypeLabel(cd.card_type))} ${escapeHtml(costE)}E/${escapeHtml(cd.cost_m)}M</small>`;
+        row.title = currentLang === 'zh' ? '点击加入卡组' : 'Click to add';
+        row.onclick = () => {
+            if (fancyBuilderCards.length >= 15) {
+                flashStatus(currentLang === 'zh' ? '卡组已满15张' : 'Deck is full (15)');
+                return;
+            }
+            fancyBuilderCards.push(id);
+            renderFancyCardList();
+            renderFancyDeckList();
+        };
+        list.appendChild(row);
+    });
+}
+
+function renderFancyDeckList() {
+    const list = $('fancy-deck-list');
+    const count = $('fancy-deck-count');
+    if (count) count.textContent = `${fancyBuilderCards.length}/15`;
+    if (!list) return;
+    list.innerHTML = '';
+    fancyBuilderCards.forEach((id, index) => {
+        const cd = (soloBrowserCardDefs() || {})[id];
+        const chip = document.createElement('div');
+        chip.className = 'fancy-deck-chip';
+        chip.innerHTML = `<span>${index + 1}. ${escapeHtml(cd ? (getCardName(cd) || id) : id)}</small></span><button type="button" class="fancy-chip-remove" data-index="${index}">×</button>`;
+        chip.querySelector('[data-index]').onclick = () => {
+            fancyBuilderCards.splice(index, 1);
+            renderFancyDeckList();
+            renderFancyCardList();
+        };
+        list.appendChild(chip);
+    });
+}
+
+async function saveFancyDeck() {
+    const zh = currentLang === 'zh';
+    if (fancyBuilderCards.length !== 15) {
+        flashStatus(zh ? `卡组必须恰好15张（当前${fancyBuilderCards.length}张）` : `Deck must be exactly 15 cards (${fancyBuilderCards.length})`);
+        return;
+    }
+    const resp = await fetch('/api/fancy-decks', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            slot: fancyEditingSlot,
+            name: fancyBuilderName,
+            cards: fancyBuilderCards,
+            opening_event_id: fancyBuilderEventId || null,
+            active: true,
+        }),
+    });
+    const data = await resp.json();
+    if (!data.success) { flashStatus(data.error || zh ? '保存失败' : 'Save failed'); return; }
+    flashStatus(zh ? '卡组已保存并启用' : 'Deck saved & enabled');
+    await loadFancyDecks();
+    renderFancyDeckManager();
+}
+
+function renderShowInviteSpecialModesModal(targetSid, targetName) { return showInviteSpecialModesModal(targetSid, targetName); }
+
 function showInviteSpecialModesModal(targetSid, targetName) {
     // 娱乐1v1邀请的特殊模式清单（2026-10-25）：勾选后随邀请携带。
     const zh = currentLang === 'zh';
@@ -38803,6 +39069,14 @@ function showInviteSpecialModesModal(targetSid, targetName) {
                 <small>${escapeHtml(zh ? '开局随机三个全局事件，双方各可禁用一个，其余整场生效' : 'Three random global events; each player may ban one, the rest apply all game')}</small>
             </span>
         </label>
+        <label class="invite-special-mode-row" for="invite-special-fancy">
+            <input type="checkbox" id="invite-special-fancy">
+            <span>
+                <strong>${escapeHtml(zh ? '花样百出' : 'Fancy Decks')}</strong>
+                <small>${escapeHtml(zh ? '双方使用自己组的15张卡组直接开始（需先组卡组并启用）' : 'Both players start directly with their own 15-card deck (build & enable first)')}</small>
+            </span>
+        </label>
+        <button type="button" class="btn btn-secondary fancy-deck-open-btn" id="invite-fancy-deck-open">${escapeHtml(zh ? '🛠 花样百出卡组' : '🛠 Fancy Decks')}</button>
         <div class="modal-buttons">
             <button class="btn btn-danger" id="invite-special-cancel">${escapeHtml(UI.cancel || (zh ? '取消' : 'Cancel'))}</button>
             <button class="btn btn-primary" id="invite-special-ok">${escapeHtml(UI.invite || (zh ? '邀请' : 'Invite'))}</button>
@@ -38811,11 +39085,21 @@ function showInviteSpecialModesModal(targetSid, targetName) {
     const cancelBtn = $('invite-special-cancel');
     const okBtn = $('invite-special-ok');
     if (cancelBtn) cancelBtn.onclick = hideModal;
+    const deckBtn = $('invite-fancy-deck-open');
+    if (deckBtn) deckBtn.onclick = () => openFancyDeckManager();
     if (okBtn) {
         okBtn.onclick = () => {
             const reality = !!$('invite-special-reality')?.checked;
+            const fancy = !!$('invite-special-fancy')?.checked;
+            if (fancy) {
+                const active = fancyDecks.find(d => d.active);
+                if (!active) {
+                    flashStatus(currentLang === 'zh' ? '花样百出需要先组卡组并启用一个卡组' : 'Build & enable a fancy deck first');
+                    return;
+                }
+            }
             hideModal();
-            socket.emit('invite', { target_sid: targetSid, reality });
+            socket.emit('invite', { target_sid: targetSid, reality, fancy });
             updateStatus(UI.invite_sent);
         };
     }

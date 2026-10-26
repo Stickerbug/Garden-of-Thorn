@@ -29,6 +29,7 @@ import subprocess
 import sqlite3
 import traceback
 import rank_system
+import fancy_decks
 import db as db_module
 from functools import wraps
 from contextlib import closing
@@ -31812,6 +31813,7 @@ def on_invite(data):
         if 'reality' in (data or {}) or sid not in invite_special_modes:
             invite_special_modes[sid] = {
                 'reality': bool(data.get('reality')) and inviter_match_mode == 'casual_1v1',
+                'fancy': bool(data.get('fancy')) and inviter_match_mode == 'casual_1v1',
             }
 
         if inviter_match_mode in RANKED_MATCH_MODES:
@@ -31930,6 +31932,7 @@ def on_invite(data):
         'mode': inviter_mode,
         'match_mode': inviter_match_mode,
         'reality': bool((invite_special_modes.get(sid) or {}).get('reality')),
+        'fancy': bool((invite_special_modes.get(sid) or {}).get('fancy')),
     }, room=target_sid)
 
     def _invite_timeout(inviter_sid):
@@ -32048,7 +32051,9 @@ def on_accept_invite(data):
                 emit_match_start_failed([inviter_sid, sid], pool_issue, reason='content_temporarily_disabled')
                 return
         # 操纵现实：必须在 clear_pending 之前读取旗标（清理会顺带删除旗标）。
-        room_reality_mode = bool((invite_special_modes.get(inviter_sid) or {}).get('reality'))
+        invite_flags = dict(invite_special_modes.get(inviter_sid) or {})
+        room_reality_mode = bool(invite_flags.get('reality'))
+        room_fancy_mode = bool(invite_flags.get('fancy'))
         clear_pending_match_invites_for_sids_locked([inviter_sid, sid])
         room = GameRoom(
             room_id,
@@ -32072,6 +32077,7 @@ def on_accept_invite(data):
         # 操纵现实：建房即落位（修复2026-10-25：此前只在模组抽取分支内赋值，
         # 娱乐1v1走 elif 分支时属性从未被设置）。
         room.reality_mode = room_reality_mode
+        room.fancy_mode = room_fancy_mode
         room.store_player_profile(inviter_sid, 0, inviter)
         room.store_player_profile(sid, 1, accepter)
         if casual_mod_draw:
@@ -32083,6 +32089,13 @@ def on_accept_invite(data):
                 start_casual_room_or_event_select(room, shared_profile)
             except Exception as exc:
                 _abort_casual_room_to_lobby_locked(room, str(exc), reason='mod_mismatch')
+                return
+        elif getattr(room, 'fancy_mode', False):
+            # 花样百出（2026-10-26）：直接用双方启用卡组开局进调度。
+            if not _fancy_start_match(room):
+                _abort_casual_room_to_lobby_locked(
+                    room, '花样百出卡组无效，无法开始对局', reason='fancy_deck_invalid',
+                )
                 return
         elif getattr(room, 'reality_mode', False):
             # 操纵现实（修复 2026-10-25）：娱乐1v1不经过模组抽取链，
@@ -37897,6 +37910,154 @@ def on_surrender_consent_response(data):
         emit('server_error', {'message': 'Surrender failed'})
 
 
+
+
+# ---------------------------------------------------------------------------
+# 花样百出（2026-10-26）：自组卡组娱乐1v1。
+# ---------------------------------------------------------------------------
+
+def _fancy_deck_error(message, status=400, code='FANCY_DECK_ERROR'):
+    return jsonify({'success': False, 'error': message, 'code': code}), status
+
+
+@app.route('/api/fancy-decks', methods=['GET'])
+def api_fancy_decks_list():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    try:
+        with closing(get_db_connection()) as conn:
+            decks = fancy_decks.list_fancy_decks_conn(conn, user_id)
+    except sqlite3.OperationalError as exc:
+        return _db_busy_response(exc)
+    return jsonify({'success': True, 'decks': decks})
+
+
+@app.route('/api/fancy-decks', methods=['POST'])
+def api_fancy_decks_save():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    try:
+        slot = int(data.get('slot'))
+    except (TypeError, ValueError):
+        return _fancy_deck_error('槽位无效')
+    cards = [str(c) for c in (data.get('cards') or [])]
+    from cards import CARD_DEFS
+    invalid = [c for c in cards if c not in CARD_DEFS]
+    if invalid:
+        return _fancy_deck_error(f'卡组包含未知卡牌: {invalid[:3]}')
+    try:
+        opening_event_id = int(data.get('opening_event_id') or 0) or None
+    except (TypeError, ValueError):
+        opening_event_id = None
+    if opening_event_id is not None:
+        valid_events = {int(k) for k in GameEngine.OPENING_EVENTS}
+        if opening_event_id not in valid_events:
+            return _fancy_deck_error('配装无效')
+    try:
+        with closing(get_db_connection()) as conn:
+            result, err = fancy_decks.save_fancy_deck_conn(
+                conn, user_id, slot, data.get('name'), cards,
+                opening_event_id, bool(data.get('active')),
+            )
+            if err:
+                conn.rollback()
+                return _fancy_deck_error(err)
+            conn.commit()
+    except sqlite3.OperationalError as exc:
+        return _db_busy_response(exc)
+    return jsonify({'success': True, **(result or {})})
+
+
+@app.route('/api/fancy-decks/delete', methods=['POST'])
+def api_fancy_decks_delete():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    try:
+        slot = int(data.get('slot'))
+    except (TypeError, ValueError):
+        return _fancy_deck_error('槽位无效')
+    try:
+        with closing(get_db_connection()) as conn:
+            fancy_decks.delete_fancy_deck_conn(conn, user_id, slot)
+            conn.commit()
+    except sqlite3.OperationalError as exc:
+        return _db_busy_response(exc)
+    return jsonify({'success': True})
+
+
+@app.route('/api/fancy-decks/code', methods=['POST'])
+def api_fancy_decks_code():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    action = str(data.get('action') or 'decode').strip().lower()
+    if action == 'encode':
+        cards = [str(c) for c in (data.get('cards') or [])]
+        if len(cards) != fancy_decks.FANCY_DECK_SIZE:
+            return _fancy_deck_error('卡组必须恰好15张')
+        code = fancy_decks.encode_fancy_deck(
+            data.get('name') or '', cards, data.get('opening_event_id'),
+        )
+        return jsonify({'success': True, 'code': code})
+    decoded, err = fancy_decks.decode_fancy_deck(data.get('code'))
+    if err:
+        return _fancy_deck_error(err)
+    from cards import CARD_DEFS
+    unknown = [c for c in decoded['cards'] if c not in CARD_DEFS]
+    if unknown:
+        return _fancy_deck_error(f'代码包含当前不可用的卡牌: {unknown[:3]}')
+    return jsonify({'success': True, 'deck': decoded})
+
+
+def _fancy_start_match(room):
+    """花样百出开局：双方各自的启用卡组直接进调度（无选卡/配装）。"""
+    engine = room.engine
+    engine.draft_picks = []
+    engine.draft_pool = []
+    engine.opening_event_picks = []
+    for pidx, psid in enumerate(room.player_sids):
+        player = players.get(psid) or {}
+        uid = player.get('user_id')
+        deck = None
+        if uid:
+            with closing(get_db_connection()) as conn:
+                deck = fancy_decks.get_active_fancy_deck_conn(conn, uid)
+        if not deck:
+            emit_match_start_failed(
+                [psid], '你没有启用中的花样百出卡组，请先在娱乐1v1邀请窗口组卡组并启用',
+                reason='fancy_deck_missing',
+            )
+            return False
+        from cards import CARD_DEFS
+        unknown = [c for c in deck['cards'] if c not in CARD_DEFS]
+        if len(deck['cards']) != fancy_decks.FANCY_DECK_SIZE or unknown:
+            emit_match_start_failed(
+                [psid], '你的花样百出卡组包含当前不可用的卡牌，请重新保存',
+                reason='fancy_deck_invalid',
+            )
+            return False
+        engine.draft_picks.append(list(deck['cards']))
+        try:
+            event_id = int(deck.get('opening_event_id') or 0) or None
+        except (TypeError, ValueError):
+            event_id = None
+        engine.opening_event_picks.append(event_id)
+        engine.player_ready[pidx] = True
+    engine.start_game(mulligan=True, skip_pregame_validation=True)
+    room.started_at = time.time()
+    record_room_replay_keyframe(room, 'game_start')
+    admin_event('game', f'room {room.room_id} started mode=fancy')
+    for psid in room.player_sids:
+        emit_room_game_phase(room, psid, 'playing')
+    broadcast_game_state(room)
+    return True
+
 @socketio.on('rematch')
 @measure_socket_action('rematch')
 def on_rematch(data=None):
@@ -38040,6 +38201,12 @@ def on_rematch(data=None):
                         for psid in room.player_sids:
                             if psid in players:
                                 socketio.emit('server_error', {'message': f'随机卡组生成失败：{exc}'}, room=psid)
+                elif getattr(room, 'fancy_mode', False):
+                    # 花样百出（2026-10-26）：再来一次同样直进调度。
+                    if not _fancy_start_match(room):
+                        room._rematch_votes = set()
+                        emit_rematch_state(room)
+                        return
                 elif getattr(room, 'reality_mode', False):
                     # 操纵现实（2026-10-26）：再来一次同样进入特殊模式对局。
                     room.engine.reality_events = set()
