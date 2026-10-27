@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""多人对战先手开局资源与「先手压制」（2026-10-10 平衡调整）：
+"""多人对战先手开局资源与「先手压制」（2026-10-27 改版）：
 
-- 默认先手：起手 3 张牌、3E
+- 取消初始能量（0E），第1回合抽牌阶段在开局结算（不触发抽取效果），
+  调度紧随其后；回复在各自第1回合开始时结算。
+- 默认先手：起手 3 张牌、第1回合回复 5-2=3E；后手：起手 5 张牌（3+2）、第1回合回复 5E。
 - 先手压制：尽可能获得先手（选择者中随机一人，双选也生效），
-  生效者第一回合在先手基础上多 4E（7E）、起手多 1 张牌（4 张）
-- 后手不变：5 张牌、5E
-- 2v2：所有选择者（不分队伍）中随机一人生效
+  选择者起手多 1 张牌、第1回合回复 +4E。
 """
 
 import unittest
@@ -45,15 +45,19 @@ class FirstPlayerOpeningTests(unittest.TestCase):
         engine = _start_engine(opening=(1, 1))
         first = engine.players[engine.first_player]
         second = engine.players[1 - engine.first_player]
+        # 2026-10-27：先手回复已在开局回合结算（5-2=3）；后手0E，待其回合回复。
         self.assertEqual(len(first.hand), 3)
         self.assertEqual(first.elixir, 3)
         self.assertEqual(len(second.hand), 5)
+        self.assertEqual(second.elixir, 0)
+        engine.end_turn(engine.first_player)
         self.assertEqual(second.elixir, 5)
 
     def test_opening_pressure_single_picker(self):
         engine = _start_engine(opening=(7, 1))
         first = engine.players[engine.first_player]
         self.assertEqual(engine.opening_event_picks[engine.first_player], 7)
+        # 2026-10-27：+1张在起手；+4E并入第1回合回复（先手5-2+4=7）。
         self.assertEqual(len(first.hand), 4)
         self.assertEqual(first.elixir, 7)
 
@@ -67,7 +71,10 @@ class FirstPlayerOpeningTests(unittest.TestCase):
         self.assertEqual(len(first.hand), 4)
         self.assertEqual(first.elixir, 7)
         self.assertEqual(len(second.hand), 6)   # 5+1
-        self.assertEqual(second.elixir, 9)      # 5+4
+        # 2026-10-27：后手0E起步；+4E并入其第1回合回复（5+4=9）。
+        self.assertEqual(second.elixir, 0)
+        engine.end_turn(engine.first_player)
+        self.assertEqual(second.elixir, 9)
 
     def test_opening_pressure_buff_only_for_pickers(self):
         # 只有对手选压制：对手得先手+增益；未选择者按普通后手结算（5张5E）。
@@ -77,7 +84,10 @@ class FirstPlayerOpeningTests(unittest.TestCase):
         self.assertEqual(engine.first_player, 1)
         self.assertEqual(len(first.hand), 4)
         self.assertEqual(first.elixir, 7)
-        self.assertEqual(len(second.hand), 5)   # 普通后手 5 张 5E
+        self.assertEqual(len(second.hand), 5)   # 普通后手 5 张
+        # 2026-10-27：后手0E起步，其回合回复5E。
+        self.assertEqual(second.elixir, 0)
+        engine.end_turn(engine.first_player)
         self.assertEqual(second.elixir, 5)
 
 

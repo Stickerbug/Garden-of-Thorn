@@ -5771,29 +5771,18 @@ class GameEngine(reality_events.RealityEngineMixin):
         # Built-in setup effects are applied before the opening draw. This lets
         # deck conversions such as Light trigger normal draw-time rules.
         self._apply_builtin_opening_events_before_initial_draw()
+        # 2026-10-27 改版：初始能量归零；第1回合的抽牌阶段在开局结算——
+        # 先手抽 DRAW_PER_TURN、后手抽 DRAW_PER_TURN+2（不触发任何抽取效果），
+        # 调度阶段紧随其后（见下方 mulligan 分支），第1回合的回复在各自回合
+        # 开始时结算（先手-2）。
         for i in range(2):
             ps = self.players[i]
-            if i == self.first_player:
-                ps.elixir = FIRST_PLAYER_ELIXIR
-                hand_size = FIRST_PLAYER_HAND_SIZE
-                if self.opening_event_picks[i] == 7:
-                    # 先手压制：所有选择者（不论是否赢得先手）第一回合多 4E、
-                    # 起手多 1 张牌；先手归属只由随机争夺决定。
-                    hand_size = FIRST_PLAYER_HAND_SIZE + 1
-                    ps.elixir = FIRST_PLAYER_ELIXIR + 4
-                # 对局开始时不触发任何抽取效果（萌芽/玉米等），
-                # 与调度补抽同口径（_draw_opening_swap_cards 绕过到手回调）。
-                self._draw_opening_swap_cards(i, hand_size)
-            else:
-                ps.elixir = INITIAL_ELIXIR
-                hand_size = INITIAL_HAND_SIZE
-                if self.opening_event_picks[i] == 7:
-                    # 同上：后手选择者同样获得压制增益（+1 张、+4E）。
-                    hand_size = INITIAL_HAND_SIZE + 1
-                    ps.elixir = INITIAL_ELIXIR + 4
-                # 对局开始时不触发任何抽取效果（萌芽/玉米等），
-                # 与调度补抽同口径（_draw_opening_swap_cards 绕过到手回调）。
-                self._draw_opening_swap_cards(i, hand_size)
+            ps.elixir = 0
+            hand_size = DRAW_PER_TURN + (0 if i == self.first_player else 2)
+            if self.opening_event_picks[i] == 7:
+                # 先手压制：所有选择者起手多1张（能量增益改到回复环节体现）。
+                hand_size += 1
+            self._draw_opening_swap_cards(i, hand_size)
         # Keep v2/custom opening events deferred for now because some may
         # intentionally operate on the opening hand.
         self._apply_deferred_opening_events_after_initial_draw()
@@ -19501,7 +19490,7 @@ class GameEngine(reality_events.RealityEngineMixin):
             self._trigger_v2_status_events_for_player(player_id, 'on_poison_resolved', {'player_id': player_id})
         if ps.fire > 0 and not self._is_status_immune(player_id):
             self._deal_direct_damage(player_id, ps.fire, '灼烧', damage_type=DAMAGE_TYPE_MAGIC, damage_tag=DAMAGE_TAG_FIRE)
-        if self.round_num > 1 and not skip_draw_recovery:
+        if not skip_draw_recovery:
             elixir_recovery = ELIXIR_RECOVERY
             from engine_runtime_support import declared_elixir_recovery_aura
             # 设计 9.22（pincer 修复）：超载只施加给装备选中的目标（effect_target）。
@@ -19528,6 +19517,14 @@ class GameEngine(reality_events.RealityEngineMixin):
             # 操纵现实（2026-10-25补）：事件3/10回复量修正（钳≥0）；事件5多回5E；
             # 事件11额外回5M；事件3/10回合爬坡与事件6泰坦倍率随回合推进。
             elixir_recovery = max(0, elixir_recovery + self.reality_elixir_recovery_modifier(player_id))
+            # 2026-10-27 改版：先手第1回合回复量-2（钳>=0）；先手压制选择者
+            # 第1回合回复+4E（原起手直充改到回复环节）。
+            if self.round_num <= 1:
+                if player_id == self.first_player:
+                    elixir_recovery = max(0, elixir_recovery - 2)
+                picks = getattr(self, 'opening_event_picks', []) or []
+                if player_id < len(picks) and str(picks[player_id]) == '7':
+                    elixir_recovery += 4
             if self.reality_active(5):
                 elixir_recovery += 5
             extra_magic = self.reality_extra_magic_recovery(player_id)
@@ -19677,6 +19674,14 @@ class GameEngine(reality_events.RealityEngineMixin):
             # 操纵现实（2026-10-25补）：事件3/10回复量修正（钳≥0）；事件5多回5E；
             # 事件11额外回5M；事件3/10回合爬坡与事件6泰坦倍率随回合推进。
             elixir_recovery = max(0, elixir_recovery + self.reality_elixir_recovery_modifier(player_id))
+            # 2026-10-27 改版：先手第1回合回复量-2（钳>=0）；先手压制选择者
+            # 第1回合回复+4E（原起手直充改到回复环节）。
+            if self.round_num <= 1:
+                if player_id == self.first_player:
+                    elixir_recovery = max(0, elixir_recovery - 2)
+                picks = getattr(self, 'opening_event_picks', []) or []
+                if player_id < len(picks) and str(picks[player_id]) == '7':
+                    elixir_recovery += 4
             if self.reality_active(5):
                 elixir_recovery += 5
             extra_magic = self.reality_extra_magic_recovery(player_id)
