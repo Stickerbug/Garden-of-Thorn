@@ -129,12 +129,12 @@ class RealityEngineMixin:
     # 回合开始
     # ------------------------------------------------------------------
     def reality_turn_start_before_recovery(self, player_id: int):
-        """回复费用之前：事件2 清空费用；事件3/10 更新回复修正。"""
+        """回复费用之前：事件2 清空能量（魔力不清——2026-10-27修订，
+        塔之诅咒原文仅"清空费用"指E）；事件3/10 更新回复修正。"""
         ps = self.players[player_id]
         if self.reality_active(2):
             ps.elixir = 0
-            ps.magic = 0
-            self.log_msg(f'{self.pn(player_id)}的操纵现实：回合开始清空费用')
+            self.log_msg(f'{self.pn(player_id)}的操纵现实：回合开始清空能量')
 
     def reality_elixir_recovery_modifier(self, player_id: int) -> int:
         """事件3（-2起步每回合+1，上限7）与事件10（+5起步每回合-1，下限0）。"""
