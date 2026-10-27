@@ -102,6 +102,9 @@ CARD_FLAG_LABELS_ZH = {
     'sprout': '萌芽',
     'symbiosis': '共生',
     'attract': '吸附',
+    # 2026-10-27：虚无标签注册名改为 ethereal（防与卡牌"虚空"混淆）；
+    # void/nothingness 保留为旧名（存量卡牌定义继续生效）。
+    'ethereal': '虚无',
     'void': '虚无',
     'nothingness': '虚无',
     'self_only': '不选择目标',
@@ -12197,7 +12200,7 @@ class GameEngine(reality_events.RealityEngineMixin):
         if card_def.id != ERROR_CARD_ID and not self._card_allowed(card_def.id):
             return
         new_card = CardInstance(def_id=card_def.id)
-        new_card.instance_flags.update(normalize_card_flags(['symbiosis', 'exile', 'void']))
+        new_card.instance_flags.update(normalize_card_flags(['symbiosis', 'exile', 'ethereal', 'void']))
         self._apply_setup_modifiers_to_card(target_id, new_card)
         ts.add_to_hand(new_card)
         self._remember_created_card(new_card, context)
@@ -14930,7 +14933,7 @@ class GameEngine(reality_events.RealityEngineMixin):
         ps.m_gained_last_turn = ps.m_gained_this_turn
         ps.m_gained_this_turn = False
         self._return_cogwheel_cards_now(player_id)
-        void_cards = [c for c in ps.hand if 'void' in c.flags]
+        void_cards = [c for c in ps.hand if {'ethereal', 'void', 'nothingness'} & set(c.flags or ())]
         for c in void_cards:
             ps.hand.remove(c)
             self._void_exile_card(player_id, c)

@@ -194,7 +194,7 @@ class RealityEngineMixin:
         try:
             card = CardInstance(card_id)
             flags = set(getattr(card, 'instance_flags', set()) or set())
-            flags.update({'void', 'exile'})
+            flags.update({'ethereal', 'exile'})
             card.instance_flags = flags
             self.players[player_id].hand.append(card)
             self.log_msg(f'{self.pn(player_id)}获得一张{label}（虚无，放逐）')

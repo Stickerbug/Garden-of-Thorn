@@ -155,7 +155,7 @@ CARD_FLAG_ALIASES = {
 # Known vanilla flags that can be referenced by namespace-prefixed tags
 _VANILLA_FLAGS = {
     'precision', 'exile', 'non_stackable', 'indestructible', 'sprout',
-    'symbiosis', 'attract', 'void', 'self_only', 'uncancellable',
+    'symbiosis', 'attract', 'ethereal', 'void', 'self_only', 'uncancellable',
     'infinite_exclude', 'rebound', 'copy', 'unique',
     'swift', 'stealth', 'revealed', 'rebound', 'nothingness',
     'team_limited', 'team_unique', 'power', 'magic_swift',
