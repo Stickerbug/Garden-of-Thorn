@@ -25,7 +25,7 @@ REALITY_EVENTS: Dict[int, Dict[str, object]] = {
     11: {'name': '创世纪', 'desc': '每回合开始时还会回复5M，魔法卡选择权重翻倍'},
     12: {'name': '宾邦', 'desc': '每次选卡时还会将一张复制加入卡组，但所有卡获得放逐'},
     13: {'name': '紧握', 'desc': '所有卡打出后沉重+1，所有卡回合结束时在手中则迅捷+1'},
-    14: {'name': '贤者的归隐', 'desc': '每回合开始时将一张虚无，放逐拟态加入手中'},
+    14: {'name': '贤者的归隐', 'desc': '每回合开始时将一张放逐拟态加入手中'},
     15: {'name': '人体蜂房', 'desc': '玩家每回合出第三张牌时获得一层眩晕（一回合一次）'},
     16: {'name': '杂耍', 'desc': '玩家每回合出第三张牌时，将一张其的虚无，放逐加入手中'},
     17: {'name': '谜语人', 'desc': '装备牌选择量-3，反制牌选择量+3'},
@@ -179,27 +179,28 @@ class RealityEngineMixin:
             self._reality_grant_void(player_id, mimic=True)
 
     def _reality_grant_void(self, player_id: int, mimic: bool = False):
+        """发放一张带放逐的牌：mimic=True 给拟态（贤者的归隐，2026-10-27
+        修订——原文'虚无，放逐拟态'指拟态卡本身带放逐）；否则给虚无。"""
         from engine_runtime_support import VOID_CARD_ID
         from cards import CARD_DEFS, CardInstance
-        void_id = self._void_resolve_card_def_id(VOID_CARD_ID) or 'Void'
-        if void_id not in CARD_DEFS:
-            # 卡定义不可用（如测试裸引擎未装虚无包）——跳过发放，不产生 Error 卡。
-            self.log_msg('操纵现实：虚无卡定义不可用，跳过发放')
+        if mimic:
+            card_id = 'Mimic' if 'Mimic' in CARD_DEFS else 'Void'
+            label = '拟态' if card_id == 'Mimic' else '虚无'
+        else:
+            card_id = self._void_resolve_card_def_id(VOID_CARD_ID) or 'Void'
+            label = '虚无'
+        if card_id not in CARD_DEFS:
+            self.log_msg('操纵现实：卡定义不可用，跳过发放')
             return
         try:
-            void = CardInstance(void_id)
-            flags = set(getattr(void, 'instance_flags', set()) or set())
+            card = CardInstance(card_id)
+            flags = set(getattr(card, 'instance_flags', set()) or set())
             flags.add('exile')
-            void.instance_flags = flags
-            if mimic:
-                try:
-                    void.instance_flags.add('mimicry')
-                except Exception:
-                    pass
-            self.players[player_id].hand.append(void)
-            self.log_msg(f'{self.pn(player_id)}获得一张虚无（放逐）')
+            card.instance_flags = flags
+            self.players[player_id].hand.append(card)
+            self.log_msg(f'{self.pn(player_id)}获得一张{label}（放逐）')
         except Exception as exc:  # 卡定义缺失时不阻塞回合
-            self.log_msg(f'操纵现实：虚无发放失败({type(exc).__name__})')
+            self.log_msg(f'操纵现实：发放失败({type(exc).__name__})')
 
     # ------------------------------------------------------------------
     # 抽牌替代（事件7）
