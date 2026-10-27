@@ -5778,9 +5778,13 @@ class GameEngine(reality_events.RealityEngineMixin):
         for i in range(2):
             ps = self.players[i]
             ps.elixir = 0
+        for i in range(2):
+            ps = self.players[i]
+            ps.elixir = 0
             hand_size = DRAW_PER_TURN + (0 if i == self.first_player else 2)
-            if self.opening_event_picks[i] == 7:
-                # 先手压制：所有选择者起手多1张（能量增益改到回复环节体现）。
+            # 先手压制（2026-10-27修订）：+1张与+4E都并入第1回合的抽牌/回复，
+            # 不再单独改变起手与初始能量。
+            if str((getattr(self, 'opening_event_picks', []) or [None, None])[i]) == '7':
                 hand_size += 1
             self._draw_opening_swap_cards(i, hand_size)
         # Keep v2/custom opening events deferred for now because some may
