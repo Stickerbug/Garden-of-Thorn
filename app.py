@@ -6645,6 +6645,8 @@ def _event_sub_choice_sequence_issue(engine, pidx):
         return 'draft_not_started'
     picks = getattr(engine, 'draft_picks', [[] for _ in range(player_count)])[pidx]
     target = engine.draft_target_count(pidx) if hasattr(engine, 'draft_target_count') else DECK_SIZE
+    if getattr(engine, '_fancy_prebuilt_deck', False) and len(picks) == fancy_decks.FANCY_DECK_SIZE:
+        target = len(picks)
     if len(picks) != target:
         return 'draft_incomplete'
     requires = getattr(engine, 'opening_event_requires_sub_choice', None)
@@ -19146,6 +19148,9 @@ def emit_initial_pending_interaction(room):
 
 def start_game(room):
     try:
+        if getattr(room, 'fancy_mode', False):
+            _fancy_start_game(room)
+            return
         if getattr(room.engine, 'phase', None) not in ('event_select', 'event_reveal', 'draft'):
             return
         validator = getattr(room.engine, 'validate_pregame_ready', None)
@@ -32107,7 +32112,7 @@ def on_accept_invite(data):
                 _abort_casual_room_to_lobby_locked(room, str(exc), reason='mod_mismatch')
                 return
         elif getattr(room, 'fancy_mode', False):
-            # 花样百出（2026-10-26）：直接用双方启用卡组开局进调度。
+            # 花样百出：使用双方启用卡组，仍保留配装处理子选择。
             if not _fancy_start_match(room):
                 _abort_casual_room_to_lobby_locked(
                     room, '花样百出卡组无效，无法开始对局', reason='fancy_deck_invalid',
@@ -38036,12 +38041,45 @@ def api_fancy_decks_code():
     return jsonify({'success': True, 'deck': decoded})
 
 
-def _fancy_start_match(room):
-    """花样百出开局：双方各自的启用卡组直接进调度（无选卡/配装）。"""
+def _fancy_start_game(room):
+    """Start a prepared fancy match after event setup choices are complete."""
     engine = room.engine
-    engine.draft_picks = []
+    if getattr(engine, 'phase', None) not in ('event_select', 'event_reveal', 'draft'):
+        return False
+    if not all(bool(engine.player_ready[pidx]) for pidx in range(len(room.player_sids))):
+        return False
+    for sid in getattr(room, 'player_sids', []) or []:
+        if sid in players:
+            players[sid]['status'] = 'in_game'
+            players[sid]['room_id'] = room.room_id
+    if hasattr(engine, 'log'):
+        engine.log = []
+    if hasattr(engine, '_log_compaction_floor'):
+        engine._log_compaction_floor = 0
+    if engine.start_game(skip_pregame_validation=True, mulligan=True) is False:
+        admin_event('warning', f'ignored duplicate fancy game start room={room.room_id}', room_id=room.room_id)
+        return False
+    if getattr(engine, 'phase', None) == 'mulligan':
+        room._mulligan_deadline = time.time() + 60.0
+    room.started_at = time.time()
+    record_room_replay_keyframe(room, 'game_start')
+    admin_event('game', f'room {room.room_id} started mode=fancy')
+    for psid in room.player_sids:
+        emit_room_game_phase(room, psid, 'playing')
+    _broadcast_game_state_now(room)
+    emit_initial_pending_interaction(room)
+    broadcast_lobby()
+    return True
+
+
+def _fancy_start_match(room):
+    """Prepare custom decks while retaining normal event setup processing."""
+    engine = room.engine
+    engine.start_event_select_first()
+    engine._fancy_prebuilt_deck = True
+    engine.draft_picks = [[], []]
     engine.draft_pool = []
-    engine.opening_event_picks = []
+    engine.opening_event_picks = [None, None]
     for pidx, psid in enumerate(room.player_sids):
         player = players.get(psid) or {}
         uid = player.get('user_id')
@@ -38063,26 +38101,34 @@ def _fancy_start_match(room):
                 reason='fancy_deck_invalid',
             )
             return False
-        engine.draft_picks.append(list(deck['cards']))
+        engine.draft_picks[pidx] = list(deck['cards'])
         try:
             event_id = int(deck.get('opening_event_id') or 0) or None
         except (TypeError, ValueError):
             event_id = None
-        engine.opening_event_picks.append(event_id)
-        engine.player_ready[pidx] = True
-    engine.start_game(mulligan=True, skip_pregame_validation=True)
-    # 修复（2026-10-27）：调度阶段与常规开局同口径——设置兜底时限并用
-    # 即时状态广播（此前缺 _mulligan_deadline 且用异步广播，客户端
-    # 收不到 mulligan 状态，调度面板不出现）。
-    if getattr(engine, 'phase', None) == 'mulligan':
-        room._mulligan_deadline = time.time() + 60.0
-    room.started_at = time.time()
-    record_room_replay_keyframe(room, 'game_start')
-    admin_event('game', f'room {room.room_id} started mode=fancy')
-    for psid in room.player_sids:
-        emit_room_game_phase(room, psid, 'playing')
-    _broadcast_game_state_now(room)
-    emit_initial_pending_interaction(room)
+        if event_id is not None:
+            options = engine.opening_event_options[pidx] or []
+            if not any(str(option.get('id')) == str(event_id) for option in options if isinstance(option, dict)):
+                base_event = engine.OPENING_EVENTS.get(event_id)
+                if not base_event:
+                    emit_match_start_failed(
+                        [psid], '你的花样百出卡组包含当前不可用的配装，请重新保存',
+                        reason='fancy_deck_invalid',
+                    )
+                    return False
+                engine.opening_event_options[pidx] = [*options, dict(base_event)]
+            engine.opening_event_picks[pidx] = event_id
+        engine.player_draft_started[pidx] = True
+
+    # The custom deck replaces the draft. Setup sub-choices remain interactive.
+    engine.phase = 'draft'
+    for pidx in range(len(room.player_sids)):
+        engine.player_ready[pidx] = not engine.needs_sub_choice(pidx)
+    record_room_replay_keyframe(room, 'fancy_setup_start')
+    for pidx in range(len(room.player_sids)):
+        schedule_pregame_state(room, pidx, allow_sub_choice=True)
+    if all(engine.player_ready):
+        _fancy_start_game(room)
     return True
 
 @socketio.on('rematch')
@@ -38229,7 +38275,7 @@ def on_rematch(data=None):
                             if psid in players:
                                 socketio.emit('server_error', {'message': f'随机卡组生成失败：{exc}'}, room=psid)
                 elif getattr(room, 'fancy_mode', False):
-                    # 花样百出（2026-10-26）：再来一次同样直进调度。
+                    # 花样百出：再来一次同样保留配装处理子选择。
                     if not _fancy_start_match(room):
                         room._rematch_votes = set()
                         emit_rematch_state(room)
