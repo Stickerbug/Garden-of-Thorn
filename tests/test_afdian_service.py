@@ -226,6 +226,26 @@ class AfdianServiceTests(unittest.TestCase):
         self.assertEqual(row['sku_id'], 'sku-new-sea')
         self.assertEqual(row['name_norm'], '荆露之海(80000荆露)'.upper())
 
+    def test_tombstoned_order_cannot_be_recreated(self):
+        with db.get_db_connection() as conn:
+            afdian_service.ensure_schema(conn)
+            conn.execute(
+                "INSERT INTO afdian_order_tombstones(out_trade_no, reason, created_at) "
+                "VALUES (?, ?, ?)",
+                ('AFD-TOMBSTONE', 'manual compensation', '2026-10-27T12:00:00Z'),
+            )
+            conn.commit()
+        result = afdian_service.ingest_order({
+            'out_trade_no': 'AFD-TOMBSTONE', 'plan_id': 'plan_shop',
+            'status': 2, 'remark': '', 'total_amount': '68.00',
+        })
+        self.assertEqual(result['status'], 'ignored')
+        with db.get_db_connection() as conn:
+            self.assertIsNone(conn.execute(
+                "SELECT 1 FROM afdian_orders WHERE out_trade_no=?",
+                ('AFD-TOMBSTONE',),
+            ).fetchone())
+
     def test_public_plans_lists_sku_tiers_with_price(self):
         """兑换页档位要包含 SKU 档（此前只读方案表，六个真实档位看不到）。"""
         with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):

@@ -90,6 +90,11 @@ CREATE TABLE IF NOT EXISTS afdian_orders (
 );
 CREATE INDEX IF NOT EXISTS idx_afdian_orders_user ON afdian_orders(game_user_id);
 CREATE INDEX IF NOT EXISTS idx_afdian_orders_bind ON afdian_orders(bind_code);
+CREATE TABLE IF NOT EXISTS afdian_order_tombstones (
+    out_trade_no TEXT PRIMARY KEY,
+    reason TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS afdian_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL DEFAULT '',
@@ -242,6 +247,12 @@ def ingest_order(order: Dict[str, Any], *, via: str = 'webhook') -> Dict[str, An
     now = _now_iso()
     with db.get_db_connection() as conn:
         ensure_schema(conn)
+        tombstone = conn.execute(
+            'SELECT reason FROM afdian_order_tombstones WHERE out_trade_no = ?',
+            (out_trade_no,)).fetchone()
+        if tombstone is not None:
+            return {'status': 'ignored', 'out_trade_no': out_trade_no,
+                    'detail': '???????????????'}
         existing = conn.execute(
             'SELECT * FROM afdian_orders WHERE out_trade_no = ?', (out_trade_no,)).fetchone()
         if existing is None:
