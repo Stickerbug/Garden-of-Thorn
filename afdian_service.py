@@ -267,29 +267,50 @@ def ingest_order(order: Dict[str, Any], *, via: str = 'webhook') -> Dict[str, An
 
 
 def _sku_dew(conn, plan_id: str, sku_id: str, name: str) -> Tuple[Optional[int], str]:
-    """SKU 级映射：先精确 sku_id，再按名称（NFKC+大写归一）。plan_id='' 为全局条目。
-    命中后顺带把 sku_id 记入该条（老客后续订单精确匹配）。返回 (荆露/份, 名称)。"""
-    candidates = []
+    """Resolve a sale SKU by exact ID first, then by normalized current name."""
+    plan = str(plan_id or '')
+    row = None
     if sku_id:
-        candidates.append({'sku_id': str(sku_id)})
-    if name:
-        candidates.append({'name_norm': _sku_norm(name)})
-    for cond in candidates:
-        clause = ' AND '.join([f'{k} = ?' for k in cond])
         row = conn.execute(
-            f'SELECT id, dew_amount, name, sku_id FROM afdian_skus '
-            f'WHERE active = 1 AND ({clause}) AND (plan_id = ? OR plan_id = "") '
-            f'ORDER BY (plan_id = ?) DESC LIMIT 1',
-            (*cond.values(), str(plan_id or ''), str(plan_id or ''))).fetchone()
-        if row is not None:
-            learned = str(row['sku_id'] or '')
-            if sku_id and not learned:
-                conn.execute('UPDATE afdian_skus SET sku_id = ?, updated_at = ? WHERE id = ?',
-                             (str(sku_id), _now_iso(), int(row['id'])))
-                conn.commit()
-            return int(row['dew_amount'] or 0), str(row['name'] or '')
-    return None, ''
-
+            'SELECT id, dew_amount, name, name_norm, sku_id FROM afdian_skus '
+            'WHERE active = 1 AND sku_id = ? AND (plan_id = ? OR plan_id = "") '
+            'ORDER BY (plan_id = ?) DESC LIMIT 1',
+            (str(sku_id), plan, plan)).fetchone()
+    if row is None and name:
+        # The displayed name is authoritative when an older data migration left
+        # name_norm behind. Keep the legacy field as a compatible fallback.
+        target_norm = _sku_norm(name)
+        candidates = conn.execute(
+            'SELECT id, dew_amount, name, name_norm, sku_id FROM afdian_skus '
+            'WHERE active = 1 AND (plan_id = ? OR plan_id = "") '
+            'ORDER BY (plan_id = ?) DESC, id ASC',
+            (plan, plan)).fetchall()
+        for candidate in candidates:
+            if target_norm in {
+                _sku_norm(candidate['name']),
+                _sku_norm(candidate['name_norm']),
+            }:
+                row = candidate
+                break
+    if row is None:
+        return None, ''
+    learned = str(row['sku_id'] or '')
+    updates = []
+    params = []
+    if sku_id and not learned:
+        updates.append('sku_id = ?')
+        params.append(str(sku_id))
+    current_name_norm = _sku_norm(row['name'])
+    if _sku_norm(row['name_norm']) != current_name_norm:
+        updates.append('name_norm = ?')
+        params.append(current_name_norm)
+    if updates:
+        params.extend([_now_iso(), int(row['id'])])
+        conn.execute(
+            f"UPDATE afdian_skus SET {', '.join(updates)}, updated_at = ? WHERE id = ?",
+            params)
+        conn.commit()
+    return int(row['dew_amount'] or 0), str(row['name'] or '')
 
 def _settle(out_trade_no: str, *, via: str) -> Dict[str, Any]:
     """尝试入账：事务里**先占位**（判定结果与荆露数写回 ledger 并置 credited），

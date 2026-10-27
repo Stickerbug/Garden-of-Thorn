@@ -198,6 +198,34 @@ class AfdianServiceTests(unittest.TestCase):
         total = db.get_user_thorn_dew(self.user['id'])['paid']
         self.assertEqual(total, 1600 + 1550 + 800)
 
+    def test_sku_mapping_recovers_from_stale_name_norm(self):
+        """A renamed SKU still matches by its current name and learns its ID."""
+        code = afdian_service.bind_code_for(self.user['id'])
+        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
+            afdian_service.admin_set_sku(80000, '荆露之海(80000荆露)', price='68')
+        with db.get_db_connection() as conn:
+            conn.execute(
+                "UPDATE afdian_skus SET name_norm=? WHERE name=?",
+                ('荆露之海(20000荆露)', '荆露之海(80000荆露)'),
+            )
+            conn.commit()
+        result = afdian_service.ingest_order({
+            'out_trade_no': 'AFD-STALE-NORM', 'plan_id': 'plan_shop', 'month': 1,
+            'status': 2, 'remark': code, 'total_amount': '204.00',
+            'sku_detail': [{
+                'sku_id': 'sku-new-sea', 'name': '荆露之海(80000荆露)', 'count': 3,
+            }],
+        })
+        self.assertEqual(result['status'], 'credited')
+        self.assertEqual(result['dew'], 240000)
+        with db.get_db_connection() as conn:
+            row = conn.execute(
+                "SELECT sku_id, name_norm FROM afdian_skus WHERE name=?",
+                ('荆露之海(80000荆露)',),
+            ).fetchone()
+        self.assertEqual(row['sku_id'], 'sku-new-sea')
+        self.assertEqual(row['name_norm'], '荆露之海(80000荆露)'.upper())
+
     def test_public_plans_lists_sku_tiers_with_price(self):
         """兑换页档位要包含 SKU 档（此前只读方案表，六个真实档位看不到）。"""
         with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
