@@ -14516,14 +14516,12 @@ html[data-home-ui="touhou"] .home-floating-cards {
   /* 单程上升（连续随机流）：飞出顶部后由 JS 移除节点，位置让给不断出生的新卡 */
   animation: homeCardRise var(--hfc-duration) linear 1 forwards;
   animation-delay: var(--hfc-delay);
-  will-change: transform, opacity;
 }
 .hfc-sway {
   width: 100%;
   height: 100%;
   animation: homeCardSway var(--hfc-sway-duration) ease-in-out infinite alternate;
   animation-delay: var(--hfc-sway-delay);
-  will-change: transform;
 }
 .hfc-spin {
   display: block;
@@ -14535,7 +14533,6 @@ html[data-home-ui="touhou"] .home-floating-cards {
   filter: saturate(0.82) contrast(0.96);
   animation: homeCardSpin var(--hfc-spin-duration) linear infinite;
   animation-delay: var(--hfc-spin-delay);
-  will-change: transform;
 }
 @keyframes homeCardRise {
   0% {
@@ -18290,11 +18287,16 @@ html[data-ui-style="minimal"] .btn-end-turn {
   transform: translateY(var(--fan-y, 0)) rotate(var(--fan-rot, 0));
   transform-origin: 50% 110%;
   transition: margin 170ms ease;
-  will-change: transform;
 }
 
 .classic-hand-card:hover:not(.is-selected) {
   z-index: 999 !important;
+}
+
+.classic-hand-card.hand-card-animating,
+.classic-hand-card.is-selected,
+.classic-hand-card:hover {
+  will-change: transform;
 }
 
 .battle-classic.has-selected-card .classic-hand-card:hover:not(.is-selected) {
@@ -18373,7 +18375,6 @@ html[data-ui-style="minimal"] .btn-end-turn {
 .classic-fan-card-inner.card {
   width: 100%;
   transition: transform 200ms cubic-bezier(.2,.78,.24,1), filter 170ms ease, box-shadow 170ms ease;
-  will-change: transform;
 }
 
 .classic-hand-card:hover:not(.is-selected) .classic-fan-card-inner.card {
@@ -18384,6 +18385,11 @@ html[data-ui-style="minimal"] .btn-end-turn {
 .battle-classic.has-selected-card .classic-hand-card:hover:not(.is-selected) .classic-fan-card-inner.card {
   transform: rotate(var(--fan-rot-inverse, 0deg)) scale(1);
   filter: none;
+}
+
+.classic-hand-card:hover .classic-fan-card-inner.card,
+.classic-hand-card.is-selected .classic-fan-card-inner.card {
+  will-change: transform;
 }
 
 .classic-hand-card.is-selected .classic-fan-card-inner.card {
@@ -19785,7 +19791,6 @@ button.armor-meter:focus-visible {
   transition:
     transform 620ms cubic-bezier(.2, .84, .2, 1),
     opacity 240ms ease;
-  will-change: transform;
 }
 
 .classic-avatar-stack:hover .classic-equipment-orbiter,
@@ -19797,6 +19802,7 @@ button.armor-meter:focus-visible {
 .classic-equip-chip.is-entering,
 .classic-equip-chip.is-leaving {
   pointer-events: none;
+  will-change: transform, opacity;
 }
 
 .classic-equip-visual {

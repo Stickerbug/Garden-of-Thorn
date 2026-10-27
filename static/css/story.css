@@ -5406,7 +5406,11 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
   transition:
     transform 620ms cubic-bezier(.2, .84, .2, 1),
     opacity 240ms ease;
-  will-change: transform;
+}
+
+.story-equipment.is-entering,
+.story-equipment.is-leaving {
+  will-change: transform, opacity;
 }
 
 .story-equipment-visual,
@@ -7863,7 +7867,6 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
   width: 0;
   height: 0;
   transform-origin: center;
-  will-change: transform;
 }
 
 .story-orbit-petal {
@@ -7888,7 +7891,13 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
     transform 480ms cubic-bezier(.2, .84, .2, 1),
     opacity 260ms ease,
     scale 260ms ease;
-  will-change: transform;
+}
+
+.story-orbit-ring.is-animating,
+.story-orbit-petal.is-entering,
+.story-orbit-petal.is-activating,
+.story-orbit-petal.is-expiring {
+  will-change: transform, opacity;
 }
 
 /* 入场：从环心弹出 */

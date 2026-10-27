@@ -375,12 +375,13 @@
 
 .mg-cell { position: relative; z-index: 1; }
 
-/* 持久方块（原版 .tile-position-x-y 的做法）：绝对定位在棋盘上，
-   left/top 变化由这条 transition 负责"滑过去"；空格保持静态占位。 */
+/* 持久方块：位置使用合成层 transform，避免每次移动触发布局。 */
 .mg-board > .mg-cell.filled {
   position: absolute;
   z-index: 2;
-  transition: left 100ms ease-in-out, top 100ms ease-in-out;
+  left: 0;
+  top: 0;
+  transition: transform 100ms ease-in-out;
 }
 
 .mg-board > .mg-cell.mg-tile-merged { z-index: 3; }
@@ -499,14 +500,14 @@
 }
 
 @keyframes mg-appear {
-  0% { opacity: 0; transform: scale(0); }
-  100% { opacity: 1; transform: scale(1); }
+  0% { opacity: 0; scale: 0; }
+  100% { opacity: 1; scale: 1; }
 }
 
 @keyframes mg-pop {
-  0% { transform: scale(0); }
-  50% { transform: scale(1.18); }
-  100% { transform: scale(1); }
+  0% { scale: 0; }
+  50% { scale: 1.18; }
+  100% { scale: 1; }
 }
 
 /* 与 mg-pop 严格互补：1/1.18 ≈ 0.8475，保证文字净缩放恒为 1 */
@@ -517,10 +518,10 @@
 }
 
 @keyframes mg-crack-shake {
-  0% { transform: translateX(0) scale(1); filter: none; }
-  30% { transform: translateX(-1.5px) scale(.986); filter: brightness(.86); }
-  65% { transform: translateX(1.5px) scale(.994); filter: brightness(.94); }
-  100% { transform: translateX(0) scale(1); filter: none; }
+  0% { translate: 0 0; scale: 1; filter: none; }
+  30% { translate: -1.5px 0; scale: .986; filter: brightness(.86); }
+  65% { translate: 1.5px 0; scale: .994; filter: brightness(.94); }
+  100% { translate: 0 0; scale: 1; filter: none; }
 }
 
 @keyframes mg-crack-fade {

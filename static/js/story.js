@@ -153,6 +153,7 @@
     let storyCoopCombatSession = null;
     let storyCoopCombatEpoch = 0;
     const storyMechanicalTrackMotions = new Map();
+    const storyMechanicalTrackWheels = new Set();
     const storyActiveMechanicalTrackCards = new Map();
     const storyCodexRarities = new Set();
     const storyCodexTypes = new Set();
@@ -6185,6 +6186,11 @@
 
     function waitForStoryAnimation(element, className, duration) {
         if (!element) return Promise.resolve();
+        if (window.GTNMotion && !window.GTNMotion.shouldAnimate('essential')) {
+            element.classList.remove(className);
+            element.style.removeProperty('animation-duration');
+            return Promise.resolve();
+        }
         element.classList.remove(className);
         void element.offsetWidth;
         element.classList.add(className);
@@ -13098,7 +13104,12 @@
     }
 
     function storyOrbitReducedMotion() {
-        return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+        return Boolean(
+            window.GTNMotion?.isReduced?.()
+            || window.GTNMotion?.isLowPerformance?.()
+            || window.GTNMotion?.isHidden?.()
+            || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+        );
     }
 
     function applyStoryOrbitMotion(ring, motion) {
@@ -13422,6 +13433,7 @@
                 lastTimestamp: performance.now(),
                 animating: false,
                 paused: false,
+                lastWrittenAngle: null,
             });
         }
         return storyMechanicalTrackMotions.get(key);
@@ -13442,25 +13454,50 @@
         const actor = storyEnemyActor(enemyId);
         const wheel = actor?.querySelector('.story-mechanical-track-wheel');
         if (!wheel || !motion) return;
-        wheel.style.setProperty('--story-mechanical-track-rotation', `${motion.angle.toFixed(3)}deg`);
+        writeStoryMechanicalTrackWheel(wheel, motion);
+    }
+
+    function writeStoryMechanicalTrackWheel(wheel, motion, force = false) {
+        if (!wheel || !motion) return;
+        const value = `${motion.angle.toFixed(3)}deg`;
+        if (!force && motion.lastWrittenAngle === value) return;
+        wheel.style.setProperty('--story-mechanical-track-rotation', value);
+        motion.lastWrittenAngle = value;
     }
 
     function tickStoryMechanicalTracks(timestamp) {
         storyMechanicalTrackFrame = 0;
-        const wheels = [...document.querySelectorAll('.story-mechanical-track-wheel')];
+        if (window.GTNMotion && !window.GTNMotion.shouldAnimate('continuous')) return;
+        const wheels = [...storyMechanicalTrackWheels].filter((wheel) => {
+            if (wheel.isConnected) return true;
+            storyMechanicalTrackWheels.delete(wheel);
+            return false;
+        });
         if (!wheels.length) return;
         wheels.forEach((wheel) => {
             const enemyId = String(wheel.dataset.enemyId || '');
             const motion = storyMechanicalTrackMotion(enemyId);
             advanceStoryMechanicalTrackMotion(motion, timestamp);
-            wheel.style.setProperty('--story-mechanical-track-rotation', `${motion.angle.toFixed(3)}deg`);
+            writeStoryMechanicalTrackWheel(wheel, motion);
         });
         storyMechanicalTrackFrame = window.requestAnimationFrame(tickStoryMechanicalTracks);
     }
 
     function ensureStoryMechanicalTrackFrame() {
         if (storyMechanicalTrackFrame) return;
+        if (window.GTNMotion && !window.GTNMotion.shouldAnimate('continuous')) return;
         storyMechanicalTrackFrame = window.requestAnimationFrame(tickStoryMechanicalTracks);
+    }
+
+    if (window.GTNMotion?.onChange) {
+        window.GTNMotion.onChange((motion) => {
+            if (motion.shouldAnimate('continuous')) {
+                ensureStoryMechanicalTrackFrame();
+            } else if (storyMechanicalTrackFrame) {
+                window.cancelAnimationFrame(storyMechanicalTrackFrame);
+                storyMechanicalTrackFrame = 0;
+            }
+        });
     }
 
     function setStoryMechanicalTrackPaused(enemyId, paused) {
@@ -13552,6 +13589,7 @@
         const wheel = document.createElement('div');
         wheel.className = 'story-mechanical-track-wheel';
         wheel.dataset.enemyId = String(enemy.id || '');
+        storyMechanicalTrackWheels.add(wheel);
         cards.forEach((card) => {
             const item = createStoryMechanicalTrackCard(card, enemy.id);
             if (item) wheel.append(item);
@@ -13597,7 +13635,11 @@
     }
 
     function storyMechanicalTrackReducedMotion() {
-        return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+        return Boolean(
+            window.GTNMotion?.isReduced?.()
+            || window.GTNMotion?.isLowPerformance?.()
+            || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+        );
     }
 
     function animateStoryMechanicalTrackRotation(enemyId, motion, targetAngle, duration) {

@@ -2894,7 +2894,7 @@ function spawnHomeFloatingCards() {
     if (!container || homeFloatingCardsSpawned) return;
     homeFloatingCardsSpawned = true;
     const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) return;
+    if (reduced || (window.GTNMotion && !window.GTNMotion.shouldAnimate('continuous'))) return;
     /* 来源：CARD_DEFS＝当前启用模组合并后的全部卡牌定义（官方＋模组），
      * 预过滤出有卡面图的，并按 URL 去重成卡面池 */
     const seenUrls = new Set();
@@ -31543,7 +31543,8 @@ function finishClassicHandMotion(vm, container, oldRects, prev) {
     // 的新旧 id 也可能毫无交集，不能用交集判断换局。
     const motionAllowed = !replayMode && !isSpectating && isActiveBattlePhase(phase)
         && prev && prev.battleKey === snapshot.battleKey
-        && Number(snapshot.round) >= Number(prev.round);
+        && Number(snapshot.round) >= Number(prev.round)
+        && (!window.GTNMotion || window.GTNMotion.shouldAnimate('trajectory'));
     const drawnIds = new Set();
     if (motionAllowed) {
         hand.forEach(card => {
@@ -31614,8 +31615,11 @@ function finishClassicHandMotion(vm, container, oldRects, prev) {
         const rect = oldRects.get(entry.id) || (prev.rects && prev.rects.get(entry.id));
         if (!rect) return;
         let tempCard = null;
+        const lightweightMotion = window.GTNMotion && window.GTNMotion.isLowPerformance();
         try {
-            tempCard = createCardElement(entry.card.raw || entry.card, { draggable: false });
+            if (!lightweightMotion) {
+                tempCard = createCardElement(entry.card.raw || entry.card, { draggable: false });
+            }
         } catch (cardErr) { return; }
         const frameColor = classicCardFrameColor(entry.card.raw || entry.card);
         window.setTimeout(() => {
@@ -31623,6 +31627,7 @@ function finishClassicHandMotion(vm, container, oldRects, prev) {
                 from: rect,
                 to: pileEl,
                 cardEl: tempCard,
+                trail: !lightweightMotion,
                 duration: STS2.TIMING.DISCARD_FLY,
                 arcHeight: Math.max(110, (rect.top - pileRect.top) * 0.5),
                 scaleTo: 0.4,
@@ -36556,6 +36561,7 @@ function getNewlyExiledHandCards(previousPlayer, nextPlayer) {
 
 function animateCardShatterFromElement(cardEl, delay = 0) {
     if (!cardEl) return;
+    if (window.GTNMotion && !window.GTNMotion.shouldAnimate('bulk')) return;
     const rect = cardEl.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
     const wrap = document.createElement('div');

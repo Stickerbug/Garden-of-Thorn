@@ -10,6 +10,8 @@
     const ORBIT_MAX_STEP_MS = 120;
     const ORBIT_MAX_PENDING_MS = 240;
     let orbitFrame = 0;
+    let reducedMotionQuery = null;
+    let visibilityListenerAttached = false;
 
     function mix32(value) {
         let hash = value >>> 0;
@@ -35,9 +37,71 @@
         return hash32(seed) / UNIT_DIVISOR;
     }
 
+    function onMotionPreferenceChange() {
+        if (reducedMotion()) {
+            stopOrbitFrame();
+            return;
+        }
+        const now = nowMilliseconds();
+        orbitContexts.forEach((context) => {
+            context.lastTime = now;
+            context.pendingMs = 0;
+        });
+        ensureOrbitFrame();
+    }
+
     function reducedMotion() {
-        return Boolean(window.matchMedia
-            && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+        if (!reducedMotionQuery && typeof window.matchMedia === 'function') {
+            reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+            const listener = () => onMotionPreferenceChange();
+            if (typeof reducedMotionQuery.addEventListener === 'function') {
+                reducedMotionQuery.addEventListener('change', listener);
+            } else if (typeof reducedMotionQuery.addListener === 'function') {
+                reducedMotionQuery.addListener(listener);
+            }
+        }
+        return Boolean(reducedMotionQuery && reducedMotionQuery.matches);
+    }
+
+    function globallyPaused() {
+        return reducedMotion()
+            || (root.GTNMotion && !root.GTNMotion.shouldAnimate('continuous'))
+            || (typeof document !== 'undefined' && document.hidden);
+    }
+
+    function stopOrbitFrame() {
+        if (orbitFrame) {
+            window.cancelAnimationFrame(orbitFrame);
+            orbitFrame = 0;
+        }
+    }
+
+    function onVisibilityChange() {
+        if (typeof document !== 'undefined' && document.hidden) {
+            stopOrbitFrame();
+            return;
+        }
+        const now = nowMilliseconds();
+        orbitContexts.forEach((context) => {
+            context.lastTime = now;
+            context.pendingMs = 0;
+        });
+        ensureOrbitFrame();
+    }
+
+    function ensureVisibilityListener() {
+        if (visibilityListenerAttached || typeof document === 'undefined') return;
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        if (root.GTNMotion && typeof root.GTNMotion.onChange === 'function') {
+            root.GTNMotion.onChange(() => {
+                if (globallyPaused()) {
+                    stopOrbitFrame();
+                    return;
+                }
+                onVisibilityChange();
+            });
+        }
+        visibilityListenerAttached = true;
     }
 
     function nowMilliseconds() {
@@ -214,6 +278,52 @@
         if (root) root._gtnOrbitAngle = normalized;
     }
 
+    function refreshOrbitVisualCache(orbitElement, context) {
+        if (!orbitElement || !context) return;
+        const chips = [];
+        const visuals = [];
+        try {
+            orbitElement.querySelectorAll(context.chipSelector).forEach((chip) => {
+                chips.push(chip);
+                const visual = chip.querySelector(context.visualSelector);
+                if (visual) visuals.push(visual);
+            });
+        } catch (_) {
+            // Invalid selectors should retain the old behavior: no counter writes.
+        }
+        context.chips = chips;
+        context.visuals = visuals;
+        context.cacheDirty = false;
+        context.visualsNeedWrite = true;
+    }
+
+    function observeOrbitVisuals(orbitElement, context) {
+        if (!orbitElement || !context || typeof MutationObserver !== 'function') return;
+        if (context.visualObserver) context.visualObserver.disconnect();
+        context.visualObserver = new MutationObserver(() => {
+            context.cacheDirty = true;
+        });
+        context.visualObserver.observe(orbitElement, { childList: true, subtree: true });
+    }
+
+    function writeOrbitTransforms(orbitElement, context, force = false) {
+        if (!orbitElement || !context) return;
+        if (context.cacheDirty) refreshOrbitVisualCache(orbitElement, context);
+        const angleText = context.angle.toFixed(4);
+        const angleChanged = force || context.lastWrittenAngle !== angleText;
+        if (angleChanged) {
+            orbitElement.style.transform = `rotate(${angleText}deg)`;
+            context.lastWrittenAngle = angleText;
+        }
+        if (angleChanged || context.visualsNeedWrite) {
+            const inverse = `rotate(${(-context.angle).toFixed(4)}deg)`;
+            context.visuals.forEach((visual) => {
+                visual.style.transform = inverse;
+            });
+            context.visualsNeedWrite = false;
+        }
+    }
+
     function orbitInitialAngle(periodSec, carriedAngle) {
         const carried = normalizeOrbitAngle(carriedAngle);
         if (carried != null) return carried;
@@ -223,15 +333,17 @@
 
     function orbitTick(timestamp) {
         orbitFrame = 0;
+        if (globallyPaused()) return;
         const now = timestamp != null ? timestamp : nowMilliseconds();
         orbitContexts.forEach((context, orbitElement) => {
             if (!orbitElement.isConnected) {
                 rememberOrbitAngle(orbitElement, context, context.angle);
                 detachOrbitPointerHandlers(context);
+                if (context.visualObserver) context.visualObserver.disconnect();
                 orbitContexts.delete(orbitElement);
                 return;
             }
-            const paused = reducedMotion() || Boolean(context.pointerInside);
+            const paused = Boolean(context.pointerInside);
             if (!paused && context.lastTime != null) {
                 // 掉帧、后台挂起期间的时间记入欠账，之后逐帧补回。
                 context.pendingMs = Math.min(
@@ -246,15 +358,9 @@
                 context.angle = (context.angle + stepMs / context.periodMs * 360) % 360;
             }
             rememberOrbitAngle(orbitElement, context, context.angle);
-            orbitElement.style.transform = `rotate(${context.angle.toFixed(4)}deg)`;
-            orbitElement.querySelectorAll(context.chipSelector).forEach((chip) => {
-                const visual = chip.querySelector(context.visualSelector);
-                if (visual) {
-                    visual.style.transform = `rotate(${(-context.angle).toFixed(4)}deg)`;
-                }
-            });
+            writeOrbitTransforms(orbitElement, context);
         });
-        if (orbitContexts.size) orbitFrame = window.requestAnimationFrame(orbitTick);
+        if (orbitContexts.size && !globallyPaused()) orbitFrame = window.requestAnimationFrame(orbitTick);
     }
 
     function detachOrbitPointerHandlers(context) {
@@ -286,6 +392,10 @@
     }
 
     function ensureOrbitFrame() {
+        if (globallyPaused()) {
+            stopOrbitFrame();
+            return;
+        }
         if (!orbitFrame && orbitContexts.size) {
             orbitFrame = window.requestAnimationFrame(orbitTick);
         }
@@ -297,6 +407,7 @@
      */
     function startOrbitMotion(orbitElement, options) {
         if (!orbitElement) return;
+        ensureVisibilityListener();
         const config = options || {};
         let context = orbitContexts.get(orbitElement);
         if (!context) {
@@ -313,6 +424,12 @@
                 pointerInside: false,
                 pointerHandlers: null,
                 lastTime: null,
+                chips: [],
+                visuals: [],
+                cacheDirty: true,
+                visualsNeedWrite: true,
+                lastWrittenAngle: null,
+                visualObserver: null,
             };
             orbitContexts.set(orbitElement, context);
         }
@@ -326,8 +443,11 @@
         }
         if (config.chipSelector) context.chipSelector = config.chipSelector;
         if (config.visualSelector) context.visualSelector = config.visualSelector;
+        refreshOrbitVisualCache(orbitElement, context);
+        observeOrbitVisuals(orbitElement, context);
         orbitElement.classList.add('gtn-orbit-js');
         attachOrbitPointerHandlers(context);
+        writeOrbitTransforms(orbitElement, context, true);
         ensureOrbitFrame();
         return context;
     }
@@ -338,6 +458,7 @@
         if (context) {
             rememberOrbitAngle(orbitElement, context, context.angle);
             detachOrbitPointerHandlers(context);
+            if (context.visualObserver) context.visualObserver.disconnect();
             orbitContexts.delete(orbitElement);
         }
         orbitElement.classList.remove('gtn-orbit-js');

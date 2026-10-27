@@ -30,6 +30,11 @@
 
     function rafLoop(duration, onFrame, easing) {
         return new Promise((resolve) => {
+            if (root.GTNMotion && !root.GTNMotion.shouldAnimate('decorative')) {
+                onFrame(1, 1, 0);
+                resolve();
+                return;
+            }
             if (duration <= 0) {
                 onFrame(1, 1, 0);
                 resolve();
@@ -114,6 +119,7 @@
     // 沿弧线在卡牌身后撒「小卡片剪影」：63:88 圆角矩形、细边框、无模糊，
     // 颜色 = 卡框色降透明，旋转跟随飞行方向。像实体卡甩过的重影。
     function spawnTrailSliver(x, y, w, h, color, lifeMs, angleDeg) {
+        if (root.GTNMotion && !root.GTNMotion.shouldAnimate('trail')) return;
         const el = document.createElement('div');
         el.className = 'sts2-trail-card';
         el.style.left = `${x - w / 2}px`;
@@ -175,6 +181,7 @@
         const toRect = rectOf(opts.to);
         // 目标元素隐藏或尚未布局时（宽/高为 0）不飞——避免牌冲向 (0,0)
         if (!fromRect || !toRect || fromRect.width < 2 || fromRect.height < 2 || toRect.width < 2 || toRect.height < 2) return;
+        if (root.GTNMotion && !root.GTNMotion.shouldAnimate('trajectory')) return;
         const duration = opts.duration ?? 200;
         const arcHeight = opts.arcHeight ?? 140;
         const scaleFrom = opts.scaleFrom ?? 1;
@@ -252,7 +259,8 @@
         const keyframes = [];
         const trailSpawns = []; // { atMs, x, y, w, h, angle }
         const trailStep = cfg.trailStep ?? Math.max(16, cfg.duration / 10);
-        const wantTrail = cfg.trail && cfg.trailColor;
+        const wantTrail = cfg.trail && cfg.trailColor
+            && (!root.GTNMotion || root.GTNMotion.shouldAnimate('trail'));
         let prev = p0;
         let trailAccum = Infinity;
         const stepMs = cfg.duration / frames;
@@ -284,6 +292,10 @@
                     prev = pos;
                 }
             }
+        }
+        if (root.GTNMotion && !root.GTNMotion.shouldAnimate('trajectory')) {
+            el.style.transform = keyframes[keyframes.length - 1].transform;
+            return;
         }
         el.style.willChange = 'transform';
         const anim = el.animate(keyframes, { duration: cfg.duration, easing: 'linear', fill: 'forwards' });
@@ -356,6 +368,7 @@
     }
     function playFan(container, before, opts) {
         if (!before || !before.size) return;
+        if (root.GTNMotion && !root.GTNMotion.shouldAnimate('decorative')) return;
         const duration = (opts && opts.duration) ?? 90;
         const skipNew = (opts && opts.skipNew) || null;
         container.querySelectorAll('[data-instance-id]').forEach((el) => {
@@ -398,6 +411,7 @@
         const stagger = opts.stagger ?? 60;
         const duration = opts.duration ?? 210;
         const color = opts.trailColor;
+        const lightweight = root.GTNMotion && root.GTNMotion.isLowPerformance();
         const jobs = cards.map((el, i) => (async () => {
             const rect = el.getBoundingClientRect();
             el.style.visibility = 'hidden'; // 真身立刻藏起，幽灵接班
@@ -406,6 +420,10 @@
                 from: rect,
                 to: pileRect,
                 cardEl: el,
+                // On constrained devices the full card clone is more expensive
+                // than the flight itself; use the lightweight card-back ghost.
+                ...(lightweight ? { cardEl: null } : {}),
+                trail: !lightweight,
                 duration,
                 arcHeight: Math.max(120, (rect.top - pileRect.top) * 0.5),
                 scaleFrom: 1,
@@ -429,7 +447,8 @@
         const fromRect = rectOf(opts.fromEl);
         const toRect = rectOf(opts.toEl);
         if (!fromRect || !toRect) return;
-        const count = opts.count ?? 10;
+        const constrained = root.GTNMotion && root.GTNMotion.isLowPerformance();
+        const count = constrained ? Math.min(opts.count ?? 10, 8) : (opts.count ?? 10);
         const streams = opts.streams ?? 3;
         const stagger = opts.stagger ?? 15;
         const duration = opts.duration ?? 350;
@@ -448,7 +467,7 @@
                     scaleTo: 0.42,
                     rotate: (i % 2 === 0 ? 1 : -1) * (26 + (i % 5) * 9),
                     ease: 'inout',
-                    trail: i % 3 === 0, // 只给每第 3 张拖残影，密度不糊
+                    trail: !constrained && i % 3 === 0, // 低端设备不创建残影节点
                     trailColor: opts.trailColor || 'rgba(124, 154, 130, 0.55)',
                     sliverScale: 0.5,
                     z: 4170 + (i % 8),

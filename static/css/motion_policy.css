@@ -1,0 +1,54 @@
+/* Shared low-motion/low-performance guardrails. JavaScript animation loops
+   still need to consult window.GTNMotion; this is the CSS safety net. */
+:root.gtn-motion-reduce *,
+:root.gtn-motion-reduce *::before,
+:root.gtn-motion-reduce *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root.gtn-motion-reduce .sts2-ghost,
+:root.gtn-motion-reduce .sts2-trail-card,
+:root.gtn-motion-reduce .card-shatter-piece,
+:root.gtn-motion-reduce .home-floating-card {
+  display: none !important;
+}
+
+:root.gtn-low-performance .home-floating-card,
+:root.gtn-low-performance .sts2-trail-card,
+:root.gtn-low-performance .card-shatter-piece {
+  animation: none !important;
+}
+
+:root.gtn-low-performance .story-equipment-orbiter,
+:root.gtn-low-performance .story-equipment-visual,
+:root.gtn-low-performance .story-equipment-icon,
+:root.gtn-low-performance .story-mechanical-track-icon,
+:root.gtn-low-performance .story-mechanical-track-card.is-at-trigger::after,
+:root.gtn-low-performance .story-actor.is-play-target .story-portrait::after,
+:root.gtn-low-performance .story-hand-card.is-selected::after,
+:root.gtn-low-performance .classic-hand-card.is-selected::after,
+:root.gtn-low-performance .story-persistent-actions button.is-map-open {
+  animation: none !important;
+}
+
+:root.gtn-low-performance .home-floating-card,
+:root.gtn-low-performance .classic-equipment-orbiter,
+:root.gtn-low-performance .classic-equip-visual,
+:root.gtn-low-performance .classic-equip-chip .equip-icon {
+  will-change: auto !important;
+}
+
+:root.gtn-low-performance * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:root.gtn-page-hidden .home-floating-card,
+:root.gtn-page-hidden .classic-equipment-orbiter,
+:root.gtn-page-hidden .classic-equip-visual,
+:root.gtn-page-hidden .classic-equip-chip .equip-icon {
+  animation-play-state: paused !important;
+}

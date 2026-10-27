@@ -231,7 +231,7 @@ function tileFaceHtml(value) {
 
 /* ---------------- 棋盘与方块：持久元素（照原版 html_actuator 的做法） ----------------
 
-   原版一步不重建棋盘：方块是**有身份的 DOM 元素**，移动＝改它的 left/top
+   原版一步不重建棋盘：方块是**有身份的 DOM 元素**，移动＝改它的 transform
    （CSS transition: 100ms ease-in-out 负责滑动），合并＝两块各自滑到目标格 +
    新块在它们上面 pop，生成＝同一帧插入新块并 appear。
    这里：16 个空格只建一次（占位），方块是绝对定位的 .mg-cell.filled，按格子坐标摆放。 */
@@ -270,8 +270,12 @@ const MIN_MEASURABLE_BOARD_PX = 120;
 function placeTile(el, index, metrics, animate) {
   el.style.width = `${metrics.size}px`;
   el.style.height = `${metrics.size}px`;
-  el.style.left = `${metrics.pad + (index % BOARD_SIZE) * (metrics.size + metrics.gap)}px`;
-  el.style.top = `${metrics.pad + Math.floor(index / BOARD_SIZE) * (metrics.size + metrics.gap)}px`;
+  const x = metrics.pad + (index % BOARD_SIZE) * (metrics.size + metrics.gap);
+  const y = metrics.pad + Math.floor(index / BOARD_SIZE) * (metrics.size + metrics.gap);
+  // left/top 触发布局；固定原点后只改 transform，让移动留在合成阶段。
+  el.style.left = '0px';
+  el.style.top = '0px';
+  el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
   if (!animate) {
     el.style.transition = 'none';
     void el.offsetWidth;
@@ -1324,7 +1328,10 @@ el('mg-show-numbers').addEventListener('change', (event) => {
 });
 el('mg-decline-invites').addEventListener('change', () => { void savePrefs(); });
 el('mg-animations').addEventListener('change', (event) => {
-  animations = event.target.checked;
+  animations = event.target.checked
+    && !window.GTNMotion?.isReduced?.()
+    && !window.GTNMotion?.isLowPerformance?.();
+  event.target.checked = animations;
   document.documentElement.classList.toggle('mg-no-anim', !animations);
 });
 el('mg-rank-section')?.addEventListener('click', (event) => {
@@ -1336,10 +1343,21 @@ el('mg-rank-section')?.addEventListener('click', (event) => {
   void refreshLeaderboard(tab.dataset.mgWindow);
 });
 el('mg-hide-titles')?.addEventListener('click', toggleLeaderboardHideTitles);
-if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+if ((window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+  || window.GTNMotion?.isReduced?.()
+  || window.GTNMotion?.isLowPerformance?.()) {
   animations = false;
   document.documentElement.classList.add('mg-no-anim');
   el('mg-animations').checked = false;
+}
+if (window.GTNMotion?.onChange) {
+  window.GTNMotion.onChange((motion) => {
+    if (motion.isReduced() || motion.isLowPerformance()) {
+      animations = false;
+      document.documentElement.classList.add('mg-no-anim');
+      el('mg-animations').checked = false;
+    }
+  });
 }
 void boot();
 

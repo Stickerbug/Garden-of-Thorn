@@ -140,6 +140,15 @@ let game = null;
 let aimX = ARENA.width / 2;
 let dragging = false;
 let animationsEnabled = true;
+const reducedMotionQuery = window.matchMedia
+  ? window.matchMedia('(prefers-reduced-motion: reduce)')
+  : null;
+function systemMotionReduced() {
+  return Boolean(
+    (reducedMotionQuery && reducedMotionQuery.matches)
+    || window.GTNMotion?.isReduced?.(),
+  );
+}
 let aimGuideEnabled = true;
 let bestScore = 0;
 let lastFrameAt = 0;
@@ -1233,11 +1242,21 @@ function sceneNeedsRedraw(now) {
   return false;
 }
 
+let frameHandle = null;
+
+function scheduleFrame() {
+  if (frameHandle === null) frameHandle = requestAnimationFrame(frame);
+}
+
 function frame(now) {
+  frameHandle = null;
   if (!lastFrameAt) lastFrameAt = now;
   const dt = Math.min(120, Math.max(0, now - lastFrameAt));
   lastFrameAt = now;
-  if (game && !document.hidden) {
+  // Hidden tabs no longer spin a perpetual RAF. Reset the clock so returning
+  // does not advance Matter by the entire time spent in the background.
+  if (document.hidden) return;
+  if (game) {
     handleEvents(game.advance(dt));
     updateScore();
   }
@@ -1247,7 +1266,7 @@ function frame(now) {
     renderStats.draws += 1;
     render(now);
   }
-  requestAnimationFrame(frame);
+  scheduleFrame();
 }
 
 /* ---------- 玩家皮肤 ---------- */
@@ -1286,6 +1305,9 @@ function loadPrefs() {
     if (typeof data.animations === 'boolean') animationsEnabled = data.animations;
     if (typeof data.aim === 'boolean') aimGuideEnabled = data.aim;
   } catch (_) { /* 用默认值 */ }
+  // Respect the operating-system preference even when an older local setting
+  // had animations enabled.
+  if (systemMotionReduced() || window.GTNMotion?.isLowPerformance?.()) animationsEnabled = false;
   if (animToggle) animToggle.checked = animationsEnabled;
   if (aimToggle) aimToggle.checked = aimGuideEnabled;
 }
@@ -1315,8 +1337,18 @@ function bindUi() {
   }
   if (animToggle) {
     animToggle.addEventListener('change', () => {
-      animationsEnabled = animToggle.checked;
+      animationsEnabled = animToggle.checked && !systemMotionReduced();
+      animToggle.checked = animationsEnabled;
       savePrefs();
+      markRenderDirty();
+    });
+  }
+  if (window.GTNMotion?.onChange) {
+    window.GTNMotion.onChange((motion) => {
+      if (motion.isReduced() || motion.isLowPerformance()) {
+        animationsEnabled = false;
+        if (animToggle) animToggle.checked = false;
+      }
       markRenderDirty();
     });
   }
@@ -1337,6 +1369,8 @@ function bindUi() {
   window.addEventListener('offline', () => setStatus('离线：本机已保存', { offline: true }));
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return;
+    lastFrameAt = 0;
+    scheduleFrame();
     void syncNow();
     void refreshLeaderboard();
   });
@@ -1417,7 +1451,7 @@ async function boot() {
   window.__skArt = () => art.map((item) => (item ? { avg: item.avg, w: item.box.w, h: item.box.h } : null));
   window.__skRenderStats = renderStats;
   window.__skBooted = true;
-  requestAnimationFrame(frame);
+  scheduleFrame();
 }
 
 /** 在线状态 + 对局邀请：走休闲花园共用的 minigame-presence.js（服务端认注册表里的 gameKey）。 */

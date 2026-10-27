@@ -7,6 +7,7 @@
   <link rel="icon" href="/static/assets/favicon.ico">
   <link rel="stylesheet" href="/static/css/shared-lobby-chat.css?v={{ static_version|default('dev')|urlencode }}">
   <link rel="stylesheet" href="/static/css/minigame_suika.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/motion_policy.css?v={{ static_version|default('dev')|urlencode }}">
   <script nonce="{{ csp_nonce }}">
   (() => {
     const read = (key) => {
@@ -166,6 +167,7 @@
 </main>
 
 <script src="/static/vendor/matter.min.js?v=0.19.0"></script>
+<script src="/static/js/motion_policy.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/vendor/socket.io.min.js?v=4.7.2"></script>
 <script src="/static/js/leisure-ticket.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/shared-chat-actions.js?v={{ static_version|default('dev')|urlencode }}"></script>
