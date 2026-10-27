@@ -84,6 +84,22 @@ class LobbyPresenceTests(unittest.TestCase):
         with unittest_mock.patch.object(svc, 'prefs_decline_invites', staticmethod(_boom)):
             self.assertFalse(gtn.minigame_2048_player_declines_invites(player))
 
+    def test_lobby_player_exposes_pending_entertainment_special_modes(self):
+        self._player(status='lobby', minigame=None, mode='1v1')
+        original = dict(gtn.invite_special_modes)
+        try:
+            gtn.invite_special_modes.clear()
+            gtn.invite_special_modes['sid-mini'] = {'reality': True, 'fancy': False}
+            row = next(item for item in gtn.get_lobby_list(False) if item['sid'] == 'sid-mini')
+            self.assertEqual(row['special_modes'], ['reality'])
+
+            gtn.invite_special_modes['sid-mini'] = {'reality': True, 'fancy': True}
+            row = next(item for item in gtn.get_lobby_list(False) if item['sid'] == 'sid-mini')
+            self.assertEqual(row['special_modes'], ['reality', 'fancy'])
+        finally:
+            gtn.invite_special_modes.clear()
+            gtn.invite_special_modes.update(original)
+
 @unittest.skipIf(gtn is None, f"无法导入 app（{IMPORT_ERROR}）")
 class SameAccountInviteTests(unittest.TestCase):
     """同账号多标签页（2048 页）替大厅接受/拒绝邀请（用户第九节）。"""

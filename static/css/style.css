@@ -22112,6 +22112,20 @@ html[data-ui-style="minimal"][data-theme="dark"] .card,
   white-space: nowrap;
 }
 
+.lobby-special-mode-badge {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid color-mix(in srgb, var(--bloom, #c27a24) 52%, transparent);
+  border-radius: 4px;
+  color: var(--bloom, #c27a24);
+  background: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
 .battle-panel-tabs {
   display: flex;
   align-items: stretch;

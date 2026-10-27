@@ -5696,6 +5696,12 @@ def public_player_info(sid, player=None):
         spectated_room = rooms.get(spectating_room)
         if spectated_room is not None:
             spectating_match_mode = room_match_mode(spectated_room)
+    pending_special_modes = invite_special_modes.get(sid) or {}
+    special_modes = [
+        mode
+        for mode in ('reality', 'fancy')
+        if bool(pending_special_modes.get(mode))
+    ]
     info = {
         'sid': sid,
         'nickname': p.get('nickname', '?'),
@@ -5707,6 +5713,8 @@ def public_player_info(sid, player=None):
         'match_type': match_type,
         'match_mode': match_mode,
         'spectating_match_mode': spectating_match_mode,
+        # 娱乐 1v1 的特殊模式在正式建房前暂存在邀请状态中，供大厅展示。
+        'special_modes': special_modes,
         'user_id': p.get('user_id'),
         'is_registered_user': bool(p.get('is_registered_user')),
         # 2026-10-02：大厅展示段位；花阶分不再对玩家下发。
@@ -31855,6 +31863,7 @@ def on_invite(data):
             'gr_preview_text': inviter_gr_preview.get('text', ''),
             'gr_preview': inviter_gr_preview,
         }, room=sid)
+        broadcast_lobby()
         return
 
     with _lock:
@@ -31921,6 +31930,8 @@ def on_invite(data):
         invites[sid] = target_sid
         inviter_name = inviter.get('nickname', inviter_name)
 
+    broadcast_lobby()
+
     if inviter_gr_preview.get('text'):
         socketio.emit('invite_gr_preview', {'text': inviter_gr_preview.get('text'), 'gr_preview': inviter_gr_preview}, room=sid)
     socketio.emit('invite_received', {
@@ -31935,9 +31946,15 @@ def on_invite(data):
     }, room=target_sid)
 
     def _invite_timeout(inviter_sid):
+        changed = False
         with _lock:
             if inviter_sid in invites:
                 del invites[inviter_sid]
+                changed = True
+            if invite_special_modes.pop(inviter_sid, None) is not None:
+                changed = True
+        if changed:
+            broadcast_lobby()
 
     timer = threading.Timer(30.0, _invite_timeout, args=[sid])
     timer.daemon = True
@@ -32140,12 +32157,17 @@ def on_decline_invite(data):
     except ValueError as exc:
         _security_illegal(sid, 'decline_invite', str(exc))
         return
+    changed = False
     with _lock:
         # 同账号的另一个标签页也可以拒绝（与接受同一条规则）。
         if resolve_pending_invite_for_sid(inviter_sid) is not None:
             del invites[inviter_sid]
+            invite_special_modes.pop(inviter_sid, None)
+            changed = True
             if inviter_sid in players:
                 socketio.emit('invite_declined', {'target_sid': sid}, room=inviter_sid)
+    if changed:
+        broadcast_lobby()
 
 
 def _story_chat_sender_profile(user):

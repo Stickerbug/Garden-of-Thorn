@@ -3130,6 +3130,14 @@ function getModeLabel(mode) {
     }[mode] || String(mode || '1v1');
 }
 
+function getLobbySpecialModeLabel(mode) {
+    const labels = {
+        reality: currentLang === 'zh' ? '操纵现实' : 'Reality Manipulation',
+        fancy: currentLang === 'zh' ? '花样百出' : 'Fancy Decks',
+    };
+    return labels[String(mode || '')] || String(mode || '');
+}
+
 function normalizeGameModeKey(mode) {
     const raw = String(mode || '1v1');
     if (raw === 'randomDeck' || raw === 'random-deck' || raw === 'random') return 'random_deck';
@@ -28433,6 +28441,15 @@ function renderLobby(data) {
         nameSpan.className = isMe ? 'player-name player-self' : 'player-name';
         setPlayerNameContent(nameSpan, p, { adminPrefix: true });
         row.appendChild(nameSpan);
+        const specialModes = Array.isArray(p.special_modes)
+            ? p.special_modes.filter(mode => getLobbySpecialModeLabel(mode))
+            : [];
+        if (specialModes.length) {
+            const badge = document.createElement('span');
+            badge.className = 'lobby-special-mode-badge';
+            badge.textContent = `${currentLang === 'zh' ? '特殊模式' : 'Special mode'}: ${specialModes.map(getLobbySpecialModeLabel).join(' + ')}`;
+            row.appendChild(badge);
+        }
         if (isMinigamePlayer) {
           const badge = document.createElement('span');
           badge.className = 'lobby-minigame-badge';
