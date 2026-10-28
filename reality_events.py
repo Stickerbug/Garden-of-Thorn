@@ -137,13 +137,16 @@ class RealityEngineMixin:
             self.log_msg(f'{self.pn(player_id)}的操纵现实：回合开始清空能量')
 
     def reality_elixir_recovery_modifier(self, player_id: int) -> int:
-        """事件3（-2起步每回合+1，上限7）与事件10（+5起步每回合-1，下限0）。"""
+        """事件3（-2起步每回合+1，上限7）与事件10（+5起步每回合-1）。
+
+        事件10的负值保留到最终回复量结算，再由调用方把最终值钳制到 0。
+        """
         modifier = 0
         ps = self.players[player_id]
         if self.reality_active(3):
             modifier += min(7, -2 + max(0, int(ps.custom_vars.get('reality_regen_ramp', 0) or 0)))
         if self.reality_active(10):
-            modifier += max(0, 5 - max(0, int(ps.custom_vars.get('reality_regen_decay', 0) or 0)))
+            modifier += 5 - max(0, int(ps.custom_vars.get('reality_regen_decay', 0) or 0))
         return modifier
 
     def reality_turn_start_advance_ramps(self, player_id: int):

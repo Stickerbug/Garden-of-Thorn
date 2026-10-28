@@ -65,7 +65,7 @@ class RealityEventTests(unittest.TestCase):
         e = make_engine({10})
         self.assertEqual(5, e.reality_elixir_recovery_modifier(0))
         e.players[0].custom_vars['reality_regen_decay'] = 9
-        self.assertEqual(0, e.reality_elixir_recovery_modifier(0))
+        self.assertEqual(-4, e.reality_elixir_recovery_modifier(0))
 
     def test_extra_draw_events_2_and_5(self):
         e = make_engine({2, 5})
