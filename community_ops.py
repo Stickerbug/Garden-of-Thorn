@@ -159,7 +159,15 @@ def _poll_player_visible(row, now=None):
     return now < close_at + timedelta(days=COMMUNITY_ENDED_POLL_VISIBLE_DAYS)
 
 
-def _poll_payload(conn, row, *, viewer_user_id=None, reveal_results=False, now=None):
+def _poll_payload(
+    conn,
+    row,
+    *,
+    viewer_user_id=None,
+    reveal_results=False,
+    include_voter_ids=False,
+    now=None,
+):
     if row is None:
         return None
     now = now or _utc_now()
@@ -177,6 +185,21 @@ def _poll_payload(conn, row, *, viewer_user_id=None, reveal_results=False, now=N
         ''',
         (poll_id,),
     ).fetchall()
+    voter_ids_by_option = {}
+    if include_voter_ids:
+        voter_rows = conn.execute(
+            '''
+            SELECT option_id, user_id
+            FROM community_poll_votes
+            WHERE poll_id = ?
+            ORDER BY option_id ASC, user_id ASC
+            ''',
+            (poll_id,),
+        ).fetchall()
+        for voter in voter_rows:
+            voter_ids_by_option.setdefault(int(voter['option_id']), []).append(
+                int(voter['user_id'])
+            )
     selected_option_id = None
     if viewer_user_id:
         selected = conn.execute(
@@ -198,6 +221,8 @@ def _poll_payload(conn, row, *, viewer_user_id=None, reveal_results=False, now=N
         }
         if show_counts:
             item['vote_count'] = vote_count
+        if include_voter_ids:
+            item['voter_ids'] = voter_ids_by_option.get(int(option['id']), [])
         options.append(item)
     ends_at = _parse_timestamp(row['ends_at'], label='结束时间')
     reminder_hours = int(row['reminder_hours'])
@@ -1152,7 +1177,13 @@ def list_community_ops_workspace(*, audit_limit=100):
         return {
             'announcements': [_announcement_payload(row) for row in announcements],
             'polls': [
-                _poll_payload(conn, row, reveal_results=True, now=now)
+                _poll_payload(
+                    conn,
+                    row,
+                    reveal_results=True,
+                    include_voter_ids=True,
+                    now=now,
+                )
                 for row in polls
             ],
             'chains': [

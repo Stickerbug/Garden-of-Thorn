@@ -231,6 +231,34 @@ class CommunityApiTests(unittest.TestCase):
         self.assertEqual(conflict.status_code, 409)
         self.assertEqual(conflict.get_json()['code'], 'POLL_ALREADY_VOTED')
 
+    def test_ops_workspace_reveals_voter_ids_without_public_exposure(self):
+        poll = self.create_poll()
+        option_id = poll['options'][0]['id']
+        account_result = (self.voter['id'], self.voter['username'], None)
+        voter_public = {
+            'id': self.voter['id'],
+            'username': self.voter['username'],
+        }
+        with mock.patch.object(gtn, '_current_account_user', return_value=voter_public):
+            token = self.client.get('/api/community/feed').get_json()['csrf_token']
+        with mock.patch.object(gtn, '_require_account_json', return_value=account_result):
+            response = self.client.post(
+                f'/api/community/polls/{poll["id"]}/vote',
+                headers={'X-Community-CSRF': token},
+                json={'option_id': option_id},
+            )
+        self.assertEqual(response.status_code, 200)
+
+        ops_poll = next(
+            item for item in gtn.list_community_ops_workspace()['polls']
+            if item['id'] == poll['id']
+        )
+        voted_option = next(item for item in ops_poll['options'] if item['id'] == option_id)
+        self.assertEqual(voted_option['voter_ids'], [self.voter['id']])
+
+        public_poll = self.client.get('/api/community/feed').get_json()['polls'][0]
+        self.assertNotIn('voter_ids', public_poll['options'][0])
+
     def test_admin_console_commands_share_the_persistent_audit_path(self):
         announcement = gtn.execute_admin_command(
             'community announcement create "控制台公告" "正文" publish pin changelog',

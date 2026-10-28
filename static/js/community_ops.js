@@ -123,7 +123,17 @@
       ));
       const options = element('ol', 'ops-option-list');
       (Array.isArray(item.options) ? item.options : []).forEach((option) => {
-        options.appendChild(element('li', '', `${option.label || ''} · ${Number(option.vote_count || 0)}票`));
+        const voterIds = Array.isArray(option.voter_ids)
+          ? option.voter_ids.map((id) => String(id))
+          : [];
+        const voterText = voterIds.length
+          ? ` · 投票人 ID：${voterIds.join(', ')}`
+          : ' · 暂无投票人 ID';
+        options.appendChild(element(
+          'li',
+          '',
+          `${option.label || ''} · ${Number(option.vote_count || 0)}票${voterText}`,
+        ));
       });
       card.appendChild(options);
       card.appendChild(element('div', 'ops-item-meta', `开始 ${formatTime(item.starts_at)} · 截止 ${formatTime(item.ends_at)} · 共 ${Number(item.total_votes || 0)}票 · 提醒窗口 ${item.reminder_hours}小时`));
