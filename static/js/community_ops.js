@@ -122,22 +122,32 @@
             : item.player_visible ? '默认显示（结束后2天隐藏）' : '默认已自动隐藏'}`,
       ));
       const options = element('ol', 'ops-option-list');
+      const voterPanel = element('div', 'ops-voter-panel is-hidden');
       (Array.isArray(item.options) ? item.options : []).forEach((option) => {
         const voterIds = Array.isArray(option.voter_ids)
           ? option.voter_ids.map((id) => String(id))
           : [];
-        const voterText = voterIds.length
-          ? ` · 投票人 ID：${voterIds.join(', ')}`
-          : ' · 暂无投票人 ID';
         options.appendChild(element(
           'li',
           '',
-          `${option.label || ''} · ${Number(option.vote_count || 0)}票${voterText}`,
+          `${option.label || ''} · ${Number(option.vote_count || 0)}票`,
+        ));
+        voterPanel.appendChild(element(
+          'div',
+          'ops-voter-row',
+          `${option.label || ''}：${voterIds.length ? voterIds.join(', ') : '暂无投票人 ID'}`,
         ));
       });
       card.appendChild(options);
+      card.appendChild(voterPanel);
       card.appendChild(element('div', 'ops-item-meta', `开始 ${formatTime(item.starts_at)} · 截止 ${formatTime(item.ends_at)} · 共 ${Number(item.total_votes || 0)}票 · 提醒窗口 ${item.reminder_hours}小时`));
       const actions = element('div', 'ops-item-actions');
+      const voterToggle = actionButton('查看投票人 ID', 'poll-voters', item.id, 'toggle');
+      voterToggle.addEventListener('click', () => {
+        const hidden = voterPanel.classList.toggle('is-hidden');
+        voterToggle.textContent = hidden ? '查看投票人 ID' : '隐藏投票人 ID';
+      });
+      actions.appendChild(voterToggle);
       if (item.state === 'draft') actions.appendChild(actionButton('发布', 'poll', item.id, 'publish'));
       if (item.state === 'published' && item.effective_state !== 'closed') actions.appendChild(actionButton('立即结束', 'poll', item.id, 'close', true));
       if (['published', 'closed'].includes(item.state)) {

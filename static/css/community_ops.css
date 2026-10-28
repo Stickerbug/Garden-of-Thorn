@@ -125,6 +125,9 @@ body {
 .ops-item-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .ops-item-actions .ops-button { min-height: 32px; padding: 5px 9px; font-size: 12px; }
 .ops-option-list { margin: 0; padding-left: 20px; color: var(--ops-muted); font-size: 13px; }
+.ops-voter-panel { display: grid; gap: 4px; padding: 8px 10px; border: 1px dashed var(--ops-border); border-radius: 8px; background: color-mix(in srgb, var(--ops-panel) 70%, var(--ops-bg)); }
+.ops-voter-panel.is-hidden { display: none; }
+.ops-voter-row { color: var(--ops-muted); font-size: 12px; overflow-wrap: anywhere; }
 .ops-list.is-compact .ops-item { gap: 4px; }
 
 @media (max-width: 780px) {
