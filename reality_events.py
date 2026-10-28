@@ -27,7 +27,7 @@ REALITY_EVENTS: Dict[int, Dict[str, object]] = {
     13: {'name': '紧握', 'desc': '所有卡打出后沉重+1，所有卡回合结束时在手中则迅捷+1'},
     14: {'name': '贤者的归隐', 'desc': '每回合开始时将一张虚无，放逐拟态加入手中'},
     15: {'name': '人体蜂房', 'desc': '玩家每回合出第三张牌时获得一层眩晕（一回合一次）'},
-    16: {'name': '杂耍', 'desc': '玩家每回合出第三张牌时，将一张其的虚无，放逐基本加入手中'},
+    16: {'name': '杂耍', 'desc': '玩家每回合出第三张牌时，将其复制一张并附加虚无、放逐后加入手中'},
     17: {'name': '谜语人', 'desc': '装备牌选择量-3，反制牌选择量+3'},
     18: {'name': '慷慨捐助', 'desc': '玩家打出的牌会进入对手弃牌堆'},
     19: {'name': '启动流程', 'desc': '开局获得10层灼烧，装备牌选择量+7，其他选择量全部为0，将5张污水加入卡组'},
@@ -178,11 +178,13 @@ class RealityEngineMixin:
         if self.reality_active(14):
             self._reality_grant_void(player_id, mimic=True)
 
-    def _reality_grant_void(self, player_id: int, mimic: bool = False):
-        """发放一张带「虚无+放逐」标签的牌（2026-10-27修订：两个事件的
-        "虚无"都指卡牌tag——事件14给拟态、事件16给基本，均附加void+exile）。"""
+    def _reality_grant_void(self, player_id: int, mimic: bool = False, source_card=None):
+        """发放带「虚无、放逐」标签的牌；事件16复制刚打出的第三张牌。"""
         from cards import CARD_DEFS, CardInstance
-        if mimic:
+        if source_card is not None:
+            card_id = str(getattr(source_card, 'def_id', '') or '')
+            label = str(getattr(source_card, 'name_cn', '') or card_id)
+        elif mimic:
             card_id = 'Mimic' if 'Mimic' in CARD_DEFS else 'Basic'
             label = '拟态' if card_id == 'Mimic' else '基本'
         else:
@@ -192,7 +194,7 @@ class RealityEngineMixin:
             self.log_msg('操纵现实：卡定义不可用，跳过发放')
             return
         try:
-            card = CardInstance(card_id)
+            card = source_card.copy() if source_card is not None else CardInstance(card_id)
             flags = set(getattr(card, 'instance_flags', set()) or set())
             flags.update({'ethereal', 'exile'})
             card.instance_flags = flags
@@ -319,7 +321,7 @@ class RealityEngineMixin:
                 ps.skip_turn = max(0, int(getattr(ps, 'skip_turn', 0) or 0)) + 1
                 self.log_msg(f'{self.pn(player_id)}的操纵现实：第三张牌，获得1层眩晕')
             if self.reality_active(16):
-                self._reality_grant_void(player_id)
+                self._reality_grant_void(player_id, source_card=card)
 
     def reality_turn_reset_play_counter(self, player_id: int):
         self.players[player_id].custom_vars.pop('reality_cards_played_turn', None)

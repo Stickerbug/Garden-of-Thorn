@@ -80,6 +80,18 @@ class RealityEventTests(unittest.TestCase):
                         {'target_player': 1, 'target_player_id': 1, 'target_id': 1})
         self.assertEqual(1, e.players[0].skip_turn)
 
+    def test_juggle_copies_the_third_card_with_void_and_exile(self):
+        e = make_engine({16})
+        cards = [CardInstance('Basic'), CardInstance('Bone'), CardInstance('Fire')]
+        e.players[0].hand = list(cards)
+        for card in cards:
+            e.reality_after_card_played(0, card)
+        granted = e.players[0].hand[-1]
+        self.assertEqual('Fire', granted.def_id)
+        self.assertNotEqual('Basic', granted.def_id)
+        self.assertTrue({'ethereal', 'exile'} <= set(granted.instance_flags))
+        self.assertNotEqual(cards[-1].instance_id, granted.instance_id)
+
     def test_played_card_to_opponent_event_18(self):
         e = make_engine({18})
         card = CardInstance('Basic')
