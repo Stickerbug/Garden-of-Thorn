@@ -71,6 +71,22 @@ class RealityEventTests(unittest.TestCase):
         e = make_engine({2, 5})
         self.assertEqual(7, e.reality_extra_draw_count(0))
 
+    def test_startup_process_uses_ten_equipment_picks_then_adds_sewage(self):
+        e = make_engine({19})
+        root_ids = ['Leaf'] * 10
+        self.assertEqual(10, e.draft_target_count(0))
+        e.phase = 'draft'
+        e.draft_picks = [list(root_ids), list(root_ids)]
+        e.opening_event_picks = [None, None]
+        e.opening_event_sub_choices = [{}, {}]
+        e.player_draft_started = [True, True]
+        e.player_ready = [True, True]
+        self.assertTrue(e.start_game(skip_pregame_validation=True, mulligan=False))
+        for player in e.players:
+            self.assertEqual(5, sum(card.def_id == 'Sewage' for card in player.deck))
+            self.assertGreaterEqual(len(player.deck), 5)
+            self.assertEqual(10, player.fire)
+
     def test_third_card_stun_event_15(self):
         e = make_engine({15})
         cards = [CardInstance('Basic') for _ in range(3)]

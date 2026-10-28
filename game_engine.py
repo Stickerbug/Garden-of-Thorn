@@ -5606,13 +5606,22 @@ class GameEngine(reality_events.RealityEngineMixin):
 
     def draft_target_count(self, player_id: int) -> int:
         """Number of cards this player needs to draft before setup sub-choices."""
+        type_order = list(getattr(self, 'draft_type_order', []) or [])
+        if type_order:
+            total = len(type_order)
+        else:
+            adjusted_ratio = reality_events.reality_adjusted_draft_ratio(
+                DRAFT_RATIO,
+                getattr(self, 'reality_events', None) or set(),
+            )
+            total = sum(max(0, int(count or 0)) for count in adjusted_ratio.values())
         try:
             event_id = self.opening_event_picks[player_id]
         except Exception:
             event_id = None
         if str(event_id) == '5':
-            return max(0, DECK_SIZE - 1)
-        return DECK_SIZE
+            return max(0, total - 1)
+        return total
 
     def opening_event_requires_sub_choice(self, player_id: int) -> bool:
         """Return whether the selected opening event has a post-draft choice."""
