@@ -87,6 +87,25 @@ class RealityEventTests(unittest.TestCase):
             self.assertGreaterEqual(len(player.deck), 5)
             self.assertEqual(10, player.fire)
 
+    def test_bingbang_copies_draft_cards_and_exiles_the_whole_deck(self):
+        e = make_engine({12})
+        card_ids = ['Leaf', 'Yucca', 'Disc', 'Battery', 'MagicLeaf'] * 3
+        e.phase = 'draft'
+        e.draft_picks = [list(card_ids), list(card_ids)]
+        e.opening_event_picks = [None, None]
+        e.opening_event_sub_choices = [{}, {}]
+        e.player_draft_started = [True, True]
+        e.player_ready = [True, True]
+        for pidx in range(2):
+            for def_id in card_ids:
+                e.reality_after_draft_pick(pidx, def_id)
+        self.assertEqual(15, len(e._reality_draft_copies[0]))
+        self.assertEqual([], e.players[0].deck)
+        self.assertTrue(e.start_game(skip_pregame_validation=True, mulligan=False))
+        for player in e.players:
+            self.assertTrue(all('exile' in card.instance_flags for card in player.deck))
+            self.assertGreaterEqual(sum(card.def_id == 'Leaf' for card in player.deck), 2)
+
     def test_third_card_stun_event_15(self):
         e = make_engine({15})
         cards = [CardInstance('Basic') for _ in range(3)]

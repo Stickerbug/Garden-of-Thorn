@@ -3797,6 +3797,7 @@ class GameEngine(reality_events.RealityEngineMixin):
         # 操纵现实（2026-10-24）：全局事件集合与引擎级变量。
         self.reality_events: Set[int] = set()
         self.reality_vars: Dict[str, float] = {}
+        self._reality_draft_copies: List[List[str]] = [[], []]
         self.phase: str = 'waiting'
         self._game_start_applied: bool = False
         # AI 入口自选血量（50-1000，仅 AI 一侧）：{player_id: hp}，
@@ -5272,6 +5273,7 @@ class GameEngine(reality_events.RealityEngineMixin):
     def start_event_select_first(self):
         """Start event_select phase before draft. Called after matching."""
         self.phase = 'event_select'
+        self._reality_draft_copies = [[], []]
         self.draft_rerolls = [DRAFT_REROLLS, DRAFT_REROLLS]
         self.player_ready = [False, False]
         self.player_draft_started = [False, False]
@@ -5745,6 +5747,9 @@ class GameEngine(reality_events.RealityEngineMixin):
             ps = self.players[i]
             ps.is_first_player = (i == self.first_player)
             ps.deck = create_deck_from_draft(self.draft_picks[i], self.allowed_card_ids)
+            if self.reality_active(12):
+                for def_id in (getattr(self, '_reality_draft_copies', [[], []])[i] or []):
+                    ps.deck.append(CardInstance(str(def_id)))
             ps.health = INITIAL_HEALTH
             ps.max_health = BASE_MAX_HEALTH
             ps.base_max_health = BASE_MAX_HEALTH

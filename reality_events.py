@@ -372,15 +372,14 @@ class RealityEngineMixin:
                 continue
 
     def reality_after_draft_pick(self, player_id: int, def_id: str) -> None:
-        """事件12：每次选卡额外加入一张复制。"""
+        """事件12：每次选卡额外加入一张复制；复制在开局建立牌库时合入。"""
         if not self.reality_active(12):
             return
-        from cards import CardInstance
-        copy = CardInstance(str(def_id))
-        flags = set(getattr(copy, 'instance_flags', set()) or set())
-        flags.add('exile')
-        copy.instance_flags = flags
-        self.players[player_id].deck.append(copy)
+        copies = getattr(self, '_reality_draft_copies', None)
+        if not isinstance(copies, list) or len(copies) <= player_id:
+            copies = [[] for _ in self.players]
+            self._reality_draft_copies = copies
+        copies[player_id].append(str(def_id))
         self.log_msg(f'{self.pn(player_id)}的操纵现实：选卡复制已加入卡组')
 
     # ------------------------------------------------------------------
