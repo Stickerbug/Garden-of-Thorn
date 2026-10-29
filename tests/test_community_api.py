@@ -231,7 +231,7 @@ class CommunityApiTests(unittest.TestCase):
         self.assertEqual(conflict.status_code, 409)
         self.assertEqual(conflict.get_json()['code'], 'POLL_ALREADY_VOTED')
 
-    def test_ops_workspace_reveals_voter_ids_without_public_exposure(self):
+    def test_ops_workspace_reveals_voter_names_without_public_exposure(self):
         poll = self.create_poll()
         option_id = poll['options'][0]['id']
         account_result = (self.voter['id'], self.voter['username'], None)
@@ -254,7 +254,8 @@ class CommunityApiTests(unittest.TestCase):
             if item['id'] == poll['id']
         )
         voted_option = next(item for item in ops_poll['options'] if item['id'] == option_id)
-        self.assertEqual(voted_option['voter_ids'], [self.voter['id']])
+        self.assertEqual(voted_option['voter_names'], [self.voter['username']])
+        self.assertNotIn('voter_ids', voted_option)
 
         public_poll = self.client.get('/api/community/feed').get_json()['polls'][0]
         self.assertNotIn('voter_ids', public_poll['options'][0])

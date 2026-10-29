@@ -165,7 +165,7 @@ def _poll_payload(
     *,
     viewer_user_id=None,
     reveal_results=False,
-    include_voter_ids=False,
+    include_voter_names=False,
     now=None,
 ):
     if row is None:
@@ -185,20 +185,21 @@ def _poll_payload(
         ''',
         (poll_id,),
     ).fetchall()
-    voter_ids_by_option = {}
-    if include_voter_ids:
+    voter_names_by_option = {}
+    if include_voter_names:
         voter_rows = conn.execute(
             '''
-            SELECT option_id, user_id
-            FROM community_poll_votes
-            WHERE poll_id = ?
-            ORDER BY option_id ASC, user_id ASC
+            SELECT v.option_id, v.user_id, u.username
+            FROM community_poll_votes v
+            LEFT JOIN users u ON u.id = v.user_id
+            WHERE v.poll_id = ?
+            ORDER BY v.option_id ASC, v.user_id ASC
             ''',
             (poll_id,),
         ).fetchall()
         for voter in voter_rows:
-            voter_ids_by_option.setdefault(int(voter['option_id']), []).append(
-                int(voter['user_id'])
+            voter_names_by_option.setdefault(int(voter['option_id']), []).append(
+                str(voter['username'] or '已注销玩家')
             )
     selected_option_id = None
     if viewer_user_id:
@@ -221,8 +222,8 @@ def _poll_payload(
         }
         if show_counts:
             item['vote_count'] = vote_count
-        if include_voter_ids:
-            item['voter_ids'] = voter_ids_by_option.get(int(option['id']), [])
+        if include_voter_names:
+            item['voter_names'] = voter_names_by_option.get(int(option['id']), [])
         options.append(item)
     ends_at = _parse_timestamp(row['ends_at'], label='结束时间')
     reminder_hours = int(row['reminder_hours'])
@@ -1181,7 +1182,7 @@ def list_community_ops_workspace(*, audit_limit=100):
                     conn,
                     row,
                     reveal_results=True,
-                    include_voter_ids=True,
+                    include_voter_names=True,
                     now=now,
                 )
                 for row in polls

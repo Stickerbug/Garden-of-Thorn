@@ -124,8 +124,8 @@
       const options = element('ol', 'ops-option-list');
       const voterPanel = element('div', 'ops-voter-panel is-hidden');
       (Array.isArray(item.options) ? item.options : []).forEach((option) => {
-        const voterIds = Array.isArray(option.voter_ids)
-          ? option.voter_ids.map((id) => String(id))
+        const voterNames = Array.isArray(option.voter_names)
+          ? option.voter_names.map((name) => String(name))
           : [];
         options.appendChild(element(
           'li',
@@ -135,17 +135,17 @@
         voterPanel.appendChild(element(
           'div',
           'ops-voter-row',
-          `${option.label || ''}：${voterIds.length ? voterIds.join(', ') : '暂无投票人 ID'}`,
+          `${option.label || ''}：${voterNames.length ? voterNames.join(', ') : '暂无投票人'}`,
         ));
       });
       card.appendChild(options);
       card.appendChild(voterPanel);
       card.appendChild(element('div', 'ops-item-meta', `开始 ${formatTime(item.starts_at)} · 截止 ${formatTime(item.ends_at)} · 共 ${Number(item.total_votes || 0)}票 · 提醒窗口 ${item.reminder_hours}小时`));
       const actions = element('div', 'ops-item-actions');
-      const voterToggle = actionButton('查看投票人 ID', 'poll-voters', item.id, 'toggle');
+      const voterToggle = actionButton('查看投票人昵称', 'poll-voters', item.id, 'toggle');
       voterToggle.addEventListener('click', () => {
         const hidden = voterPanel.classList.toggle('is-hidden');
-        voterToggle.textContent = hidden ? '查看投票人 ID' : '隐藏投票人 ID';
+        voterToggle.textContent = hidden ? '查看投票人昵称' : '隐藏投票人昵称';
       });
       actions.appendChild(voterToggle);
       if (item.state === 'draft') actions.appendChild(actionButton('发布', 'poll', item.id, 'publish'));
