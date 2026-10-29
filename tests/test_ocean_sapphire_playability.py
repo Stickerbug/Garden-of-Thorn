@@ -198,6 +198,25 @@ class OceanSapphirePlayabilityTests(unittest.TestCase):
                     [attack.instance_id],
                 )
 
+    def test_sapphire_is_playable_with_basic_and_fang(self):
+        """The two vanilla attacks must satisfy Sapphire's real card filter."""
+        for engine in (GameEngine(), GameEngine2v2()):
+            with self.subTest(engine=type(engine).__name__):
+                player = self.prepare_engine(engine)
+                sapphire = CardInstance('Sapphire')
+                basic = CardInstance('Basic')
+                fang = CardInstance('Fang')
+                player.hand.extend([sapphire, basic, fang])
+
+                can_play, reason = engine.can_play_card(0, sapphire)
+
+                self.assertTrue(can_play, reason)
+                self.assertEqual(reason, '')
+                self.assertEqual(
+                    [card.def_id for card in engine._ocean_sapphire_selectable_attacks(0, sapphire)],
+                    ['Basic', 'Fang'],
+                )
+
     def test_valid_sapphire_choice_resumes_once_and_exiles_selected_attack(self):
         engine = GameEngine()
         player = self.prepare_engine(engine)
