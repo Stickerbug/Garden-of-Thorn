@@ -195,7 +195,7 @@ def test_only_explicit_ranked_room_is_valid_for_rating():
         'valid_for_stats': True,
         'ended_by_surrender': True,
         'duration_seconds': 59,
-    }) == {'awarded': [], 'skipped': 'early_surrender'}
+    }) == {'awarded': [], 'xp_awarded': [], 'skipped': 'early_surrender'}
 
 
 def test_database_rating_layer_rejects_casual_even_if_flag_is_forged():

@@ -134,6 +134,29 @@ class StoryClearSettlementTests(unittest.TestCase):
             ).fetchone()['n']
         self.assertEqual(count, 2)
 
+    def test_clear_grants_battle_pass_xp(self):
+        # 通行证经验（2026-11-11）：Min{1000, ceil(Score/5)}，每周前 3 次 ×3。
+        state = completed_state()
+        run, _ = db.create_story_run(self.user['id'], 'seed-pass-xp', 'story-pass-xp', state)
+        with db.get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            result = story_score.settle_story_clear_conn(
+                conn, user_id=self.user['id'], run_id=run['id'], state=state,
+            )
+            conn.commit()
+        import battle_pass
+        self.assertGreater(result['xp_gain'], 0)
+        self.assertEqual(result['xp_gain'], min(1000, -(-result['total'] // 5)) * 3)
+        with db.get_db_connection() as conn:
+            row = conn.execute(
+                'SELECT xp, multiplier, source FROM battle_pass_xp_ledger WHERE user_id = ? AND source_key = ?',
+                (self.user['id'], f'story:{run["id"]}'),
+            ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row['source'], 'story')
+        self.assertEqual(int(row['xp']), result['xp_gain'])
+        self.assertEqual(battle_pass.xp_total(db.get_db_connection(), self.user['id']), result['xp_gain'])
+
     def test_history_detail_and_single_animation_claim(self):
         state = completed_state()
         db.set_dew_gain_modifiers(2.0)

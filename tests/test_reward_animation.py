@@ -239,11 +239,13 @@ class CheckinRewardPayloadTests(unittest.TestCase):
         gc.collect()
         self.temp_dir.cleanup()
 
-    def test_successful_checkin_returns_actual_dew_and_ticket_count(self):
+    def test_successful_checkin_returns_actual_xp_and_ticket_count(self):
+        # 2026-11-11 通行证：签到奖励改为等额通行证经验（XP），不再发荆露。
         center, error = db.claim_user_daily_checkin(self.user['id'])
         self.assertIsNone(error)
         granted = center.get('checkin_granted') or {}
-        self.assertGreater(granted.get('dew', 0), 0)
+        self.assertEqual(granted.get('dew', 0), 0)
+        self.assertGreater(granted.get('xp', 0), 0)
         self.assertEqual(granted.get('leisure_tickets'), 1)
         self.assertEqual(granted.get('streak_ticket_bonus'), 0)
 

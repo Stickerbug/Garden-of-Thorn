@@ -11752,6 +11752,24 @@ html.blind-level-4 .card-prediction-part.magic {
   color: var(--health);
 }
 
+/* 通行证经验行（2026-11-11）：与荆露行同高，前面挂 EXP 贴图。 */
+.gameover-xp-row {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.gameover-xp-row .gameover-xp-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+.gameover-xp-row span {
+  flex: 1 1 auto;
+}
+
 .gameover-log {
   width: 80%;
   max-width: 600px;

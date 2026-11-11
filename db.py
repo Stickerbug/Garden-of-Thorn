@@ -6414,6 +6414,14 @@ def get_user_thorn_dew_center(user_id):
             except Exception:
                 next_streak = 1
         reward_index = (max(1, next_streak) - 1) % len(THORN_DEW_SIGNIN_REWARDS)
+        # 2026-11-11 通行证：签到奖励改为等额经验（XP），不再发荆露。
+        signin_base = _apply_signin_modifiers_conn(conn, _earned_dew_amount_conn(conn, uid, THORN_DEW_SIGNIN_REWARDS[reward_index]))
+        signin_base = max(0, scale_dew_gain_conn(conn, signin_base))
+        try:
+            import battle_pass as _battle_pass
+            next_checkin_xp = int(_battle_pass.preview_checkin_xp(conn, uid, signin_base))
+        except Exception:
+            next_checkin_xp = int(signin_base)
         return {
             'balance': _thorn_dew_payload(user),
             'golden_balance': int(user['golden_dew'] or 0) if 'golden_dew' in user.keys() else 0,
@@ -6421,7 +6429,7 @@ def get_user_thorn_dew_center(user_id):
             'today': today,
             'checked_in_today': checkin is not None,
             'streak_day': int(checkin['streak_day'] or 0) if checkin else int(next_streak),
-            'next_checkin_reward': _apply_signin_modifiers_conn(conn, _earned_dew_amount_conn(conn, uid, THORN_DEW_SIGNIN_REWARDS[reward_index])),
+            'next_checkin_xp': int(next_checkin_xp),
             'checkin_rewards': list(THORN_DEW_SIGNIN_REWARDS),
             'match_rewards': dict(THORN_DEW_MODE_REWARDS),
             'win_bonus': int(THORN_DEW_WIN_BONUS),
@@ -6461,14 +6469,29 @@ def claim_user_daily_checkin(user_id):
         reward = _apply_signin_modifiers_conn(conn, base)
         # 2026-10-18 控制台调控：荆露获取全局倍率
         reward = scale_dew_gain_conn(conn, reward)
-        free_before = int(user['thorn_dew_free'] or 0)
-        paid_before = int(user['thorn_dew_paid'] or 0)
-        free_after = free_before + reward
+        # 2026-11-11 通行证：签到不再发荆露，等额换成通行证经验（XP）。
+        import battle_pass
+        battle_pass.ensure_pass_schema(conn)
+        xp_result = battle_pass.grant_checkin_xp(
+            conn, uid, base_xp=reward, checkin_date=today, now=time.time(),
+        )
+        xp_granted = int(xp_result.get('xp') or 0)
         conn.execute(
             'INSERT INTO user_daily_checkins (user_id, checkin_date, streak_day, reward, created_at) VALUES (?, ?, ?, ?, ?)',
             (uid, today, streak, reward, now),
         )
-        conn.execute('UPDATE users SET thorn_dew_free = ? WHERE id = ?', (free_after, uid))
+        # 黄金之路：每日签到额外 1 保分卡 + 1 双倍卡。
+        golden_shield = 0
+        golden_double = 0
+        if battle_pass.golden_active(conn, uid):
+            golden_shield = int(battle_pass.GOLDEN_CHECKIN_SHIELD_CARDS)
+            golden_double = int(battle_pass.GOLDEN_CHECKIN_DOUBLE_CARDS)
+            conn.execute(
+                '''UPDATE users SET rank_shield_cards = COALESCE(rank_shield_cards, 0) + ?,
+                                   rank_double_cards = COALESCE(rank_double_cards, 0) + ?
+                   WHERE id = ?''',
+                (golden_shield, golden_double, uid),
+            )
         # 休闲花园门票（设计 2026-09-26）：签到 +1，每 7 天连续签到额外 +1（库存满 5 不发不补）
         ticket_granted = 0
         streak_ticket_bonus = 0
@@ -6482,22 +6505,17 @@ def claim_user_daily_checkin(user_id):
                 print(f'[startup] WARNING: {admin_event_log}', flush=True)
             except Exception:
                 pass
-        conn.execute(
-            '''
-            INSERT INTO user_currency_transactions (
-                user_id, currency, free_delta, paid_delta, reason, source_type, source_id,
-                balance_free_after, balance_paid_after, admin_username, created_at
-            )
-            VALUES (?, 'thorn_dew', ?, 0, ?, 'daily_checkin', ?, ?, ?, '', ?)
-            ''',
-            (uid, reward, f'每日签到 第{streak}天', today, free_after, paid_before, now),
-        )
         conn.commit()
     center = get_user_thorn_dew_center(uid)
     # 只有本次成功签到才带实际发放数量，客户端据此播放奖励动画；
     # 不用 next_checkin_reward（那是下一天的额度）。
     center['checkin_granted'] = {
-        'dew': int(reward),
+        'dew': 0,
+        'xp': int(xp_granted),
+        'xp_level': int(xp_result.get('level_after') or 0),
+        'level_up': int(xp_result.get('level_after') or 0) > int(xp_result.get('level_before') or 0),
+        'golden_shield_cards': int(golden_shield),
+        'golden_double_cards': int(golden_double),
         'leisure_tickets': int(ticket_granted),
         'streak_ticket_bonus': int(streak_ticket_bonus),
     }
@@ -15603,6 +15621,12 @@ def preview_rank_match_result(mode, player_ids, viewer_user_id=None):
     # 与实战口径（敌方均值）在邀请场景下足够接近（双方段位已知）。
     opp_avg = _rank.opponent_tier_average([int(o['rank_tier'] or 1) for o in opponents])
     special_total = global_special + float(own['rank_special'] or 0.0)
+    # 2026-11-11 通行证：黄金之路激活时天梯特殊修正 +2（预估与实际结算同口径）。
+    try:
+        import battle_pass as _battle_pass
+        special_total += _battle_pass.golden_rank_special_bonus(conn, viewer_uid)
+    except Exception:
+        pass
     payload = _rank.rank_payload(own_tier, int(own['rank_points'] or 0))
     shield_armed = int(own['rank_shield_armed'] or 0) if 'rank_shield_armed' in (own.keys() if hasattr(own, 'keys') else {}) else 0
     double_armed = int(own['rank_double_armed'] or 0) if 'rank_double_armed' in (own.keys() if hasattr(own, 'keys') else {}) else 0
@@ -17359,6 +17383,12 @@ def apply_gr_match_result(match_id, summary):
                 [int(by_id[o]['rank_tier'] or 1) for o in opponent_ids],
             )
             special_total = rank_global_special + float(row['rank_special'] or 0.0)
+            # 2026-11-11 通行证：黄金之路激活时天梯特殊修正 +2。
+            try:
+                import battle_pass as _battle_pass
+                special_total += _battle_pass.golden_rank_special_bonus(conn, uid)
+            except Exception:
+                pass
             prev_daily_key = str(row['rank_daily_key'] or '')
             prev_daily_count = int(row['rank_daily_count'] or 0)
             daily_count = prev_daily_count + 1 if prev_daily_key == rank_daily_key else 1

@@ -279,7 +279,7 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
         ensure_story_clear_animation_schema(conn)
         ledger = conn.execute(
             'SELECT base_score, total_score, load_count, bank_cleared, dev_used, animation_seen_at, '
-            'golden_dew_reward, completed_stages, golden_multiplier, dew_gain_multiplier '
+            'golden_dew_reward, completed_stages, golden_multiplier, dew_gain_multiplier, xp_gain '
             'FROM story_reward_ledger WHERE run_id = ? AND user_id = ? LIMIT 1',
             (str(run_id), int(user_id)),
         ).fetchone()
@@ -307,6 +307,7 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
             'golden_dew_reward': int(ledger['golden_dew_reward'] or 0) if ledger is not None else 0,
             'completed_stages': int(ledger['completed_stages'] or 0) if ledger is not None else 0,
             'golden_multiplier': float(ledger['golden_multiplier'] or 1) if ledger is not None else 1,
+            'xp_gain': int(ledger['xp_gain'] or 0) if ledger is not None else 0,
             'animation_seen_at': str(ledger['animation_seen_at'] or '') if ledger is not None else '',
         }
     return {

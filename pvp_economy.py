@@ -99,7 +99,7 @@ def _settlement_input(match_id,summary):
     data=dict(summary or {})
     relevant={key:data.get(key) for key in ('mode','match_type','match_mode','player_ids','teams',
         'winner_user_ids','winner_index','result','valid_for_stats','valid_for_ranking',
-        'ended_by_surrender','duration_seconds','started_at','ended_at')}
+        'ended_by_surrender','duration_seconds','started_at','ended_at','rounds')}
     fingerprint=hashlib.sha256(integrity._json(relevant).encode()).hexdigest()
     key=str(data.get('match_key') or f'match:{mid}')
     return mid,data,key,fingerprint
@@ -109,14 +109,14 @@ def settle_conn(conn,match_id,summary,award_time=None):
     """Caller owns an IMMEDIATE transaction; all money/progress commits together."""
     data=dict(summary or {})
     if data.get('result') not in ('win','draw'):
-        return {'awarded':[],'skipped':'result'}
+        return {'awarded':[],'xp_awarded':[],'skipped':'result'}
     if bool(data.get('ai_match')) or str(data.get('match_kind') or '').lower() == 'phelren':
-        return {'awarded':[],'skipped':'phelren_ai_match'}
+        return {'awarded':[],'xp_awarded':[],'skipped':'phelren_ai_match'}
     if not data.get('valid_for_stats',data.get('valid_for_ranking',True)):
-        return {'awarded':[],'skipped':data.get('ranking_invalid_reason') or 'not_valid'}
+        return {'awarded':[],'xp_awarded':[],'skipped':data.get('ranking_invalid_reason') or 'not_valid'}
     early=bool(data.get('ended_by_surrender')) and int(data.get('duration_seconds') or 0)<60
     if early and not data.get('player_ids'):
-        return {'awarded':[],'skipped':'early_surrender'}
+        return {'awarded':[],'xp_awarded':[],'skipped':'early_surrender'}
     mid,data,key,fingerprint=_settlement_input(match_id,data)
     prior=conn.execute('SELECT * FROM pvp_reward_settlements WHERE settlement_key=? OR match_id=?',(key,mid)).fetchone()
     if prior:
@@ -161,6 +161,7 @@ def settle_conn(conn,match_id,summary,award_time=None):
     now=db.utc_iso(when)
     start,end=db._thorn_dew_day_bounds_utc(db._thorn_dew_date(when))
     awards=[]
+    xp_awards=[]
     conn.execute('INSERT INTO pvp_reward_settlements VALUES (?,?,?,?,?)',(key,mid,fingerprint,'{}',now))
     for uid in registered:
         user,valid,_,streak=_account(conn,uid)
@@ -180,6 +181,13 @@ def settle_conn(conn,match_id,summary,award_time=None):
         amount=integrity.reward_amount_conn(conn,uid,amount)
         # 荆露获取全局倍率（控制台调控）
         amount=db.scale_dew_gain_conn(conn,amount)
+        # 通行证 · 黄金之路：荆露收益 ×1.5（0 奖励仍为 0，不产生「凭空到账」）
+        if amount>0:
+            try:
+                import battle_pass as _bp
+                amount=_bp.apply_golden_dew(conn,uid,amount)
+            except Exception:
+                pass
         allowed=integrity.match_reward_allowed_conn(conn,uid,registered,int(data.get('duration_seconds') or 0),same_count)
         if early or not allowed:
             amount=0
@@ -210,6 +218,24 @@ def settle_conn(conn,match_id,summary,award_time=None):
             (user_id,currency,free_delta,paid_delta,reason,source_type,source_id,balance_free_after,balance_paid_after,admin_username,created_at)
             VALUES (?,'thorn_dew',?,0,?,'match_reward',?,?,?,'',?)''',(uid,amount,reason,source,free,paid,now))
         conn.execute('INSERT INTO pvp_reward_participants VALUES (?,?,?,?,?,?)',(key,uid,integrity._json(opponents),amount,outcome,now))
+        # 通行证经验（2026-11-11）：Min{40, ceil(秒/10), 回合*5}，胜利 ×1.5；
+        # 黄金之路再 ×1.5。对局是否计奖励不影响经验（早退局由回合数天然压到 0）。
+        # 与 Phelren 的 AI 对战不给经验（结算入口已按 ai_match 跳过，这里再兜一层）。
+        if not data.get('ai_match') and str(data.get('match_kind') or '').lower() != 'phelren':
+            try:
+                import battle_pass as _bp
+                xp_result=_bp.grant_match_xp(
+                    conn,uid,match_id=mid,
+                    seconds=data.get('duration_seconds') or 0,
+                    rounds=data.get('rounds') or 0,
+                    won=(outcome=='win'),
+                    now=when.timestamp(),
+                )
+                if xp_result.get('applied'):
+                    xp_awards.append({'user_id':uid,'xp':xp_result['xp'],'level':xp_result['level_after'],
+                                      'base_xp':xp_result.get('base_xp')})
+            except Exception:
+                pass
         if not early:
             awards.append({'user_id':uid,'amount':amount,'multiplier':multiplier,'reason':reason,
                            'base':base,'streak_bonus':streak_bonus,'newcomer_multiplier':profile['reward_multiplier']})
@@ -231,6 +257,7 @@ def settle_conn(conn,match_id,summary,award_time=None):
         pass
     result={
         'awarded': awards,
+        'xp_awarded': xp_awards,
         'leisure_ticket_awarded': ticket_awards,
         'skipped': 'early_surrender' if early else None,
     }

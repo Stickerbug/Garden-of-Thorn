@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="/static/css/eye-styles.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/mouth-styles.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/battle-pass.css?v={{ static_version|default('dev')|urlencode }}">
 <script nonce="{{ csp_nonce }}">
 (() => {
   window.__GTN_BETA_MODE__ = {{ beta_mode|default(false)|tojson }};
@@ -248,8 +249,7 @@
   </div>
   <div id="leaderboard-note" class="account-replay-sub">显示有效对局20局及以上的玩家</div>
   <div id="leaderboard-tabs" class="account-mode-tabs leaderboard-tabs">
-    <button class="account-mode-tab active" type="button" data-leaderboard-scope="season">赛季榜</button>
-    <button class="account-mode-tab" type="button" data-leaderboard-scope="total">总榜</button>
+    <button class="account-mode-tab active" type="button" data-leaderboard-scope="total">总榜</button>
   </div>
   <div id="leaderboard-list" class="leaderboard-list"></div>
 </div>
@@ -264,11 +264,13 @@
     <button class="account-mode-tab" type="button" data-achievement-tab="daily">签到</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="achievements">成就</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="tasks">每日任务</button>
+    <button class="account-mode-tab" type="button" data-achievement-tab="pass">通行证</button>
   </div>
   <div id="achievements-dew-panel" class="achievement-tab-panel"></div>
   <div id="achievements-daily-panel" class="achievement-tab-panel hidden"></div>
   <div id="achievements-list" class="achievements-list"></div>
   <div id="achievements-tasks-panel" class="achievement-tab-panel hidden"></div>
+  <div id="achievements-pass-panel" class="achievement-tab-panel hidden"></div>
 </div>
 <div id="title-shop-popover" class="account-popover title-shop-popover hidden">
   <div class="account-popover-head">
@@ -560,6 +562,10 @@
 </div>
 <div class="form-row home-extra-entry" id="home-entry-account-row">
   <button id="home-entry-account" class="btn" type="button" data-menu-en="Account">帐号</button>
+</div>
+<!-- 東方Project风主页隐藏了右上角图标，成就/签到/通行证在这里补一个入口 -->
+<div class="form-row home-extra-entry" id="home-entry-achievements-row">
+  <button id="home-entry-achievements" class="btn" type="button" data-menu-en="Achievements">成就与货币</button>
 </div>
 <div class="form-row home-extra-entry" id="home-entry-ann-row">
   <button id="home-entry-ann" class="btn" type="button" data-menu-en="Announcement and log">公告与日志</button>
@@ -1522,6 +1528,7 @@
     <script src="/static/js/reward-animation.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/dew-hud.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/player-skins.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/battle-pass.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/eye-styles.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/mouth-styles.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/backgrounds.js?v={{ static_version|default('dev')|urlencode }}"></script>

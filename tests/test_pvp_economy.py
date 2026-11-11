@@ -7,6 +7,7 @@ import pytest
 import db
 import account_integrity as integrity
 import pvp_economy as economy
+import battle_pass
 
 
 NOW=datetime(2026,9,1,4,tzinfo=timezone.utc)
@@ -68,6 +69,32 @@ def test_newcomer_base_rewards_and_no_title_double_multiplier(accounts,ids,ranke
     assert profile(1)['win_streak']==1
 
 
+def test_settlement_awards_battle_pass_xp(accounts):
+    # 通行证经验（2026-11-11）：Min{40, ceil(秒/10), 回合×5}，胜方 ×1.5。
+    result=award(rounds=4)  # 300 秒 → 30，回合 4×5=20 → 取 20；胜方 30
+    by_uid={row['user_id']:row['xp'] for row in result['xp_awarded']}
+    assert by_uid=={1:30,2:20}
+    # base_xp 记的是「本局基准经验」，胜方的 1.5 倍已折进基准（普通账号倍率为 1）。
+    assert [row['base_xp'] for row in result['xp_awarded']]==[30,20]
+    with db.get_db_connection() as conn:
+        rows=conn.execute('SELECT user_id,xp,source FROM battle_pass_xp_ledger ORDER BY user_id').fetchall()
+    assert [(row['user_id'],row['xp'],row['source']) for row in rows]==[
+        (1,30,'match'),(2,20,'match'),
+    ]
+
+
+def test_ai_match_awards_no_battle_pass_xp(accounts):
+    # 与 Phelren 的对战不计通行证经验（也不发荆露）：结算入口直接跳过。
+    result=award(rounds=6,ai_match=True,match_kind='phelren')
+    assert result['skipped']=='phelren_ai_match'
+    assert result['awarded']==[]
+    assert result['xp_awarded']==[]
+    with db.get_db_connection() as conn:
+        battle_pass.ensure_pass_schema(conn)
+        ledger=conn.execute('SELECT COUNT(*) FROM battle_pass_xp_ledger').fetchone()[0]
+    assert ledger==0
+
+
 def test_ladder_ticket_awards_report_only_actual_grants(accounts):
     first = award()
     assert first['leisure_ticket_awarded'] == [{'user_id': 1, 'amount': 1}]
@@ -125,7 +152,7 @@ def test_phelren_ai_match_never_awards_or_mutates_win_streak(accounts):
     })
     result = economy.award_match(data.get('match_id') or 999999, data, award_time=data['ended_at'])
 
-    assert result == {'awarded': [], 'skipped': 'phelren_ai_match'}
+    assert result == {'awarded': [], 'xp_awarded': [], 'skipped': 'phelren_ai_match'}
     assert balances() == before
     assert profile(1)['win_streak'] == 1
 

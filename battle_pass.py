@@ -1,0 +1,853 @@
+"""通行证（战斗通行证）：S1「荆棘之路」（免费）/「黄金之路」（250 金露）。
+
+设计文档：docs/通行证-计划.md
+
+核心规则（2026-11-11 定稿）：
+- 经验（XP）三个来源：对局 / 爬塔 / 每日签到；累计 100 XP 升 1 级，1 级推进 1 格泡泡。
+- 对局 XP = Min{40, ceil(用时秒/10), 回合数*5}，胜利 ×1.5。
+- 爬塔 XP = Min{1000, ceil(Score/5)}；每周前 3 次爬塔奖励 ×3（无每日上限）。
+- 签到：原本的荆露奖励等额换成 XP。
+- 双轨各 100 格；100 格之后每级 100 荆露（免费）/50 荆露（进阶）。
+- 黄金之路增益：荆露与 XP ×1.5、天梯特殊修正 +2、每日签到额外 1 保分卡 + 1 双倍卡。
+- 通行证领取的门票**允许溢出**上限；签到/对局/爬塔产出的门票仍受 leisure_ticket.TICKET_CAP 约束。
+
+所有写操作都接收调用方传入的 conn，且假定调用方已开启事务（与 pvp_economy.settle_conn
+同一约定），以便与对局结算 / 爬塔结算原子落库。
+"""
+from __future__ import annotations
+
+import json
+import math
+import time
+from datetime import datetime, timedelta, timezone
+
+PASS_SEASON_ID = 'S1'
+PASS_SEASON_WEEKS = 8
+PASS_MAX_LEVEL = 100
+XP_PER_LEVEL = 100
+GOLDEN_PRICE_GOLDEN_DEW = 250
+
+MATCH_XP_CAP = 40
+MATCH_XP_SECONDS_DIVISOR = 10
+MATCH_XP_PER_ROUND = 5
+MATCH_XP_WIN_MULTIPLIER = 1.5
+
+STORY_XP_CAP = 1000
+STORY_XP_SCORE_DIVISOR = 5
+STORY_WEEKLY_TRIPLE_COUNT = 3
+STORY_WEEKLY_TRIPLE_MULTIPLIER = 3.0
+
+GOLDEN_XP_MULTIPLIER = 1.5
+GOLDEN_DEW_MULTIPLIER = 1.5
+GOLDEN_RANK_SPECIAL_BONUS = 2.0
+GOLDEN_CHECKIN_SHIELD_CARDS = 1
+GOLDEN_CHECKIN_DOUBLE_CARDS = 1
+
+TRACK_FREE = 'free'
+TRACK_GOLDEN = 'golden'
+TRACKS = (TRACK_FREE, TRACK_GOLDEN)
+TRACK_LABELS = {TRACK_FREE: '荆棘之路', TRACK_GOLDEN: '黄金之路'}
+
+_CN_TZ = timezone(timedelta(hours=8))
+# 赛季锚点：上线日 2026-11-11 00:00（北京时间），周期 8 周。
+PASS_SEASON_START = datetime(2026, 11, 11, 0, 0, 0, tzinfo=_CN_TZ)
+
+REWARD_KIND_LABELS = {
+    'dew': '荆露',
+    'golden_dew': '金露',
+    'shield_card': '保分卡',
+    'double_card': '双倍卡',
+    'ticket': '休闲花园门票',
+    'title': '称号',
+    'card_skin': '卡牌皮肤',
+    'background': '背景',
+}
+
+
+def _dew(amount):
+    return {'kind': 'dew', 'amount': int(amount)}
+
+
+def _gold(amount):
+    return {'kind': 'golden_dew', 'amount': int(amount)}
+
+
+def _shield(amount=1):
+    return {'kind': 'shield_card', 'amount': int(amount)}
+
+
+def _double(amount=1):
+    return {'kind': 'double_card', 'amount': int(amount)}
+
+
+def _ticket(amount=1):
+    return {'kind': 'ticket', 'amount': int(amount)}
+
+
+def _title(item_id):
+    return {'kind': 'title', 'item_id': item_id}
+
+
+def _skin(item_id):
+    return {'kind': 'card_skin', 'item_id': item_id}
+
+
+def _background(item_id):
+    return {'kind': 'background', 'item_id': item_id}
+
+
+# 个位格（每 10 级重复一次）。键是 1..9 的个位。
+PATTERN_FREE = {
+    1: _dew(200),
+    2: _shield(),
+    3: _dew(200),
+    4: _ticket(),
+    5: _gold(5),
+    6: _double(),
+    7: _dew(200),
+    8: _ticket(),
+    9: _dew(200),
+}
+
+PATTERN_GOLDEN = {
+    1: _shield(),
+    2: _dew(100),
+    3: _double(),
+    4: _dew(100),
+    5: _ticket(),
+    6: _dew(100),
+    7: _double(),
+    8: _dew(100),
+    9: _shield(),
+}
+
+# 整十里程碑。卡背 = 卡牌皮肤，所以「卡背」「皮肤」都发 card_skins 条目。
+# 2026-11-11：实物发放改成「塔之诅咒」赛季素材——5 款卡牌皮肤 + 2 款主题背景 + 2 个称号，
+# 每条轨道各拿一遍（同款在不同轨道重复出现是刻意的：单轨只靠大月卡/免费轨都收不全）。
+_TITLE_FREE = 'pass_s1_free_lv10'
+_TITLE_GOLDEN = 'pass_s1_golden_lv20'
+MILESTONES = {
+    10: {TRACK_FREE: _title(_TITLE_FREE),
+         TRACK_GOLDEN: _skin('tower_curse_regent')},
+    20: {TRACK_FREE: _dew(1000),
+         TRACK_GOLDEN: _title(_TITLE_GOLDEN)},
+    30: {TRACK_FREE: _skin('tower_curse_ironclad'),
+         TRACK_GOLDEN: _skin('tower_curse_silent')},
+    40: {TRACK_FREE: _gold(25),
+         TRACK_GOLDEN: _dew(500)},
+    50: {TRACK_FREE: _skin('tower_curse_silent'),
+         TRACK_GOLDEN: _skin('tower_curse_defect')},
+    60: {TRACK_FREE: _background('tower_curse_dark_harbor'),
+         TRACK_GOLDEN: _skin('tower_curse_necrobinder')},
+    70: {TRACK_FREE: _dew(1000),
+         TRACK_GOLDEN: _skin('tower_curse_ironclad')},
+    80: {TRACK_FREE: _skin('tower_curse_defect'),
+         TRACK_GOLDEN: _background('tower_curse_deepwood')},
+    90: {TRACK_FREE: _gold(25),
+         TRACK_GOLDEN: _dew(500)},
+    100: {TRACK_FREE: _skin('tower_curse_necrobinder'),
+          TRACK_GOLDEN: _skin('tower_curse_regent')},
+}
+
+# 称号实物：进 title_catalog，玩家领取后可在称号列表里装备。
+PASS_TITLES = {
+    _TITLE_FREE: {
+        'name': '塔之诅咒',
+        'color': '#8a8a8a',
+        'markup': '{solid:#8a8a8a}塔之诅咒{/}',
+    },
+    _TITLE_GOLDEN: {
+        'name': '塔之诅咒',
+        'color': '#7857d8',
+        'markup': '{rainbow}塔之诅咒{/}',
+    },
+}
+
+# 100 级之后每级（溢出格）的固定奖励。
+OVERFLOW = {TRACK_FREE: _dew(100), TRACK_GOLDEN: _dew(50)}
+
+
+# --------------------------------------------------------------------------
+# 时间与等级
+# --------------------------------------------------------------------------
+
+def season_id():
+    return PASS_SEASON_ID
+
+
+def _now_iso(now=None):
+    ts = float(now if now is not None else time.time())
+    return datetime.fromtimestamp(ts, _CN_TZ).isoformat(timespec='seconds')
+
+
+def _beijing(now=None):
+    ts = float(now if now is not None else time.time())
+    return datetime.fromtimestamp(ts, _CN_TZ)
+
+
+def season_bounds(now=None):
+    start = PASS_SEASON_START
+    end = start + timedelta(weeks=PASS_SEASON_WEEKS)
+    return start, end, _beijing(now) < end
+
+
+def week_key(now=None):
+    moment = _beijing(now)
+    iso = moment.isocalendar()
+    return f'{iso[0]}-W{iso[1]:02d}'
+
+
+def level_for_xp(xp_total):
+    """100 XP 一级；第 1 级需要 100 XP，0 XP 是 0 级。"""
+    try:
+        xp = max(0, int(xp_total))
+    except (TypeError, ValueError):
+        return 0
+    return xp // XP_PER_LEVEL
+
+
+def xp_into_level(xp_total):
+    try:
+        xp = max(0, int(xp_total))
+    except (TypeError, ValueError):
+        return 0
+    return xp % XP_PER_LEVEL
+
+
+def reward_for(level, track):
+    track_key = track if track in TRACKS else TRACK_FREE
+    try:
+        lv = int(level)
+    except (TypeError, ValueError):
+        return None
+    if lv <= 0:
+        return None
+    if lv > PASS_MAX_LEVEL:
+        overflow = dict(OVERFLOW[track_key])
+        overflow['overflow'] = True
+        overflow['level'] = lv
+        return overflow
+    if lv % 10 == 0:
+        base = MILESTONES.get(lv, {}).get(track_key)
+    else:
+        base = PATTERN_FREE.get(lv % 10) if track_key == TRACK_FREE else PATTERN_GOLDEN.get(lv % 10)
+    if base is None:
+        return None
+    reward = dict(base)
+    reward['overflow'] = False
+    reward['level'] = lv
+    return reward
+
+
+def cosmetic_name(kind, item_id):
+    """皮肤/背景/称号的展示名；查不到就退回 id（目录未上线时不至于渲染成空白）。"""
+    item_id = str(item_id or '')
+    if not item_id:
+        return ''
+    try:
+        if kind == 'card_skin':
+            from card_skins import SKIN_BY_ID
+            entry = SKIN_BY_ID.get(item_id)
+            if entry:
+                return str(entry.get('name') or item_id)
+        elif kind == 'background':
+            from backgrounds import get_background_definition
+            entry = get_background_definition('theme', item_id)
+            if entry:
+                return str(entry.get('name') or item_id)
+    except Exception:
+        pass
+    if kind == 'title' and item_id in PASS_TITLES:
+        return PASS_TITLES[item_id]['name']
+    return item_id
+
+
+def reward_amount_text(level, track):
+    reward = reward_for(level, track)
+    if reward is None:
+        return ''
+    kind = reward['kind']
+    amount = int(reward.get('amount') or 0)
+    if kind in ('card_skin', 'background', 'title'):
+        return cosmetic_name(kind, reward.get('item_id'))
+    label = REWARD_KIND_LABELS.get(kind, kind)
+    if amount > 1:
+        return f'{amount} {label}'
+    return label
+
+
+# --------------------------------------------------------------------------
+# 表结构
+# --------------------------------------------------------------------------
+
+_SCHEMA = (
+    '''CREATE TABLE IF NOT EXISTS battle_pass_progress (
+        user_id INTEGER NOT NULL,
+        season_id TEXT NOT NULL,
+        xp_total INTEGER NOT NULL DEFAULT 0,
+        golden_unlocked_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, season_id)
+    )''',
+    '''CREATE TABLE IF NOT EXISTS battle_pass_xp_ledger (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        season_id TEXT NOT NULL,
+        source TEXT NOT NULL,
+        source_key TEXT NOT NULL,
+        base_xp INTEGER NOT NULL DEFAULT 0,
+        xp INTEGER NOT NULL DEFAULT 0,
+        multiplier REAL NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL,
+        UNIQUE (user_id, season_id, source_key)
+    )''',
+    '''CREATE TABLE IF NOT EXISTS battle_pass_claims (
+        user_id INTEGER NOT NULL,
+        season_id TEXT NOT NULL,
+        track TEXT NOT NULL,
+        level INTEGER NOT NULL,
+        reward_json TEXT NOT NULL DEFAULT '{}',
+        claimed_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, season_id, track, level)
+    )''',
+    '''CREATE TABLE IF NOT EXISTS battle_pass_story_week (
+        user_id INTEGER NOT NULL,
+        season_id TEXT NOT NULL,
+        week_key TEXT NOT NULL,
+        used INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, season_id, week_key)
+    )''',
+    '''CREATE TABLE IF NOT EXISTS battle_pass_cosmetics (
+        user_id INTEGER NOT NULL,
+        kind TEXT NOT NULL,
+        item_id TEXT NOT NULL,
+        acquired_source TEXT NOT NULL DEFAULT 'battle_pass',
+        acquired_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, kind, item_id)
+    )''',
+)
+
+
+def ensure_pass_schema(conn):
+    for statement in _SCHEMA:
+        conn.execute(statement)
+
+
+def ensure_pass_titles(conn):
+    """保证通行证称号在 title_catalog 里存在（幂等，样式随 PASS_TITLES 更新）。"""
+    import db  # 延迟导入：db 会反向 import battle_pass
+    import title_styles
+    for title_id, meta in PASS_TITLES.items():
+        markup = str(meta.get('markup') or '').strip()
+        style = title_styles.parse_title_style(markup) if markup else None
+        db._upsert_title_catalog_conn(
+            conn,
+            title_id,
+            meta['name'],
+            meta.get('color') or '',
+            source_type='battle_pass',
+            source_ref=f'pass:{season_id()}',
+            purchasable=False,
+            active=True,
+            style=style,
+            style_markup=markup,
+        )
+
+
+# --------------------------------------------------------------------------
+# 进度
+# --------------------------------------------------------------------------
+
+def _ensure_progress(conn, user_id, now=None):
+    sid = season_id()
+    now_text = _now_iso(now)
+    conn.execute(
+        '''INSERT OR IGNORE INTO battle_pass_progress
+           (user_id, season_id, xp_total, created_at, updated_at)
+           VALUES (?, ?, 0, ?, ?)''',
+        (int(user_id), sid, now_text, now_text),
+    )
+    return conn.execute(
+        'SELECT * FROM battle_pass_progress WHERE user_id = ? AND season_id = ?',
+        (int(user_id), sid),
+    ).fetchone()
+
+
+def progress_row(conn, user_id):
+    ensure_pass_schema(conn)
+    return _ensure_progress(conn, user_id)
+
+
+def golden_active(conn, user_id):
+    row = progress_row(conn, user_id)
+    return bool(row is not None and row['golden_unlocked_at'])
+
+
+def xp_total(conn, user_id):
+    row = progress_row(conn, user_id)
+    return int(row['xp_total'] or 0) if row is not None else 0
+
+
+def current_level(conn, user_id):
+    return level_for_xp(xp_total(conn, user_id))
+
+
+def golden_dew_multiplier(conn, user_id):
+    return GOLDEN_DEW_MULTIPLIER if golden_active(conn, user_id) else 1.0
+
+
+def golden_xp_multiplier(conn, user_id):
+    return GOLDEN_XP_MULTIPLIER if golden_active(conn, user_id) else 1.0
+
+
+def golden_rank_special_bonus(conn, user_id):
+    return GOLDEN_RANK_SPECIAL_BONUS if golden_active(conn, user_id) else 0.0
+
+
+def apply_golden_dew(conn, user_id, amount, *, source_key=''):
+    """荆露收益的黄金之路 ×1.5（四舍五入），返回加成后的整数。"""
+    try:
+        value = int(amount or 0)
+    except (TypeError, ValueError):
+        return 0
+    if value <= 0:
+        return value
+    multiplier = golden_dew_multiplier(conn, user_id)
+    if multiplier <= 1.0:
+        return value
+    return _round_half_up(value * multiplier)
+
+
+def _round_half_up(value):
+    return int(math.floor(float(value) + 0.5))
+
+
+# --------------------------------------------------------------------------
+# 经验发放
+# --------------------------------------------------------------------------
+
+def _ledger_exists(conn, user_id, source_key):
+    row = conn.execute(
+        'SELECT 1 FROM battle_pass_xp_ledger WHERE user_id = ? AND season_id = ? AND source_key = ? LIMIT 1',
+        (int(user_id), season_id(), str(source_key)),
+    ).fetchone()
+    return row is not None
+
+
+def _apply_xp(conn, user_id, base_xp, *, source, source_key, multiplier=1.0, now=None):
+    """写入经验台账 + 推进等级；source_key 幂等（同一 key 只发一次）。"""
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    key = str(source_key)
+    progress = _ensure_progress(conn, uid, now)
+    before_xp = int(progress['xp_total'] or 0)
+    if _ledger_exists(conn, uid, key):
+        return {
+            'applied': False, 'reason': 'duplicate', 'xp': 0,
+            'xp_total': before_xp, 'level_before': level_for_xp(before_xp),
+            'level_after': level_for_xp(before_xp), 'multiplier': float(multiplier),
+        }
+    base = max(0, int(base_xp or 0))
+    gained = _round_half_up(base * float(multiplier)) if base else 0
+    after_xp = before_xp + gained
+    now_text = _now_iso(now)
+    conn.execute(
+        '''INSERT INTO battle_pass_xp_ledger
+           (user_id, season_id, source, source_key, base_xp, xp, multiplier, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+        (uid, season_id(), str(source)[:40], key, base, gained, float(multiplier), now_text),
+    )
+    conn.execute(
+        'UPDATE battle_pass_progress SET xp_total = ?, updated_at = ? WHERE user_id = ? AND season_id = ?',
+        (after_xp, now_text, uid, season_id()),
+    )
+    return {
+        'applied': True, 'reason': 'ok', 'xp': gained,
+        'xp_total': after_xp,
+        'level_before': level_for_xp(before_xp),
+        'level_after': level_for_xp(after_xp),
+        'multiplier': float(multiplier),
+    }
+
+
+def match_xp(seconds, rounds, won):
+    """对局基础经验：Min{40, ceil(秒/10), 回合*5}，胜利再 ×1.5（四舍五入）。"""
+    try:
+        sec = max(0, float(seconds or 0))
+        rnd = max(0, int(rounds or 0))
+    except (TypeError, ValueError):
+        return 0
+    by_time = int(math.ceil(sec / MATCH_XP_SECONDS_DIVISOR)) if sec > 0 else 0
+    by_round = rnd * MATCH_XP_PER_ROUND
+    base = min(MATCH_XP_CAP, by_time, by_round)
+    base = max(0, base)
+    if won:
+        base = _round_half_up(base * MATCH_XP_WIN_MULTIPLIER)
+    return base
+
+
+def grant_match_xp(conn, user_id, *, match_id, seconds, rounds, won, extra_key='', now=None):
+    base = match_xp(seconds, rounds, won)
+    if base <= 0:
+        return {'applied': False, 'reason': 'empty', 'xp': 0, 'base_xp': 0}
+    multiplier = golden_xp_multiplier(conn, user_id)
+    result = _apply_xp(
+        conn, user_id, base,
+        source='match',
+        source_key=f'match:{match_id}:{int(user_id)}{extra_key}',
+        multiplier=multiplier,
+        now=now,
+    )
+    result['base_xp'] = base
+    return result
+
+
+def story_xp(score):
+    try:
+        value = max(0.0, float(score or 0))
+    except (TypeError, ValueError):
+        return 0
+    if value <= 0:
+        return 0
+    return min(STORY_XP_CAP, int(math.ceil(value / STORY_XP_SCORE_DIVISOR)))
+
+
+def _story_week_used(conn, user_id, now=None):
+    row = conn.execute(
+        '''SELECT used FROM battle_pass_story_week
+           WHERE user_id = ? AND season_id = ? AND week_key = ?''',
+        (int(user_id), season_id(), week_key(now)),
+    ).fetchone()
+    return int(row['used'] or 0) if row is not None else 0
+
+
+def grant_story_xp(conn, user_id, *, run_id, score, now=None):
+    base = story_xp(score)
+    if base <= 0:
+        return {'applied': False, 'reason': 'empty', 'xp': 0, 'base_xp': 0}
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    key = f'story:{run_id}'
+    if _ledger_exists(conn, uid, key):
+        used = _story_week_used(conn, uid, now)
+        return {'applied': False, 'reason': 'duplicate', 'xp': 0, 'base_xp': base, 'week_used': used}
+    used = _story_week_used(conn, uid, now)
+    multiplier = golden_xp_multiplier(conn, uid)
+    tripled = used < STORY_WEEKLY_TRIPLE_COUNT
+    if tripled:
+        multiplier *= STORY_WEEKLY_TRIPLE_MULTIPLIER
+    result = _apply_xp(
+        conn, uid, base, source='story', source_key=key,
+        multiplier=multiplier, now=now,
+    )
+    if tripled and result.get('applied'):
+        now_text = _now_iso(now)
+        conn.execute(
+            '''INSERT INTO battle_pass_story_week
+               (user_id, season_id, week_key, used, updated_at)
+               VALUES (?, ?, ?, 1, ?)
+               ON CONFLICT(user_id, season_id, week_key)
+               DO UPDATE SET used = used + 1, updated_at = excluded.updated_at''',
+            (uid, season_id(), week_key(now), now_text),
+        )
+        used += 1
+    result['base_xp'] = base
+    result['tripled'] = bool(tripled and result.get('applied'))
+    result['week_used'] = used
+    return result
+
+
+def grant_checkin_xp(conn, user_id, *, base_xp, checkin_date, now=None):
+    multiplier = golden_xp_multiplier(conn, user_id)
+    result = _apply_xp(
+        conn, user_id, base_xp,
+        source='checkin',
+        source_key=f'checkin:{checkin_date}',
+        multiplier=multiplier,
+        now=now,
+    )
+    return result
+
+
+def preview_checkin_xp(conn, user_id, base_xp):
+    """签到预览：与 grant_checkin_xp 同口径（含黄金之路 ×1.5）。"""
+    try:
+        base = max(0, int(base_xp or 0))
+    except (TypeError, ValueError):
+        base = 0
+    if base <= 0:
+        return 0
+    return _round_half_up(base * golden_xp_multiplier(conn, user_id))
+
+
+# --------------------------------------------------------------------------
+# 解锁 / 领取
+# --------------------------------------------------------------------------
+
+def purchase_golden(conn, user_id, *, now=None):
+    """250 金露解锁黄金之路；返回 (payload, error)。"""
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    progress = _ensure_progress(conn, uid, now)
+    if progress['golden_unlocked_at']:
+        return None, '已经解锁黄金之路'
+    row = conn.execute('SELECT golden_dew FROM users WHERE id = ?', (uid,)).fetchone()
+    if row is None:
+        return None, '账号不存在'
+    balance = int(row['golden_dew'] or 0)
+    if balance < GOLDEN_PRICE_GOLDEN_DEW:
+        return None, '金露不足'
+    after = balance - GOLDEN_PRICE_GOLDEN_DEW
+    now_text = _now_iso(now)
+    conn.execute('UPDATE users SET golden_dew = ? WHERE id = ?', (after, uid))
+    conn.execute(
+        '''INSERT INTO user_currency_transactions (
+               user_id, currency, free_delta, paid_delta, reason, source_type, source_id,
+               balance_free_after, balance_paid_after, admin_username, created_at)
+           VALUES (?, 'golden_dew', ?, 0, ?, 'battle_pass', ?, ?, 0, '', ?)''',
+        (uid, -GOLDEN_PRICE_GOLDEN_DEW, '通行证 · 黄金之路', f'pass:{season_id()}', after, now_text),
+    )
+    conn.execute(
+        'UPDATE battle_pass_progress SET golden_unlocked_at = ?, updated_at = ? WHERE user_id = ? AND season_id = ?',
+        (now_text, now_text, uid, season_id()),
+    )
+    return {'golden_dew': after, 'price': GOLDEN_PRICE_GOLDEN_DEW}, None
+
+
+def _claimed_levels(conn, user_id, track):
+    rows = conn.execute(
+        'SELECT level FROM battle_pass_claims WHERE user_id = ? AND season_id = ? AND track = ?',
+        (int(user_id), season_id(), track),
+    ).fetchall()
+    return sorted(int(row['level']) for row in rows)
+
+
+def _grant_cosmetic(conn, user_id, kind, item_id, now_text):
+    if not item_id:
+        return
+    conn.execute(
+        '''INSERT OR IGNORE INTO battle_pass_cosmetics
+           (user_id, kind, item_id, acquired_source, acquired_at)
+           VALUES (?, ?, ?, 'battle_pass', ?)''',
+        (int(user_id), kind, item_id, now_text),
+    )
+    if kind == 'title':
+        ensure_pass_titles(conn)
+        conn.execute(
+            '''INSERT OR IGNORE INTO user_titles
+               (user_id, title_id, acquired_source, acquired_ref, acquired_at)
+               VALUES (?, ?, 'battle_pass', ?, ?)''',
+            (int(user_id), item_id, f'pass:{season_id()}', now_text),
+        )
+    elif kind == 'card_skin':
+        # 通行证皮肤尚未进 card_skins 目录时只记账，目录上线后自动可用。
+        try:
+            from card_skins import SKIN_BY_ID
+            known = item_id in SKIN_BY_ID
+        except Exception:
+            known = False
+        if known:
+            conn.execute(
+                '''INSERT OR IGNORE INTO user_card_skins
+                   (user_id, skin_id, acquired_source, acquired_ref, acquired_at)
+                   VALUES (?, ?, 'battle_pass', ?, ?)''',
+                (int(user_id), item_id, f'pass:{season_id()}', now_text),
+            )
+    elif kind == 'background':
+        try:
+            from backgrounds import get_background_definition
+            definition = get_background_definition('theme', item_id)
+        except Exception:
+            definition = None
+        if definition is not None:
+            conn.execute(
+                '''INSERT OR IGNORE INTO user_backgrounds
+                   (user_id, kind, background_id, acquired_source, acquired_ref, acquired_at)
+                   VALUES (?, 'theme', ?, 'battle_pass', ?, ?)''',
+                (int(user_id), item_id, f'pass:{season_id()}', now_text),
+            )
+
+
+def _grant_reward(conn, user_id, reward, *, now_text):
+    """发奖；返回实际入账描述（用于回执与测试）。"""
+    uid = int(user_id)
+    kind = reward.get('kind')
+    amount = int(reward.get('amount') or 0)
+    item_id = str(reward.get('item_id') or '')
+    granted = {'kind': kind, 'amount': amount, 'item_id': item_id}
+    if kind == 'dew' and amount > 0:
+        row = conn.execute('SELECT thorn_dew_free FROM users WHERE id = ?', (uid,)).fetchone()
+        before = int(row['thorn_dew_free'] or 0) if row is not None else 0
+        after = before + amount
+        conn.execute('UPDATE users SET thorn_dew_free = ? WHERE id = ?', (after, uid))
+        conn.execute(
+            '''INSERT INTO user_currency_transactions (
+                   user_id, currency, free_delta, paid_delta, reason, source_type, source_id,
+                   balance_free_after, balance_paid_after, admin_username, created_at)
+               VALUES (?, 'thorn_dew', ?, 0, ?, 'battle_pass', ?, ?, 0, '', ?)''',
+            (uid, amount, f'通行证 · 第{reward.get("level")}级', f'pass:{season_id()}:lv{reward.get("level")}',
+             after, now_text),
+        )
+    elif kind == 'golden_dew' and amount > 0:
+        row = conn.execute('SELECT golden_dew FROM users WHERE id = ?', (uid,)).fetchone()
+        before = int(row['golden_dew'] or 0) if row is not None else 0
+        after = before + amount
+        conn.execute('UPDATE users SET golden_dew = ? WHERE id = ?', (after, uid))
+        conn.execute(
+            '''INSERT INTO user_currency_transactions (
+                   user_id, currency, free_delta, paid_delta, reason, source_type, source_id,
+                   balance_free_after, balance_paid_after, admin_username, created_at)
+               VALUES (?, 'golden_dew', ?, 0, ?, 'battle_pass', ?, ?, 0, '', ?)''',
+            (uid, amount, f'通行证 · 第{reward.get("level")}级', f'pass:{season_id()}:lv{reward.get("level")}',
+             after, now_text),
+        )
+    elif kind == 'shield_card' and amount > 0:
+        conn.execute(
+            'UPDATE users SET rank_shield_cards = COALESCE(rank_shield_cards, 0) + ? WHERE id = ?',
+            (amount, uid),
+        )
+    elif kind == 'double_card' and amount > 0:
+        conn.execute(
+            'UPDATE users SET rank_double_cards = COALESCE(rank_double_cards, 0) + ? WHERE id = ?',
+            (amount, uid),
+        )
+    elif kind == 'ticket' and amount > 0:
+        # 通行证门票允许溢出上限：直接加库存，不走 leisure_ticket.grant_tickets 的封顶逻辑。
+        import leisure_ticket
+        leisure_ticket.ensure_ticket_columns(conn)
+        conn.execute(
+            'UPDATE users SET leisure_tickets = COALESCE(leisure_tickets, 0) + ? WHERE id = ?',
+            (amount, uid),
+        )
+    elif kind in ('title', 'card_skin', 'background'):
+        _grant_cosmetic(conn, uid, kind, item_id, now_text)
+    return granted
+
+
+def claim(conn, user_id, track, level, *, now=None):
+    """领取某一格奖励；返回 (payload, error)。"""
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    track_key = str(track or '').strip()
+    if track_key not in TRACKS:
+        return None, '未知轨道'
+    try:
+        lv = int(level)
+    except (TypeError, ValueError):
+        return None, '等级无效'
+    reward = reward_for(lv, track_key)
+    if reward is None:
+        return None, '等级无效'
+    current = current_level(conn, uid)
+    if lv > current:
+        return None, '等级不足'
+    if track_key == TRACK_GOLDEN and not golden_active(conn, uid):
+        return None, '需要先解锁黄金之路'
+    already = conn.execute(
+        '''SELECT 1 FROM battle_pass_claims
+           WHERE user_id = ? AND season_id = ? AND track = ? AND level = ? LIMIT 1''',
+        (uid, season_id(), track_key, lv),
+    ).fetchone()
+    if already is not None:
+        return None, '已经领取过了'
+    now_text = _now_iso(now)
+    granted = _grant_reward(conn, uid, reward, now_text=now_text)
+    conn.execute(
+        '''INSERT INTO battle_pass_claims
+           (user_id, season_id, track, level, reward_json, claimed_at)
+           VALUES (?, ?, ?, ?, ?, ?)''',
+        (uid, season_id(), track_key, lv,
+         json.dumps(granted, ensure_ascii=False, separators=(',', ':')), now_text),
+    )
+    return {
+        'level': lv, 'track': track_key, 'reward': granted,
+        'xp_total': xp_total(conn, uid),
+    }, None
+
+
+def claimable_levels(conn, user_id):
+    """返回两条轨道可领（已达标、未领）的等级列表。"""
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    current = current_level(conn, uid)
+    golden = golden_active(conn, uid)
+    out = {TRACK_FREE: [], TRACK_GOLDEN: []}
+    for track in TRACKS:
+        if track == TRACK_GOLDEN and not golden:
+            continue
+        claimed = set(_claimed_levels(conn, uid, track))
+        for lv in range(1, current + 1):
+            if lv not in claimed:
+                out[track].append(lv)
+    return out
+
+
+# --------------------------------------------------------------------------
+# 对外视图
+# --------------------------------------------------------------------------
+
+def state_payload(conn, user_id, *, now=None):
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    row = _ensure_progress(conn, uid, now)
+    total = int(row['xp_total'] or 0)
+    level = level_for_xp(total)
+    golden = bool(row['golden_unlocked_at'])
+    claimed = {track: _claimed_levels(conn, uid, track) for track in TRACKS}
+    claimed_sets = {track: set(claimed[track]) for track in TRACKS}
+
+    def _track_view(track):
+        entries = []
+        for lv in range(1, PASS_MAX_LEVEL + 1):
+            reward = reward_for(lv, track)
+            entries.append({
+                'level': lv,
+                'reward': reward,
+                'text': reward_amount_text(lv, track),
+                'unlocked': lv <= level,
+                'claimed': lv in claimed_sets[track],
+                'claimable': lv <= level and lv not in claimed_sets[track] and (track == TRACK_FREE or golden),
+            })
+        return {
+            'track': track,
+            'label': TRACK_LABELS[track],
+            'entries': entries,
+            'claimed_count': len(claimed[track]),
+            'claimable_count': sum(1 for entry in entries if entry['claimable']),
+        }
+
+    start, end, active = season_bounds(now)
+    balance = conn.execute(
+        'SELECT golden_dew, thorn_dew_free FROM users WHERE id = ?', (uid,)
+    ).fetchone()
+    tracks = {track: _track_view(track) for track in TRACKS}
+    return {
+        'season_id': season_id(),
+        'season_start': start.isoformat(timespec='seconds'),
+        'season_end': end.isoformat(timespec='seconds'),
+        'season_active': bool(active),
+        'xp_per_level': XP_PER_LEVEL,
+        'max_level': PASS_MAX_LEVEL,
+        'xp_total': total,
+        'level': min(level, PASS_MAX_LEVEL),
+        'level_raw': level,
+        'xp_into_level': xp_into_level(total),
+        'golden': golden,
+        'golden_price': GOLDEN_PRICE_GOLDEN_DEW,
+        'golden_perks': {
+            'xp_multiplier': GOLDEN_XP_MULTIPLIER,
+            'dew_multiplier': GOLDEN_DEW_MULTIPLIER,
+            'rank_special_bonus': GOLDEN_RANK_SPECIAL_BONUS,
+            'checkin_shield_cards': GOLDEN_CHECKIN_SHIELD_CARDS,
+            'checkin_double_cards': GOLDEN_CHECKIN_DOUBLE_CARDS,
+        },
+        'golden_dew': int(balance['golden_dew'] or 0) if balance is not None else 0,
+        'thorn_dew_free': int(balance['thorn_dew_free'] or 0) if balance is not None else 0,
+        'claimable': {track: [e['level'] for e in tracks[track]['entries'] if e['claimable']]
+                      for track in TRACKS},
+        'story_week_used': _story_week_used(conn, uid, now),
+        'story_weekly_triple_count': STORY_WEEKLY_TRIPLE_COUNT,
+        'tracks': tracks,
+    }

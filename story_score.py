@@ -161,7 +161,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
     existing = conn.execute(
         '''SELECT difficulty, base_score, total_score, load_count, bank_cleared,
                   dev_used, golden_dew_reward, completed_stages, golden_multiplier,
-                  dew_gain_multiplier
+                  dew_gain_multiplier, xp_gain
            FROM story_reward_ledger
            WHERE run_id = ? AND user_id = ?
            ORDER BY id DESC LIMIT 1''',
@@ -179,6 +179,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
             'completed_stages': int(existing['completed_stages'] or 0),
             'golden_multiplier': float(existing['golden_multiplier'] or 1),
             'dew_gain_multiplier': float(existing['dew_gain_multiplier'] or 1),
+            'xp_gain': int(existing['xp_gain'] or 0),
         }
 
     # 1) 银行存款清零（设计：做了这个系统后清除玩家在银行的存款）
@@ -210,6 +211,8 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
 
     # 3) 分数与荆露（开发模式不发）
     total, base = compute_score(state, difficulty, load_count)
+    # 通行证经验按「旅程分数」算，取全局倍率/开发模式清零之前的原始分。
+    xp_score = int(total)
     difficulty_mult = DIFFICULTY_MULTIPLIERS.get(str(difficulty or '').lower(), 1.0)
     from db import dew_gain_multiplier_conn, scale_dew_gain_conn
     dew_gain_multiplier = dew_gain_multiplier_conn(conn)
@@ -218,6 +221,12 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
     if total > 0:
         # 荆露获取全局倍率（控制台调控）
         total = scale_dew_gain_conn(conn, total)
+        # 通行证 · 黄金之路：荆露收益 ×1.5（金露奖励不参与该倍率）
+        try:
+            import battle_pass as _bp
+            total = _bp.apply_golden_dew(conn, user_id, total)
+        except Exception:
+            pass
     if total > 0:
         user_row = conn.execute(
             'SELECT thorn_dew_free, thorn_dew_paid FROM users WHERE id = ?', (int(user_id),),
@@ -240,6 +249,20 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
                     free, paid,
                 ),
             )
+
+    # 3.5) 通行证经验（2026-11-11）：Min{1000, ceil(Score/5)}；每周前 3 次爬塔 ×3。
+    # 开发模式（dev_*）不发，避免跳层刷经验。
+    xp_gain = 0
+    xp_level = 0
+    if not dev_used and xp_score > 0:
+        try:
+            import battle_pass as _bp
+            xp_result = _bp.grant_story_xp(conn, user_id, run_id=run_id, score=xp_score)
+            if xp_result.get('applied'):
+                xp_gain = int(xp_result.get('xp') or 0)
+                xp_level = int(xp_result.get('level_after') or 0)
+        except Exception as exc:
+            print(f'[story] battle pass xp failed: {type(exc).__name__}: {exc}', flush=True)
 
     # 4) 金露：完成幕数 × 难度系数 × 无 SL 奖励系数（不经过荆露全局倍率）。
     completed_stages = completed_stage_count(state)
@@ -276,14 +299,14 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
         INSERT INTO story_reward_ledger
             (user_id, run_id, difficulty, base_score, total_score, load_count,
              bank_cleared, dev_used, golden_dew_reward, completed_stages, golden_multiplier,
-             dew_gain_multiplier)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             dew_gain_multiplier, xp_gain)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''',
         (
             int(user_id), str(run_id or ''), difficulty,
             int(base), int(total), int(load_count), 1 if bank_before > 0 else 0,
             1 if dev_used else 0, golden_reward, completed_stages, golden_multiplier,
-            dew_gain_multiplier,
+            dew_gain_multiplier, int(xp_gain),
         ),
     )
     return {
@@ -297,6 +320,8 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
         'completed_stages': completed_stages,
         'golden_multiplier': golden_multiplier,
         'dew_gain_multiplier': dew_gain_multiplier,
+        'xp_gain': xp_gain,
+        'xp_level': xp_level,
     }
 
 
@@ -308,6 +333,7 @@ def ensure_story_clear_animation_schema(conn):
         'ALTER TABLE story_reward_ledger ADD COLUMN completed_stages INTEGER NOT NULL DEFAULT 0',
         'ALTER TABLE story_reward_ledger ADD COLUMN golden_multiplier REAL NOT NULL DEFAULT 1',
         'ALTER TABLE story_reward_ledger ADD COLUMN dew_gain_multiplier REAL',
+        'ALTER TABLE story_reward_ledger ADD COLUMN xp_gain INTEGER NOT NULL DEFAULT 0',
     ):
         try:
             conn.execute(statement)

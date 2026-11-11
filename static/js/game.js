@@ -1982,7 +1982,7 @@ Object.assign(I18N.en, {
     account_new_password_confirm: 'Confirm New Password', account_change_password: 'Change Password', account_password_changed: 'Password changed',
     account_change_username: 'Change Username', account_info: 'Account Info', account_online_time: 'Total Match Time', thorn_dew: 'Thorn Dew', account_delete: 'Delete Account', stats: 'Stats',
     achievements: 'Achievements', achievements_title: 'Achievements & Currency', achievements_empty: 'No achievements yet.', achievements_hidden: 'Hidden achievement. Unlock it to reveal.',
-    leaderboard: 'Leaderboard', leaderboard_note: 'Ranked by rank tier. Season board needs 8 ranked games; total board needs 20.', leaderboard_empty: 'No ranked players yet.', leaderboard_loading: 'Loading leaderboard...', leaderboard_next_refresh: 'Refresh in {0}', leaderboard_gr: 'Rank', leaderboard_season: 'Season', leaderboard_total: 'All-time', leaderboard_raw_rate: 'Win %', leaderboard_hide_titles: 'Hide Titles', leaderboard_show_titles: 'Show Titles',
+    leaderboard: 'Leaderboard', leaderboard_note: 'Ranked by rank tier. Needs 20 ranked games this season.', leaderboard_empty: 'No ranked players yet.', leaderboard_loading: 'Loading leaderboard...', leaderboard_next_refresh: 'Refresh in {0}', leaderboard_gr: 'Rank', leaderboard_season: 'Season', leaderboard_total: 'All-time', leaderboard_raw_rate: 'Win %', leaderboard_hide_titles: 'Hide Titles', leaderboard_show_titles: 'Show Titles',
     account_login: 'Log In', account_register: 'Register', account_enter: 'Enter with Account', account_logout: 'Log Out',
     account_not_logged_in: 'Not logged in', account_logged_in_as: 'Signed in as {0}', account_stats: 'Games {0} / Wins {1} / Losses {2} / Draws {3}',
     account_need_login: 'Log in or register first', account_error: 'Account error', account_password_mismatch: 'Passwords do not match', guest_enter: 'Enter as Guest',
@@ -1994,7 +1994,7 @@ Object.assign(I18N.zh, {
     account_new_password_confirm: '确认新密码', account_change_password: '修改密码', account_password_changed: '密码已修改',
     account_change_username: '修改用户名', account_info: '账号信息', account_online_time: '总对局时长', thorn_dew: '荆露', account_delete: '注销账户', stats: '统计',
     achievements: '成就', achievements_title: '成就与货币', achievements_empty: '暂无成就。', achievements_hidden: '隐藏成就，达成后揭晓。',
-    leaderboard: '排行榜', leaderboard_note: '排行按照段位计算。赛季榜需本赛季至少8场计分对局，总榜需至少20场计分对局。', leaderboard_empty: '暂无符合条件的玩家。', leaderboard_loading: '正在加载排行榜...', leaderboard_next_refresh: '刷新倒计时 {0}', leaderboard_gr: '段位', leaderboard_season: '赛季榜', leaderboard_total: '总榜', leaderboard_raw_rate: '胜率', leaderboard_hide_titles: '隐藏称号', leaderboard_show_titles: '显示称号',
+    leaderboard: '排行榜', leaderboard_note: '排行按照段位计算，需本赛季至少20场计分对局。', leaderboard_empty: '暂无符合条件的玩家。', leaderboard_loading: '正在加载排行榜...', leaderboard_next_refresh: '刷新倒计时 {0}', leaderboard_gr: '段位', leaderboard_season: '赛季榜', leaderboard_total: '总榜', leaderboard_raw_rate: '胜率', leaderboard_hide_titles: '隐藏称号', leaderboard_show_titles: '显示称号',
     account_login: '登录', account_register: '注册', account_enter: '账号进入', account_logout: '退出登录',
     account_not_logged_in: '未登录', account_logged_in_as: '已登录：{0}', account_stats: '对局 {0} / 胜 {1} / 负 {2} / 平 {3}',
     account_need_login: '请先登录或注册账号', account_error: '账号错误', account_password_mismatch: '两次输入的密码不一致', guest_enter: '游客进入',
@@ -2007,7 +2007,7 @@ Object.assign(I18N.fr, {
     account_change_username: 'Changer le nom', account_info: 'Compte', account_online_time: 'Temps total en match', thorn_dew: 'Rosée d’épines',
     achievements: 'Succès', achievements_title: 'Succès et monnaie', achievements_empty: 'Aucun succès.', achievements_hidden: 'Succès caché.',
     account_delete: 'Supprimer le compte', stats: 'Stats',
-    leaderboard: 'Classement', leaderboard_note: 'Classement par palier. Saison : 8 parties classées ; total : 20.', leaderboard_empty: 'Aucun joueur classé.', leaderboard_loading: 'Chargement du classement...', leaderboard_next_refresh: 'Actualisation {0}', leaderboard_gr: 'Rank', leaderboard_season: 'Saison', leaderboard_total: 'Total', leaderboard_raw_rate: 'Victoire', leaderboard_hide_titles: 'Masquer les titres', leaderboard_show_titles: 'Afficher les titres',
+    leaderboard: 'Classement', leaderboard_note: 'Classement par palier. 20 parties classées requises.', leaderboard_empty: 'Aucun joueur classé.', leaderboard_loading: 'Chargement du classement...', leaderboard_next_refresh: 'Actualisation {0}', leaderboard_gr: 'Rank', leaderboard_season: 'Saison', leaderboard_total: 'Total', leaderboard_raw_rate: 'Victoire', leaderboard_hide_titles: 'Masquer les titres', leaderboard_show_titles: 'Afficher les titres',
     account_login: 'Connexion', account_register: 'Inscription', account_enter: 'Entrer avec le compte', account_logout: 'Déconnexion',
     account_not_logged_in: 'Non connecté', account_logged_in_as: 'Connecté : {0}', account_stats: 'Parties {0} / V {1} / D {2} / N {3}',
     account_need_login: 'Connectez-vous ou inscrivez-vous', account_error: 'Erreur de compte', account_password_mismatch: 'Les mots de passe ne correspondent pas', guest_enter: 'Entrer en invité',
@@ -2020,7 +2020,7 @@ Object.assign(I18N.ja, {
     account_change_username: 'ユーザー名変更', account_info: 'アカウント情報', account_online_time: '総対戦時間', thorn_dew: 'ソーンデュー',
     achievements: '実績', achievements_title: '実績と通貨', achievements_empty: '実績はありません。', achievements_hidden: '隠し実績です。',
     account_delete: 'アカウント削除', stats: '統計',
-    leaderboard: 'ランキング', leaderboard_note: '段位で順位を計算します。シーズン榜は8戦、総合榜は20戦以上が必要です。', leaderboard_empty: '該当プレイヤーはいません。', leaderboard_loading: 'ランキング読込中...', leaderboard_next_refresh: '更新まで {0}', leaderboard_gr: 'Rank', leaderboard_season: 'シーズン', leaderboard_total: '総合', leaderboard_raw_rate: '勝率', leaderboard_hide_titles: '称号を隠す', leaderboard_show_titles: '称号を表示',
+    leaderboard: 'ランキング', leaderboard_note: '段位で順位を計算します。今シーズン20戦以上が必要です。', leaderboard_empty: '該当プレイヤーはいません。', leaderboard_loading: 'ランキング読込中...', leaderboard_next_refresh: '更新まで {0}', leaderboard_gr: 'Rank', leaderboard_season: 'シーズン', leaderboard_total: '総合', leaderboard_raw_rate: '勝率', leaderboard_hide_titles: '称号を隠す', leaderboard_show_titles: '称号を表示',
     account_login: 'ログイン', account_register: '登録', account_enter: 'アカウントで入る', account_logout: 'ログアウト',
     account_not_logged_in: '未ログイン', account_logged_in_as: 'ログイン中: {0}', account_stats: '対戦 {0} / 勝 {1} / 負 {2} / 引分 {3}',
     account_need_login: '先にログインまたは登録してください', account_error: 'アカウントエラー', account_password_mismatch: 'パスワードが一致しません', guest_enter: 'ゲストで入る',
@@ -18999,7 +18999,7 @@ function thornDewCheckinHtml() {
     const rewards = Array.isArray(center.checkin_rewards) && center.checkin_rewards.length
         ? center.checkin_rewards.map(item => Math.max(0, Number(item || 0) || 0))
         : [40, 45, 50, 55, 60, 70, 100];
-    const reward = Math.max(0, Number(center.next_checkin_reward || rewards[(streak - 1) % rewards.length] || 40) || 40);
+    const reward = Math.max(0, Number(center.next_checkin_xp || rewards[(streak - 1) % rewards.length] || 40) || 40);
     const dayIndex = (Math.max(1, streak) - 1) % rewards.length;
     const pct = checked ? 100 : Math.max(8, Math.min(96, dayIndex / Math.max(1, rewards.length - 1) * 100));
     const dayLabel = lt({ zh: `连续第 ${streak} 天`, en: `Streak day ${streak}`, fr: `${streak} jour(s) consécutif(s)`, ja: `${streak}日連続` });
@@ -19013,12 +19013,12 @@ function thornDewCheckinHtml() {
                 <button id="btn-thorn-dew-checkin-daily" class="btn btn-primary" type="button" ${checked || thornDewLoading ? 'disabled' : ''}>
                     ${escapeHtml(checked
                         ? lt({ zh: '今日已签到', en: 'Checked In', fr: 'Déjà récupéré', ja: '受取済み' })
-                        : lt({ zh: `签到 +${reward}`, en: `Check In +${reward}`, fr: `Récupérer +${reward}`, ja: `受け取る +${reward}` }))}
+                        : lt({ zh: `签到 +${reward} 经验`, en: `Check In +${reward} XP`, fr: `Récupérer +${reward} XP`, ja: `受け取る +${reward} XP` }))}
                 </button>
             </div>
             <div class="thorn-dew-progress-wrap">
                 <div class="thorn-dew-progress-meta">
-                    <span>${escapeHtml(lt({ zh: `今天可获得 ${reward} 荆露`, en: `Today: ${reward} Thorn Dew`, fr: `Aujourd’hui : ${reward} Rosée d’épines`, ja: `本日：ソーンデュー ${reward}` }))}</span>
+                    <span>${escapeHtml(lt({ zh: `今天可获得 ${reward} 通行证经验`, en: `Today: ${reward} Pass XP`, fr: `Aujourd’hui : ${reward} XP du pass`, ja: `本日：パス経験値 ${reward}` }))}</span>
                     <span>${escapeHtml(checked
                         ? lt({ zh: '已完成', en: 'Done', fr: 'Terminé', ja: '完了' })
                         : lt({ zh: '待领取', en: 'Ready', fr: 'Disponible', ja: '受取可能' }))}</span>
@@ -19107,10 +19107,20 @@ async function onThornDewCheckin() {
             cacheAccount(currentAccount);
         }
         const granted = data.checkin_granted || {};
-        if (window.GtnRewardAnimation && (Number(granted.dew) > 0 || Number(granted.leisure_tickets) > 0)) {
+        if (window.GtnRewardAnimation && (Number(granted.xp) > 0 || Number(granted.leisure_tickets) > 0)) {
             window.GtnRewardAnimation.refresh();
         }
-        setAccountError(lt({ zh: '签到成功', en: 'Checked in', fr: 'Récompense récupérée', ja: '受け取りました' }));
+        const xpGained = Number(granted.xp || 0);
+        const levelUp = !!granted.level_up;
+        const bonusCards = Number(granted.golden_shield_cards || 0) + Number(granted.golden_double_cards || 0);
+        setAccountError(xpGained > 0
+            ? lt({
+                zh: `签到成功：通行证经验 +${xpGained}${levelUp ? '，等级提升！' : ''}${bonusCards ? '，黄金之路额外赠卡' : ''}`,
+                en: `Checked in: Pass XP +${xpGained}${levelUp ? ', level up!' : ''}${bonusCards ? ', extra Golden Path cards' : ''}`,
+                fr: `Pointage réussi : +${xpGained} XP du pass${levelUp ? ', niveau supérieur !' : ''}${bonusCards ? ', cartes Golden Path en plus' : ''}`,
+                ja: `チェックイン成功：パス経験値 +${xpGained}${levelUp ? '、レベルアップ！' : ''}${bonusCards ? '、黄金の道ボーナスカード' : ''}`,
+            })
+            : lt({ zh: '签到成功', en: 'Checked in', fr: 'Récompense récupérée', ja: '受け取りました' }));
     } catch (err) {
         setAccountError(err.message || UI.account_error);
     } finally {
@@ -19557,7 +19567,8 @@ function renderAchievementCenter() {
     const dewPanel = $('achievements-dew-panel');
     const dailyPanel = $('achievements-daily-panel');
     const tasksPanel = $('achievements-tasks-panel');
-    if (!summary || !list || !dewPanel || !dailyPanel || !tasksPanel) return;
+    const passPanel = $('achievements-pass-panel');
+    if (!summary || !list || !dewPanel || !dailyPanel || !tasksPanel || !passPanel) return;
     // 称号中心由外观页（skin-titles-panel）自己渲染，成就弹层不再触碰；
     // 此前残留的未声明 titlesPanel 引用会 ReferenceError 中断整个渲染（GS-273）
     document.querySelectorAll('[data-achievement-tab]').forEach(btn => {
@@ -19567,12 +19578,20 @@ function renderAchievementCenter() {
     dailyPanel.classList.toggle('hidden', achievementActiveTab !== 'daily');
     list.classList.toggle('hidden', achievementActiveTab !== 'achievements');
     tasksPanel.classList.toggle('hidden', achievementActiveTab !== 'tasks');
+    passPanel.classList.toggle('hidden', achievementActiveTab !== 'pass');
+    // 通行证页签自带赛季信息，成就进度行留着只会干扰阅读
+    summary.classList.toggle('hidden', achievementActiveTab === 'pass');
+    if (achievementActiveTab === 'pass' && window.gtnBattlePass) {
+        window.gtnBattlePass.ensureLoaded();
+        window.gtnBattlePass.render(passPanel);
+    }
     if (!currentAccount) {
         summary.textContent = UI.account_need_login || '请先登录账号';
         dewPanel.innerHTML = '';
         dailyPanel.innerHTML = '';
         list.innerHTML = `<div class="account-replay-sub">${escapeHtml(UI.account_need_login || '请先登录账号')}</div>`;
         tasksPanel.innerHTML = '';
+        passPanel.innerHTML = '';
         return;
     }
     const data = achievementCenter || {};
@@ -19637,7 +19656,7 @@ function renderAchievementCenter() {
 }
 
 function setAchievementTab(tab) {
-    achievementActiveTab = ['dew', 'daily', 'achievements', 'tasks'].includes(tab) ? tab : 'dew';
+    achievementActiveTab = ['dew', 'daily', 'achievements', 'tasks', 'pass'].includes(tab) ? tab : 'dew';
     renderAchievementCenter();
 }
 
@@ -23908,7 +23927,7 @@ function leaderboardHeaderHtml() {
 let leaderboardCache = null;
 let leaderboardLoadingPromise = null;
 let leaderboardRefreshTimerId = null;
-let leaderboardScope = 'season';
+let leaderboardScope = 'total';
 
 function getNextLeaderboardRefreshMs(nowMs = Date.now()) {
     const intervalMs = 5 * 60 * 1000;
@@ -23965,7 +23984,7 @@ function renderLeaderboardItems(items, selfRank = null) {
         const scoreB = rankScore(b);
         const scoreA = rankScore(a);
         if (scoreB !== scoreA) return scoreB - scoreA;
-        const gamesKey = leaderboardScope === 'total' ? 'total_ranked_games' : 'season_ranked_games';
+        const gamesKey = 'total_ranked_games';
         return Number(b && b[gamesKey] || 0) - Number(a && a[gamesKey] || 0);
     });
     const currentId = currentAccount && currentAccount.id != null ? String(currentAccount.id) : '';
@@ -24005,7 +24024,7 @@ async function loadLeaderboard(options = {}) {
         list.innerHTML = `<div class="account-replay-sub">${escapeHtml(UI.leaderboard_loading || '正在加载排行榜...')}</div>`;
     }
     try {
-        const minGames = leaderboardScope === 'total' ? 20 : 8;
+        const minGames = 20;
         leaderboardLoadingPromise = authRequest(`/api/leaderboard?scope=${encodeURIComponent(leaderboardScope)}&min_games=${minGames}&limit=50`, undefined, { timeoutMs: 5000 });
         const data = await leaderboardLoadingPromise;
         const nextRefreshMs = data && data.next_refresh_ts
@@ -31738,7 +31757,8 @@ function shouldUseClassicBattle(gs) {
 }
 
 function setLeaderboardScope(scope) {
-    leaderboardScope = scope === 'total' ? 'total' : 'season';
+    // 赛季榜已删除（2026-11-11）：排行榜只保留总榜，传入其它值一律归到 total。
+    leaderboardScope = 'total';
     document.querySelectorAll('[data-leaderboard-scope]').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.leaderboardScope === leaderboardScope);
         btn.textContent = btn.dataset.leaderboardScope === 'total'
@@ -40396,13 +40416,28 @@ function renderGameOverDew(gs = {}) {
         }
         return;
     }
-    const amount = Math.max(0, Number(mine.amount) || 0);
+    const amount = Math.max(0, Number(mine?.amount) || 0);
     const amountText = amount > 0 ? `+${amount}` : '0';
-    box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(title)}</div>`
-        + '<div class="gameover-dew-row">'
-        + `<span>${escapeHtml(lt({ zh: '本局获得', en: 'Earned this match', fr: 'Gagné cette partie', ja: '今回の獲得' }))}</span>`
-        + `<b class="${amount > 0 ? 'positive' : ''}">${escapeHtml(amountText)}</b>`
-        + '</div>';
+    // 通行证经验（2026-11-11）：本局对战经验由结算写入 xp_awarded，未登记者不会有这条。
+    const xpAwards = Array.isArray(result.xp_awarded) ? result.xp_awarded : [];
+    const myXp = xpAwards.find(item => item && String(item.user_id) === myId) || null;
+    const xpAmount = Math.max(0, Number(myXp?.xp) || 0);
+    const rows = [];
+    if (mine) {
+        rows.push('<div class="gameover-dew-row">'
+            + `<span>${escapeHtml(lt({ zh: '本局获得', en: 'Earned this match', fr: 'Gagné cette partie', ja: '今回の獲得' }))}</span>`
+            + `<b class="${amount > 0 ? 'positive' : ''}">${escapeHtml(amountText)}</b>`
+            + '</div>');
+    }
+    if (xpAmount > 0) {
+        rows.push('<div class="gameover-dew-row gameover-xp-row">'
+            + '<img class="gameover-xp-icon" src="/static/assets/ui-icons/pass-xp.svg" alt="" aria-hidden="true">'
+            + `<span>${escapeHtml(lt({ zh: '通行证经验', en: 'Pass XP', fr: 'XP du pass', ja: 'パス経験値' }))}</span>`
+            + `<b class="positive">+${xpAmount}</b>`
+            + '</div>');
+    }
+    if (!rows.length) return;
+    box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(title)}</div>${rows.join('')}`;
     box.classList.remove('hidden');
 }
 
@@ -42808,6 +42843,7 @@ async function init() {
     if ($('btn-changelog-popover-close')) $('btn-changelog-popover-close').addEventListener('click', () => toggleChangelogPopover(false));
     if ($('btn-replays-top')) $('btn-replays-top').addEventListener('click', () => toggleStatsPopover());
     if ($('btn-achievements-top')) $('btn-achievements-top').addEventListener('click', () => toggleAchievementsPopover());
+    if ($('home-entry-achievements')) $('home-entry-achievements').addEventListener('click', () => toggleAchievementsPopover(true));
     if ($('btn-achievements-popover-close')) $('btn-achievements-popover-close').addEventListener('click', () => toggleAchievementsPopover(false));
     if ($('btn-title-shop-top')) $('btn-title-shop-top').addEventListener('click', () => toggleTitleShopPopover());
     if ($('btn-title-shop-close')) $('btn-title-shop-close').addEventListener('click', () => toggleTitleShopPopover(false));
@@ -42839,7 +42875,7 @@ async function init() {
     });
     if ($('btn-leaderboard-top')) $('btn-leaderboard-top').addEventListener('click', () => toggleLeaderboardPopover());
     document.querySelectorAll('[data-leaderboard-scope]').forEach((btn) => {
-        btn.addEventListener('click', () => setLeaderboardScope(btn.dataset.leaderboardScope || 'season'));
+        btn.addEventListener('click', () => setLeaderboardScope(btn.dataset.leaderboardScope || 'total'));
     });
     if ($('btn-leaderboard-hide-titles')) {
         $('btn-leaderboard-hide-titles').addEventListener('click', toggleLeaderboardHideTitles);

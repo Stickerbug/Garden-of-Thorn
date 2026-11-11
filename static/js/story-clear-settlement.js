@@ -139,7 +139,23 @@
     ));
     if (data.settlement.dev_used) golden.appendChild(el('div', 'scs-dew-adjustment', '本局使用过开发模式，不发金露'));
     page.appendChild(golden);
-    return { page, rows, totalValue, dew };
+    // 通行证经验（2026-11-11）：Min{1000, ceil(分数/5)}，赛季内每周前 3 次通关 ×3。
+    const xpGain = integer(data.settlement.xp_gain);
+    let xp = null;
+    if (xpGain > 0) {
+      xp = el('section', 'scs-dew-result scs-xp-result');
+      const xpTop = el('div', 'scs-dew-heading');
+      const xpIcon = el('img', 'scs-dew-icon');
+      xpIcon.src = '/static/assets/ui-icons/pass-xp.svg';
+      xpIcon.alt = '';
+      xpTop.appendChild(xpIcon);
+      xpTop.appendChild(el('span', '', '通行证经验'));
+      xpTop.appendChild(el('strong', 'scs-dew-amount', `+${xpGain.toLocaleString()}`));
+      xp.appendChild(xpTop);
+      xp.appendChild(el('div', 'scs-dew-formula', '分数/5 通行证经验（最多 1000）'));
+      page.appendChild(xp);
+    }
+    return { page, rows, totalValue, dew, xp };
   }
   function fallbackMap(svg, map) {
     const ns = 'http://www.w3.org/2000/svg';
@@ -240,6 +256,7 @@
     const finish = () => {
       view.totalValue.textContent = finalScore.toLocaleString();
       view.dew.classList.add('is-visible');
+      if (view.xp) view.xp.classList.add('is-visible');
     };
     if (reducedMotion()) {
       view.rows.forEach(row => row.classList.add('is-visible'));

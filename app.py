@@ -65,6 +65,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import leisure_ticket
 import leisure_ticket_settlement
 import card_skins
+import battle_pass
 import player_skins
 import eye_styles
 import mouth_styles
@@ -26970,6 +26971,118 @@ def api_thorn_dew_checkin():
         return jsonify({'success': False, 'error': '签到失败'}), 500
 
 
+@app.route('/api/battle-pass')
+def api_battle_pass_state():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        with get_db_connection() as conn:
+            payload = battle_pass.state_payload(conn, int(user.get('id')))
+        return jsonify({'success': True, **payload})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'battle pass state failed: {exc}')
+        return jsonify({'success': False, 'error': '后台暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'battle pass state failed: {exc}')
+        return jsonify({'success': False, 'error': '通行证加载失败'}), 500
+
+
+@app.route('/api/battle-pass/purchase', methods=['POST'])
+def api_battle_pass_purchase():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    uid = int(user.get('id'))
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            _, error = battle_pass.purchase_golden(conn, uid)
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error})
+            conn.commit()
+            payload = battle_pass.state_payload(conn, uid)
+        fresh = get_user_by_id(uid) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, **payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'battle pass purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '后台暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'battle pass purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '解锁失败'}), 500
+
+
+@app.route('/api/battle-pass/claim', methods=['POST'])
+def api_battle_pass_claim():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    uid = int(user.get('id'))
+    body = request.get_json(silent=True) or {}
+    track = str(body.get('track') or '').strip()
+    try:
+        level = int(body.get('level'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': '等级无效'}), 400
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            result, error = battle_pass.claim(conn, uid, track, level)
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error})
+            conn.commit()
+            payload = battle_pass.state_payload(conn, uid)
+        return jsonify({'success': True, 'claimed': result, **payload})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'battle pass claim failed: {exc}')
+        return jsonify({'success': False, 'error': '后台暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'battle pass claim failed: {exc}')
+        return jsonify({'success': False, 'error': '领取失败'}), 500
+
+
+@app.route('/api/battle-pass/claim-all', methods=['POST'])
+def api_battle_pass_claim_all():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    uid = int(user.get('id'))
+    body = request.get_json(silent=True) or {}
+    track = str(body.get('track') or '').strip()
+    if track not in battle_pass.TRACKS:
+        return jsonify({'success': False, 'error': '未知轨道'}), 400
+    try:
+        claimed_levels = []
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            pending = battle_pass.claimable_levels(conn, uid).get(track, [])
+            for level in pending:
+                _, error = battle_pass.claim(conn, uid, track, level)
+                if error:
+                    break
+                claimed_levels.append(level)
+            conn.commit()
+            payload = battle_pass.state_payload(conn, uid)
+        return jsonify({'success': True, 'claimed_levels': claimed_levels, **payload})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'battle pass claim-all failed: {exc}')
+        return jsonify({'success': False, 'error': '后台暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'battle pass claim-all failed: {exc}')
+        return jsonify({'success': False, 'error': '领取失败'}), 500
+
+
 @app.route('/api/achievements')
 def api_achievements():
     if not DB_AVAILABLE:
@@ -28137,8 +28250,9 @@ def api_backgrounds_equip():
 def api_leaderboard():
     if not DB_AVAILABLE:
         return jsonify({'success': False, 'items': [], 'error': DB_INIT_ERROR}), 503
-    scope = 'total' if str(request.args.get('scope') or '').lower() == 'total' else 'season'
-    default_min_games = 20 if scope == 'total' else 8
+    # 赛季榜已删除（2026-11-11）：接口只提供总榜，scope 参数保留但一律按 total 处理。
+    scope = 'total'
+    default_min_games = 20
     try:
         min_games = int(request.args.get('min_games') or default_min_games)
     except (TypeError, ValueError):
