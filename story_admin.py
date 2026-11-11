@@ -1099,6 +1099,7 @@ def _execute_save(parts, actor):
         errors = validate_story_run_state(restored, run)
         if errors:
             raise StoryAdminError('手动存档不再兼容当前内容：\n- ' + '\n- '.join(errors))
+        restored['sl_used'] = True
         operation_id = f'SAM-{secrets.token_hex(8)}'
         now = _now_iso()
         with closing(get_db_connection()) as conn:

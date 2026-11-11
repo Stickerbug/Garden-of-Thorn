@@ -170,7 +170,6 @@
         '#story-reward-options',
         '#story-hand',
         '#story-pile-grid',
-        '#story-save-list',
         '#story-card-choice-grid',
         '#story-codex-tabs',
         '#story-codex-sidebar',
@@ -616,7 +615,9 @@
             devTraining: 'Training Ground', devCard: 'Card', devUpgraded: 'Upgraded', devCount: 'Count', devEnemy: 'Enemy',
             devGiveCard: 'Give Card', devSpawnBoss: 'Start Fight', devCardGiven: 'Card added to deck', devFightStarted: 'Training fight started',
             devValuesUpdated: 'Values updated', devJumped: 'Level loaded',
-            devWarning: 'Journeys that used Developer Mode earn no Thorn Dew on completion',
+            devWarning: 'Developer Mode: event bank deposits, clear rewards, and journey records are not saved.',
+            devStartOption: 'Developer Mode',
+            devStartNote: 'This journey will not upload any permanent data to the server (event bank deposits, clear rewards, journey records, etc.).',
             pileEmpty: 'No cards here', chooseEnemy: 'Choose the enemy', chooseSelf: 'Choose yourself',
             playSelfAnywhere: 'Click anywhere to play on yourself', playAnywhere: 'Click anywhere to play',
             chooseCardHint: 'Choose a card', damagePrediction: 'Damage',
@@ -731,7 +732,9 @@
             devTraining: '训练场', devCard: '卡牌', devUpgraded: '已升级', devCount: '数量', devEnemy: '生物',
             devGiveCard: '给予卡牌', devSpawnBoss: '进入战斗', devCardGiven: '已加入卡组', devFightStarted: '训练战斗开始',
             devValuesUpdated: '数值已更新', devJumped: '已载入所选关卡',
-            devWarning: '使用开发模式的旅程通关后不发放荆露奖励',
+            devWarning: '开发人员模式：本局不会保存事件银行存款、通关结算奖励和旅程记录。',
+            devStartOption: '开发人员模式',
+            devStartNote: '开启后本局不会向服务器上传任何永久数据（事件银行存款、通关结算奖励、旅程记录等）。',
             pileEmpty: '这里没有牌', chooseEnemy: '点击生物头像以选择目标', chooseSelf: '点击自己的头像以选择目标',
             playSelfAnywhere: '点击场地任意位置对自己使用', playAnywhere: '点击场地任意位置打出',
             chooseCardHint: '选择一张手牌', damagePrediction: '伤害预测',
@@ -818,7 +821,9 @@
             devTraining: "Terrain d'entraînement", devCard: 'Carte', devUpgraded: 'Améliorée', devCount: 'Quantité', devEnemy: 'Créature',
             devGiveCard: 'Donner la carte', devSpawnBoss: 'Combattre', devCardGiven: 'Carte ajoutée au deck', devFightStarted: 'Combat lancé',
             devValuesUpdated: 'Valeurs mises à jour', devJumped: 'Niveau chargé',
-            devWarning: 'Les voyages ayant utilisé le mode développeur ne rapportent pas de Rosée d’épine',
+            devWarning: 'Mode développeur : les dépôts de la banque d’événements, les récompenses de fin et l’historique ne sont pas enregistrés.',
+            devStartOption: 'Mode développeur',
+            devStartNote: 'Ce voyage n’enverra aucune donnée permanente au serveur (dépôts de la banque d’événements, récompenses de fin, historique, etc.).',
             cardTerms: 'Termes de carte', statusTerms: 'Terme d’état', actionTerms: 'Terme d’action', traitTerms: 'Terme d’effet', talentTerms: 'Détails du talent', noCardTerms: 'Aucun terme supplémentaire',
             previousCard: 'Carte précédente', nextCard: 'Carte suivante', cardPosition: (current, total) => `${current}/${total}`,
             beforeUpgrade: 'Avant amélioration', afterUpgrade: 'Après amélioration',
@@ -950,7 +955,9 @@
             devTraining: '訓練場', devCard: 'カード', devUpgraded: '強化済み', devCount: '枚数', devEnemy: '生物',
             devGiveCard: 'カードを渡す', devSpawnBoss: '戦闘開始', devCardGiven: 'デッキに追加しました', devFightStarted: '訓練戦闘を開始しました',
             devValuesUpdated: '数値を更新しました', devJumped: 'ステージを読み込みました',
-            devWarning: '開発者モードを使用した旅はクリア時に棘露をもらえません',
+            devWarning: '開発者モード：イベント銀行の預金、クリア報酬、旅の記録は保存されません。',
+            devStartOption: '開発者モード',
+            devStartNote: 'この旅ではサーバーに永続データ（イベント銀行の預金、クリア報酬、旅の記録など）を保存しません。',
             cardTerms: 'カード用語', statusTerms: '状態用語', actionTerms: '行動用語', traitTerms: '特殊効果用語', talentTerms: '天賦の説明', noCardTerms: '追加用語なし',
             previousCard: '前のカード', nextCard: '次のカード', cardPosition: (current, total) => `${current}/${total}`,
             beforeUpgrade: 'アップグレード前', afterUpgrade: 'アップグレード後',
@@ -1074,10 +1081,14 @@
         const color = /^#[0-9a-f]{6}$/i.test(String(source.primary_color || ''))
             ? String(source.primary_color).toUpperCase()
             : '#FFE763';
-        const eyeShape = ['oval', 'rectangle', 'diamond', 'hexagon'].includes(String(source.eye_shape || '').toLowerCase())
+        const eyeShape = ['oval', 'rectangle', 'diamond', 'hexagon', 'angry', 'coin', 'dizzy'].includes(String(source.eye_shape || '').toLowerCase())
             ? String(source.eye_shape).toLowerCase()
             : 'oval';
-        return { primaryColor: color, eyeShape };
+        const mouthShape = ['original', 'cat', 'smirk', 'open', 'angry'].includes(String(source.mouth_shape || '').toLowerCase())
+            ? String(source.mouth_shape).toLowerCase()
+            : 'original';
+        const skinId = window.GTNPlayerSkins?.normalize(source.skin_id || source.skinId) || 'classic';
+        return { primaryColor: color, eyeShape, mouthShape, skinId };
     }
 
     function skinBorderColor(color) {
@@ -1163,15 +1174,28 @@
         const skin = normalizeSkin(window.__STORY_ACCOUNT__?.skin);
         const avatar = document.createElement('div');
         const damageMood = storySkinDamageUntil > Date.now();
-        avatar.className = `skin-avatar skin-eye-shape-${skin.eyeShape}${skinIsDark(skin.primaryColor) ? ' is-inverted' : ''}${damageMood ? ' skin-mouth-hurt' : ''}`;
+        const skinLayers = window.GTNPlayerSkins?.renderLayers(skin.skinId, {
+          mainColor: skin.primaryColor,
+          borderColor: skinBorderColor(skin.primaryColor),
+        }) || '';
+        const eyeArt = window.GTNEyeStyles?.render(skin.eyeShape) || '';
+        const mouthArt = window.GTNMouthStyles?.render(skin.mouthShape) || '';
+        const skinLayerClass = window.GTNPlayerSkins?.layerClass(skin.skinId) || '';
+        avatar.className = `skin-avatar skin-eye-shape-${skin.eyeShape} skin-mouth-shape-${skin.mouthShape}${skinIsDark(skin.primaryColor) ? ' is-inverted' : ''}${damageMood ? ' skin-mouth-hurt' : ''}${skinLayerClass}`;
         avatar.style.setProperty('--skin-main', skin.primaryColor);
         avatar.style.setProperty('--skin-border', skinBorderColor(skin.primaryColor));
+        avatar.style.setProperty('--skin-face-transform', `rotate(${Number(window.GTNPlayerSkins?.get(skin.skinId)?.faceRotate) || 0}deg)`);
         avatar.innerHTML = `
-            <div class="skin-eye skin-eye-left"><span class="skin-pupil"></span></div>
-            <div class="skin-eye skin-eye-right"><span class="skin-pupil"></span></div>
-            <svg class="skin-mouth" viewBox="0 0 100 56" aria-hidden="true" focusable="false">
-                <path class="skin-mouth-line" d="${storySkinMouthPathAt(damageMood ? 1 : 0)}"></path>
-            </svg>
+            ${skinLayers}
+            <div class="skin-face">
+                ${eyeArt}
+                <div class="skin-eye skin-eye-left"><span class="skin-pupil"></span></div>
+                <div class="skin-eye skin-eye-right"><span class="skin-pupil"></span></div>
+                ${mouthArt}
+                <svg class="skin-mouth" viewBox="0 0 100 56" aria-hidden="true" focusable="false">
+                    <path class="skin-mouth-line" d="${storySkinMouthPathAt(damageMood ? 1 : 0)}"></path>
+                </svg>
+            </div>
         `;
         avatar.dataset.skinMouthT = damageMood ? '1' : '0';
         portrait.replaceChildren(avatar);
@@ -1195,6 +1219,13 @@
         avatar.style.setProperty(
             '--skin-look-y',
             `${(lookY * STORY_SKIN_LOOK_OFFSET_Y_PERCENT).toFixed(1)}%`,
+        );
+        const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
+        avatar.style.setProperty('--skin-eye-art-x', `${(lookX * eyeLook.x).toFixed(3)}%`);
+        avatar.style.setProperty('--skin-eye-art-y', `${(lookY * eyeLook.y).toFixed(3)}%`);
+        avatar.style.setProperty(
+            '--skin-look-rotate',
+            `${(window.GTNPlayerSkins?.lookRotation({ x: lookX, y: lookY }) || 0).toFixed(2)}deg`,
         );
     }
 
@@ -1275,6 +1306,8 @@
             'story-dev-count-label': t.devCount, 'story-dev-enemy-label': t.devEnemy,
             'story-dev-give-card': t.devGiveCard, 'story-dev-spawn-boss': t.devSpawnBoss,
             'story-dev-warning': t.devWarning,
+            'story-dev-mode-start-label': t.devStartOption,
+            'story-dev-mode-start-note': t.devStartNote,
             'story-deck-change-before-label': t.beforeChange,
             'story-deck-change-after-label': t.afterChange,
             'story-deck-change-cancel': t.cancel,
@@ -1471,8 +1504,26 @@
         }
     }
 
+    function storyRunIsDeveloper(run = activeRun) {
+        return Boolean(
+            window.__STORY_DEV_TOOLS__
+            && run
+            && run.state
+            && run.state.dev_mode
+        );
+    }
+
+    function syncStoryDeveloperVisibility(run = activeRun) {
+        const enabled = storyRunIsDeveloper(run);
+        $('story-dev-toggle')?.classList.toggle('hidden', !enabled);
+        $('story-reset-map')?.classList.toggle('hidden', !enabled);
+        if (!enabled) setDeveloperMode(false);
+    }
+
     function setDeveloperMode(open) {
         if (!window.__STORY_DEV_TOOLS__) return;
+        // 开发入口默认隐藏：只有以开发人员模式开始的旅程才允许展开面板。
+        if (open && !storyRunIsDeveloper()) return;
         developerModeOpen = !!open;
         $('story-dev-panel')?.classList.toggle('hidden', !developerModeOpen);
         $('story-dev-toggle')?.classList.toggle('is-active', developerModeOpen);
@@ -5853,6 +5904,15 @@
         return raw.length >= 16 ? raw.slice(5, 16).replace('T', ' ') : raw;
     }
 
+    let activeStoryHistoryDetail = null;
+    window.GtnStoryClearSettlementRenderers = Object.freeze({
+        renderMap,
+        createStoryCard,
+        characterName: storyHistoryCharacterName,
+        difficultyLabel: storyHistoryDifficultyLabel,
+        duration: storyHistoryDuration,
+    });
+
     function openStoryHistory() {
         showView('story-history');
         $('story-history-detail')?.classList.add('hidden');
@@ -5936,6 +5996,8 @@
     }
 
     function renderStoryHistoryDetail(detail) {
+        activeStoryHistoryDetail = detail;
+        $('story-history-settlement')?.classList.toggle('hidden', !detail.settlement);
         const summary = detail.summary || {};
         const summaryEl = $('story-history-detail-summary');
         if (summaryEl) {
@@ -12648,9 +12710,18 @@
             const seatSkin = normalizeSkin((state.seat_skins || {})[seat] || null);
             const skin = clone.querySelector('.skin-avatar');
             if (skin) {
-                skin.className = `skin-avatar skin-eye-shape-${seatSkin.eyeShape}${skinIsDark(seatSkin.primaryColor) ? ' is-inverted' : ''}`;
+                const skinLayerClass = window.GTNPlayerSkins?.layerClass(seatSkin.skinId) || '';
+                skin.className = `skin-avatar skin-eye-shape-${seatSkin.eyeShape} skin-mouth-shape-${seatSkin.mouthShape}${skinIsDark(seatSkin.primaryColor) ? ' is-inverted' : ''}${skinLayerClass}`;
                 skin.style.setProperty('--skin-main', seatSkin.primaryColor);
                 skin.style.setProperty('--skin-border', skinBorderColor(seatSkin.primaryColor));
+                skin.style.setProperty('--skin-face-transform', `rotate(${Number(window.GTNPlayerSkins?.get(seatSkin.skinId)?.faceRotate) || 0}deg)`);
+                skin.querySelectorAll('.skin-texture-layer, .skin-decoration-layer, .skin-eye-art, .skin-mouth-art').forEach((layer) => layer.remove());
+                skin.insertAdjacentHTML('afterbegin', window.GTNPlayerSkins?.renderLayers(seatSkin.skinId, {
+                  mainColor: seatSkin.primaryColor,
+                  borderColor: skinBorderColor(seatSkin.primaryColor),
+                }) || '');
+                skin.querySelector('.skin-face')?.insertAdjacentHTML('afterbegin', window.GTNEyeStyles?.render(seatSkin.eyeShape) || '');
+                skin.querySelector('.skin-mouth')?.insertAdjacentHTML('beforebegin', window.GTNMouthStyles?.render(seatSkin.mouthShape) || '');
             }
             const portrait = clone.querySelector('.story-portrait');
             if (portrait) {
@@ -12836,7 +12907,6 @@
         if (deckButton) deckButton.disabled = !Array.isArray(player.deck) || actionInFlight || cardPlayInFlight;
         renderStoryBookSlots();
         if (settingsButton) settingsButton.disabled = actionInFlight || cardPlayInFlight;
-        updateStoryManualSaveControls(run);
         updateStorySurrenderControl(run);
         updateStorySettingsControls(run);
     }
@@ -15259,6 +15329,33 @@
         showView('story-reward');
     }
 
+    let storyClearSettlementInFlight = false;
+    async function maybeAutoStoryClearSettlement() {
+        const runId = String(activeRun?.id || '');
+        if (storyClearSettlementInFlight || !runId || !window.GtnStoryClearSettlement) return;
+        storyClearSettlementInFlight = true;
+        try {
+            const response = await fetch(`/api/story/runs/history/${encodeURIComponent(runId)}`, {
+                credentials: 'same-origin', cache: 'no-store',
+            });
+            const detail = await response.json().catch(() => ({}));
+            if (!response.ok || !detail.settlement || detail.settlement.animation_seen_at) return;
+            if (activeRun?.id !== runId) return;
+            const claimResponse = await fetch('/api/story/runs/clear-settlement/seen', {
+                method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ run_id: runId }),
+            });
+            const claim = await claimResponse.json().catch(() => ({}));
+            if (!claimResponse.ok || !claim.success || !claim.claimed) return;
+            await window.GtnStoryClearSettlement.show(detail, { force: true });
+        } catch (_) {
+            // 结算动画失败不阻断新旅程；历史页仍可手动重播。
+        } finally {
+            storyClearSettlementInFlight = false;
+        }
+    }
+
     function renderTerminal(state) {
         const complete = state.phase === 'complete';
         setText('story-terminal-mark', complete ? '✓' : '×');
@@ -15270,6 +15367,7 @@
             fr: 'Retour au choix du personnage', ja: 'キャラクター選択へ戻る',
         })[lang] || '返回角色选择');
         showView('story-terminal');
+        if (complete) void maybeAutoStoryClearSettlement();
     }
 
 
@@ -15491,14 +15589,17 @@
         storyMapPreviewOpen = false;
         updateStoryStatusBar();
         updateStorySurrenderControl(run);
-        if (window.__STORY_DEV_TOOLS__) {
+        if (window.__STORY_DEV_TOOLS__ && storyRunIsDeveloper(run)) {
             renderDeveloperPanel(run?.state || null, { syncValues: developerModeOpen });
         }
+        syncStoryDeveloperVisibility(run);
         if (!run) {
             selectedCombatCardId = '';
             renderStoryPersistentHud(null);
             destroyStoryCursorCard();
             $('story-aim-layer')?.classList.add('hidden');
+            const devStartCheckbox = $('story-dev-mode-start');
+            if (devStartCheckbox) devStartCheckbox.checked = false;
             renderStoryCharacterOptions();
             showView('story-empty');
             // 离开故事模式：重置曲目进度，下一局从零播起。
@@ -15534,7 +15635,6 @@
         ensureCoopDemoPolling();
         renderStoryPersistentHud(run);
         const hasFloorCheckpoint = Boolean(state.floor_entry_checkpoint?.state);
-        updateStoryManualSaveControls(run);
         $('story-restart-floor')?.classList.toggle('hidden', !hasFloorCheckpoint);
         if (state.phase === 'journey_setup') renderJourneySetup(state);
         else if (state.phase === 'easy_relic') renderEasyRelicChoice(state);
@@ -15588,7 +15688,11 @@
             }
             const payload = await requestJson(storyRunApiUrl(), {
                 method: 'POST',
-                body: JSON.stringify({ character_id: selectedStoryCharacterId }),
+                body: JSON.stringify({
+                    character_id: selectedStoryCharacterId,
+                    // 只有拥有开发权限的账号才会渲染这个勾选框；服务端仍会复核权限。
+                    dev_mode: Boolean($('story-dev-mode-start')?.checked),
+                }),
             });
             ingestStoryDiscoveryPayload(payload);
             renderRun(payload.run || null);
@@ -15933,7 +16037,7 @@
         if (button) button.disabled = true;
         try {
             $('story-restart-floor-dialog')?.close();
-            $('story-save-dialog')?.close();
+            $('story-settings-dialog')?.close();
             await storyAction('restart_floor', {});
             showToast(t.restartFloorSucceeded);
         } finally {
@@ -16573,44 +16677,15 @@
             $('story-history-filters')?.classList.remove('hidden');
             $('story-history-empty')?.classList.remove('hidden');
         });
+        $('story-history-settlement')?.addEventListener('click', () => {
+            if (activeStoryHistoryDetail && window.GtnStoryClearSettlement) {
+                void window.GtnStoryClearSettlement.show(activeStoryHistoryDetail, { force: true });
+            }
+        });
         $('story-history-filter-result')?.addEventListener('change', () => { loadStoryHistoryList(); });
         $('story-history-filter-character')?.addEventListener('change', () => { loadStoryHistoryList(); });
         $('story-version-old-restart')?.addEventListener('click', replaceLegacyRun);
-        if (window.__STORY_COOP_ACCESS__) {
-            $('story-coop-entry')?.addEventListener('click', openCooperativeStoryPreview);
-            $('story-coop-demo-entry')?.addEventListener('click', openCoopDemoLobby);
-            $('story-coop-preview-dialog')?.addEventListener('close', closeStoryCoopLobby);
-            $('story-coop-create')?.addEventListener('click', createStoryCoopParty);
-            $('story-coop-join')?.addEventListener('click', joinStoryCoopParty);
-            $('story-coop-rotate-invite')?.addEventListener('click', rotateStoryCoopInvite);
-            $('story-coop-copy-invite')?.addEventListener('click', copyStoryCoopInvite);
-            $('story-coop-start')?.addEventListener('click', startStoryCoopRun);
-            $('story-coop-character-select')?.addEventListener('change', (event) => {
-                selectedStoryCoopCharacterId = String(
-                    event.currentTarget?.value || 'common_flower'
-                );
-                renderStoryCoopCharacterSelect();
-            });
-            $('story-coop-leave')?.addEventListener('click', leaveStoryCoopParty);
-            $('story-coop-abandon')?.addEventListener('click', abandonStoryCoopRun);
-            $('story-coop-enter-combat')?.addEventListener('click', openStoryCoopCombat);
-            $('story-coop-combat-dialog')?.addEventListener('close', handleStoryCoopCombatClosed);
-            $('story-coop-combat-close')?.addEventListener('click', closeStoryCoopCombat);
-            $('story-coop-combat-refresh')?.addEventListener('click', () => {
-                loadStoryCoopCombat().catch(() => {});
-            });
-            $('story-coop-combat-play-selected')?.addEventListener('click', confirmStoryCoopCombatCard);
-            $('story-coop-combat-ready')?.addEventListener('click', readyStoryCoopCombatSeat);
-            $('story-coop-stage-ready')?.addEventListener('click', readyStoryCoopStage);
-            $('story-coop-rest-upgrade-confirm')?.addEventListener('click', confirmStoryCoopRestUpgrade);
-            $('story-coop-shop-leave')?.addEventListener('click', leaveStoryCoopShop);
-            $('story-coop-invite-input')?.addEventListener('input', updateStoryCoopControls);
-            $('story-coop-invite-input')?.addEventListener('keydown', (event) => {
-                if (event.key !== 'Enter' || event.isComposing) return;
-                event.preventDefault();
-                joinStoryCoopParty();
-            });
-        }
+        $('story-coop-demo-entry')?.addEventListener('click', openCoopDemoLobby);
         $('story-end-turn')?.addEventListener('click', () => storyAction('end_turn'));
         $('story-codex-open')?.addEventListener('click', openStoryCodex);
         $('story-codex-close')?.addEventListener('click', closeStoryCodex);
@@ -16835,7 +16910,6 @@
         $('story-reset-dialog')?.addEventListener('close', (event) => {
             if (event.target.returnValue === 'confirm') resetMap();
         });
-        $('story-hud-save')?.addEventListener('click', openManualStorySaves);
         $('story-settings-fullscreen')?.addEventListener('click', toggleStoryFullscreen);
         $('story-settings-dialog')?.addEventListener('click', (event) => {
             if (event.target === event.currentTarget) event.currentTarget.close('cancel');
@@ -16846,25 +16920,11 @@
             updateStorySettingsControls(activeRun);
         });
         document.addEventListener('fullscreenchange', () => updateStorySettingsControls(activeRun));
-        $('story-save-create')?.addEventListener('click', createManualStorySave);
         $('story-restart-floor')?.addEventListener('click', () => {
             $('story-restart-floor-dialog')?.showModal();
         });
         $('story-restart-floor-dialog')?.addEventListener('close', (event) => {
             if (event.target.returnValue === 'confirm') restartStoryFloor();
-        });
-        $('story-save-dialog')?.addEventListener('close', () => {
-            pendingStorySaveId = 0;
-        });
-        $('story-save-load-dialog')?.addEventListener('close', (event) => {
-            const saveId = pendingStorySaveId;
-            pendingStorySaveId = 0;
-            if (event.target.returnValue === 'confirm') loadManualStorySave(saveId);
-        });
-        $('story-save-delete-dialog')?.addEventListener('close', (event) => {
-            const saveId = pendingStorySaveId;
-            pendingStorySaveId = 0;
-            if (event.target.returnValue === 'confirm') deleteManualStorySave(saveId);
         });
         $('modal')?.addEventListener('click', (event) => {
             if (event.target !== event.currentTarget) return;

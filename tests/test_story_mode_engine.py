@@ -975,6 +975,8 @@ def test_visible_boss_node_freezes_and_runs_the_same_seeded_encounter():
     )
     encounter_counter = state['rng_streams']['encounter:boss']
     expected_ids = [spec['def_id'] for spec in boss_node['encounter_specs']]
+    # dev_* 动作现在只接受“以开发人员模式开始的旅程”。
+    state['dev_mode'] = True
     state, _ = apply_story_action(
         state,
         'dev_jump_node',
@@ -3732,3 +3734,20 @@ def test_story_favorite_applies_cost_reduction_and_hand_penalty():
         event.get('type') == 'card_cost_reduced' and event.get('source') == 'favorite'
         for event in events
     )
+
+def test_developer_actions_require_a_developer_run():
+    seed = 'dev-mode-guard'
+    state = build_initial_story_state(seed)
+    state, _ = apply_story_action(
+        state,
+        'start_journey',
+        {'biome': 'garden', 'difficulty': 'normal', 'mode': 'standard'},
+        seed,
+    )
+    with pytest.raises(StoryActionError) as error:
+        apply_story_action(state, 'dev_set_values', {'gold': 123}, seed)
+    assert error.value.code == 'DEV_TOOLS_DISABLED'
+
+    state['dev_mode'] = True
+    updated, _ = apply_story_action(state, 'dev_set_values', {'gold': 123}, seed)
+    assert updated['player']['gold'] == 123

@@ -2206,6 +2206,50 @@ a.title-shop-afdian-go:hover {
   font-size: 11px;
 }
 
+.dew-convert-card {
+  gap: 12px;
+}
+
+.dew-convert-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.dew-convert-row label {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.dew-convert-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dew-convert-controls input {
+  width: 132px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  background: var(--surface-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+@media (max-width: 520px) {
+  .dew-convert-row {
+    grid-template-columns: 1fr;
+  }
+
+  .dew-convert-controls input {
+    width: 100%;
+  }
+}
+
 .thorn-dew-progress-wrap {
   margin-top: 10px;
 }
@@ -5061,7 +5105,7 @@ a.title-shop-afdian-go:hover {
 }
 
 .rules-resource-term > span:last-child::before {
-  content: "（";
+  content: "）";
 }
 
 .rules-resource-term > span:last-child::after {
@@ -11278,7 +11322,7 @@ html.blind-level-4 .card-prediction-part.magic {
 .response-panel {
   display: none;
   position: fixed;
-  top: 50%;
+  top: 68%;
   left: 50%;
   transform: translate(-50%, -50%);
   flex-direction: column;
@@ -11292,6 +11336,8 @@ html.blind-level-4 .card-prediction-part.magic {
   z-index: 12020;
   min-width: 300px;
   max-width: 500px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 
 .response-panel.visible {
@@ -11304,6 +11350,7 @@ html.blind-level-4 .card-prediction-part.magic {
 }
 
 .mulligan-panel {
+  top: 50%;
   border-color: var(--primary);
   max-width: min(92vw, 680px);
 }
@@ -22708,6 +22755,174 @@ html[data-ui-style="minimal"] .card.card-skin-no-corner::before,
 .battle-classic .card.card-skin-no-corner::before {
   display: none; /* 非初始皮肤：右上角类型色 1/4 圆圈不显示 */
 }
+
+/* 赛季「塔之诅咒」五款卡面（game.js 加 card-mana-on-star）：卡面自带两个徽记——
+   左上角橙色六边形是能量位、左中蓝色辉星是魔力位。这五款皮肤下两个消耗球都
+   只留数字：外框与底色都去掉，数字各自落在自己徽记的正中间，颜色沿用资源色
+   （能量黄 var(--elixir)、魔力蓝 var(--magic)）。徽记本身就是"框"，不再叠圆圈。
+   只改 border-color / background，不删 border，宽度不变。
+   两个球都脱离 .card-costs 的 flex 流做绝对定位，卡名左右各补同等宽度，
+   名字居中位置与原来一致。
+   坐标由卡面图换算（皮肤图按 182.3% 卡宽居中渲染，卡宽:卡高 = 63:88）：
+   六边形中心 SVG(323.1,198) → 卡宽 10.8%、卡高 7.53%；
+   辉星中心 SVG(259.6,285.5) → 卡宽 0.59%、卡高 17.61%。 */
+.card.card-mana-on-star .card-costs .cost-e,
+.card.card-mana-on-star .card-costs .cost-m {
+  position: absolute;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  border-color: transparent;
+  background: transparent;
+  text-shadow: none;
+}
+
+.card.card-mana-on-star .card-costs .cost-e {
+  left: 10.8%;
+  top: 7.53%;
+  color: var(--elixir);
+}
+
+.card.card-mana-on-star .card-costs .cost-m {
+  left: 0.59%;
+  top: 17.61%;
+  color: var(--magic);
+}
+
+/* 魔力数字用"资源蓝"本身：皮肤墨色自适应会按辉星底色把数字改成深一档的蓝，
+   看上去发黑。这里压掉逐像素贴图、强制 var(--magic)，并且不加描边——
+   字号只有 ~9cqi，任何描边都会把笔画吃掉，反而更看不清。 */
+.card.card-mana-on-star .card-costs .cost-m,
+.card.card-mana-on-star .card-costs .cost-m .skin-ink {
+  color: var(--magic) !important;
+  text-shadow: none;
+}
+
+.card.card-mana-on-star .card-costs .cost-m .skin-ink {
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+}
+
+.card.card-mana-on-star .card-costs .card-name {
+  margin-left: var(--card-cost-size);
+  margin-right: var(--card-cost-size);
+  /* 卡名纯白（模板给了内联类型色，必须 !important）+ 深红描边，
+     描边用八向硬投影而不是 -webkit-text-stroke：后者会把字形内缩，
+     小字号（手牌 ~8px）下笔画会被啃细。八向偏移用 em，随字号缩放。 */
+  color: #fff !important;
+  /* 卡名略缩一号（按各语言 --card-name-font-scale 的 90%），
+     描边用 em 会跟着等比变细 */
+  font-size: calc(var(--card-name-font-scale) * 0.9);
+  text-shadow:
+    0.075em 0 0 #8f2a16, -0.075em 0 0 #8f2a16,
+    0 0.075em 0 #8f2a16, 0 -0.075em 0 #8f2a16,
+    0.055em 0.055em 0 #8f2a16, -0.055em 0.055em 0 #8f2a16,
+    0.055em -0.055em 0 #8f2a16, -0.055em -0.055em 0 #8f2a16;
+  /* 卡面黄条占卡高 3.03%~10.33%，字身原本 4.41%~11.29%、底部垂到黄条外；
+     上移 1.6cqi（≈卡高 1.15%）后字身落在 3.26%~10.14%，整行都在黄条内。 */
+  transform: translateY(-1.6cqi);
+}
+
+/* 这五款卡面不显示卡名的英文翻译行（.card-english-name）；卡名与类型标签保留。
+   用 visibility 而不是 display：这一行占的高度正好是卡面黄框内绘图窗的上沿，
+   抽掉会让卡图整体上移、压到黄边，所以只隐藏文字、保留占位。 */
+.card.card-mana-on-star .card-english-name {
+  visibility: hidden;
+}
+
+/* 类型标签（.card-type-label）挪到卡面底部中央的金色小标签里，
+   对应卡面 SVG 的 rect(488, 535.2, 157.9 × 61.4)：
+   中心 (50%, 49.88%)、宽 25.39% 卡宽、高 7.07% 卡高。
+   用绝对定位而不是 translateY 平移：no-english 卡片里
+   `.card-art{margin-bottom:-1.15cqi}` + `.card-type-label-wrap{margin-top:-0.9cqi}`
+   会让标签在流内高 2cqi 左右，平移量就不对了；直接钉到卡面坐标上，
+   两种卡片都落在同一个位置。
+   wrap 保留原占位高度（9.67cqi = 6.5cqi 字号 × 行高 + 上下各 0.5cqi 内距），
+   否则 .card-effect 会整体上移、描述重新压到金色小标签上。 */
+.card.card-mana-on-star .card-type-label-wrap {
+  position: static;
+  height: 9.67cqi;
+  padding: 0;
+}
+
+.card.card-mana-on-star .card-type-label {
+  position: absolute;
+  left: 50%;
+  top: 49.88%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  opacity: 1;
+  /* 金色小标签高 7.07% 卡高（≈9.9cqi），字号 6.2cqi 后字形约占标签高六成，
+     与参考卡面里「类型名嵌在小方块中间」的比例一致；比原来的 6.5cqi 略小，
+     既不会顶到标签边，手牌尺寸下也还认得出。 */
+  font-size: 6.2cqi;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 24cqi;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* 模板给类型色（--thorn/--bloom/--root/--guard）是亮色，压在 #eace2f 的金色上
+     几乎看不见，改用深棕；inline 的类型色必须 !important 才盖得住。 */
+  color: #4a2b06 !important;
+  text-shadow: none;
+  pointer-events: none;
+}
+
+/* 卡图（.card-art）对到卡面的绘图窗口上，插画因此放大一倍：
+   黄框内开口 SVG x=307.7~826.2、y=217.2~551.3，换算到卡面
+   （皮肤图按 182.3% 卡宽居中、卡宽:卡高 = 63:88，y 轴比例 130.52）：
+   左 8.32%、宽 83.37%、上 9.72%、高 38.46%。
+   原来的卡图盒只有 25cqi 高（≈卡高 17.9%），object-fit: contain 的方图被
+   高度卡住，看着比窗口小一大截；盒子撑满窗口后图片高度变成原来的 2.15 倍。
+   卡图脱离流会让下面的元素整体上移，所以用相邻兄弟选择器只在「有卡图」时
+   给 .card-type-label-wrap 补 25.1cqi（原卡图占的 25cqi 高 + 0.1cqi 外边距），
+   描述和类型标签的位置都不动。 */
+.card.card-mana-on-star .card-art {
+  position: absolute;
+  left: 8.32%;
+  top: 9.72%;
+  width: 83.37%;
+  height: 38.46%;
+  margin: 0;
+  border-radius: 0;
+  z-index: 1;
+}
+
+.card.card-mana-on-star .card-art ~ .card-type-label-wrap {
+  margin-top: 25.1cqi;
+}
+
+/* 这五款卡面自带黄色内框与粗红边框：黄框内沿底边 SVG y=551.3（卡高约 48.2%），
+   红边左右各占约 6.2%/7.3% 卡宽。描述文字默认上内距会压在黄线上、左右内距又不够，
+   首字会压进左边红边。这里在原有内距上补：上 +8cqi、左右各 +4.5cqi（合 7cqi，
+   越过红边）。用 calc 叠加原变量，卡片自己的内距缩放仍然生效。
+   上内距为什么是 8cqi：卡面底部中央还挂着一个金色小标签（SVG rect 535.2 + 61.4
+   = 596.6，卡高约 53.4%），它比黄框内沿再往下探一截，所以只避开黄线不够。
+   实测（300px 宽、卡高 419 的卡）：
+     +4cqi → 文字盒顶 50.9%、字形上沿 52.3%，字形其实还压在标签上；
+     +6cqi → 盒顶 52.4%、字形上沿 53.7%，只是刚好贴住标签下沿；
+     +8cqi → 盒顶 53.8%、字形上沿 55.2%，落在标签下方约 1.8% 卡高。 */
+.card.card-mana-on-star .card-effect {
+  padding-top: calc(var(--card-effect-padding-y) + 8cqi);
+  padding-left: calc(var(--card-effect-padding-x) + 4.5cqi);
+  padding-right: calc(var(--card-effect-padding-x) + 4.5cqi);
+  color: #fff;
+}
+
+/* 描述文字要纯白：皮肤墨色自适应会给描述文字挂逐像素贴图（inline 的
+   color:transparent + background-clip:text），只改 color 看不见。
+   这里直接压掉贴图并强制白字——本皮肤卡面是纯色底，不需要自适应墨色。 */
+.card.card-mana-on-star .card-effect .skin-ink {
+  background-image: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  color: #fff !important;
+}
 /* 经典 UI 他人出牌动画：中央明牌展示（打出的卡先显示在中间） */
 .classic-center-stage {
     position: fixed;
@@ -23098,4 +23313,43 @@ body.mulligan-open #modal {
   cursor: pointer;
   font-size: 16px;
   padding: 0 4px;
+}
+
+.mode-tab.is-disabled,
+.mode-tab.is-disabled:hover {
+  opacity: .45;
+  cursor: not-allowed;
+  filter: grayscale(.75);
+  background: var(--bg-card, #e5e7eb);
+  color: var(--text-secondary, #6b7280);
+}
+.ranked-availability {
+  margin: 5px 0 2px;
+  color: var(--magic, #8a5b24);
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.ranked-availability.is-closed {
+  color: var(--text-secondary, #6b7280);
+}
+.changelog-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.changelog-pin {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: #fff;
+  background: var(--magic, #8a5b24);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+.changelog-announcement-title {
+  margin: 8px 0 4px;
+  font-size: 16px;
+  line-height: 1.4;
 }

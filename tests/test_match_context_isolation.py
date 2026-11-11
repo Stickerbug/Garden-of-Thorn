@@ -104,11 +104,16 @@ class MatchContextServerTests(unittest.TestCase):
             gtn.socketio.sleep(0.02)
 
         end_turn.assert_not_called()
-        rejected = [
-            event['args'][0]
-            for event in self.clients[0].get_received()
-            if event['name'] == 'action_rejected'
-        ]
+        rejected = []
+        for _ in range(50):
+            rejected.extend(
+                event['args'][0]
+                for event in self.clients[0].get_received()
+                if event['name'] == 'action_rejected'
+            )
+            if any(item.get('code') == 'STATE_VERSION_OLD' for item in rejected):
+                break
+            gtn.socketio.sleep(0.01)
         self.assertTrue(any(item.get('code') == 'STATE_VERSION_OLD' for item in rejected))
 
     def test_old_room_broadcast_skips_sid_that_moved_to_new_room(self):
@@ -136,6 +141,38 @@ class MatchContextServerTests(unittest.TestCase):
                 for sid in self.sids:
                     if sid in gtn.players:
                         gtn.players[sid]['room_id'] = self.room_id
+
+    def test_broadcast_builds_room_shared_payloads_once_per_batch(self):
+        with (
+            mock.patch.object(gtn.socketio, 'emit') as socket_emit,
+            mock.patch.object(gtn, 'check_live_achievements'),
+            mock.patch.object(gtn, 'emit_pending_choice_request'),
+            mock.patch.object(gtn, 'broadcast_spectate_state'),
+            mock.patch.object(gtn, 'record_socket_broadcast'),
+            mock.patch.object(gtn, 'room_spectator_count', return_value=0) as spectator_count,
+            mock.patch.object(gtn, 'room_spectator_players', return_value=[]) as spectator_players,
+            mock.patch.object(gtn, 'instance_payload', return_value={'instance': 'test'}) as instance,
+            mock.patch.object(gtn, '_room_timer_payload', return_value={'turn_timer_remaining': 10}) as timer,
+            mock.patch.object(gtn, 'room_mod_payload', return_value={'mods_hash': 'test'}) as mod_payload,
+            mock.patch.object(gtn, 'player_card_skin_for_sid', wraps=gtn.player_card_skin_for_sid) as card_skins,
+            mock.patch.object(gtn, 'room_player_profile', wraps=gtn.room_player_profile) as profiles,
+        ):
+            gtn._broadcast_game_state_now(self.room)
+
+        state_emits = [
+            call for call in socket_emit.call_args_list
+            if call.args and call.args[0] == 'state_update'
+        ]
+        self.assertEqual(len(state_emits), 2)
+        self.assertEqual(card_skins.call_count, 2)
+        self.assertEqual(profiles.call_count, 10)
+        for shared_builder in (spectator_count, spectator_players, instance, timer, mod_payload):
+            self.assertEqual(shared_builder.call_count, 1)
+        for call in state_emits:
+            state = call.args[1]
+            self.assertEqual(state['instance'], 'test')
+            self.assertEqual(state['turn_timer_remaining'], 10)
+            self.assertEqual(state['mods_hash'], 'test')
 
     def test_old_room_cleanup_does_not_clear_new_room_membership(self):
         new_room_id = self.room_id + 1

@@ -196,13 +196,19 @@
     settleAndExit,
     recordResult: async (game, score, bestTier) => {
       try {
-        await fetch('/api/leisure/ticket/result', {
+        const response = await fetch('/api/leisure/ticket/result', {
           method: 'POST',
           credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ game, score, best_tier: bestTier }),
         });
+        const data = await response.json().catch(() => ({}));
+        const hasRewards = data && data.success && (Array.isArray(data.granted) ? data.granted : [])
+          .some(item => item && Number(item.amount) > 0);
+        if (hasRewards && window.GtnRewardAnimation) window.GtnRewardAnimation.refresh();
+        return data;
       } catch (err) { /* 分数已在正常链路落库，这里只影响奖励 */ }
+      return null;
     },
   };
 })();

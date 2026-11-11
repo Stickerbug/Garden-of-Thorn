@@ -2295,32 +2295,33 @@ class GameEngine(reality_events.RealityEngineMixin):
             ))
 
     def _resolve_reality_draw_choice(self, player_id: int, pending: dict, choice: dict) -> dict:
-        import random as _random
         from cards import CARD_DEFS
         ps = self.players[player_id]
         cards_list = pending.get('cards') or []
         cancelled = choice is None or (isinstance(choice, dict) and bool(choice.get('cancelled')))
         if cancelled:
-            # 取消=放弃本次三选一（不抽牌）。
+            # 取消=放弃本次三选一（不抽牌），但仍须完成能量回复等回合开始结算。
             self.pending_choice = None
-            self._continue_turn_start_auto_settlement(player_id)
+            self._resume_turn_start_after_reality_draw(player_id)
             return {'success': True, 'cancelled': True}
         seq = str(choice.get('reality_seq') or (pending.get('cards') or [{}])[0].get('instance_id', ''))
-        # 刷新：消耗一次重抽机会，重掷当前窗口选项。
+        # 刷新：消耗一次重抽机会，重掷当前窗口选项，剩余选牌次数保持不变。
         if isinstance(choice, dict) and choice.get('reroll'):
             charges = max(0, int(ps.custom_vars.get('reality_redraw_charges', 0) or 0))
             if charges <= 0:
                 return {'success': False, 'error': '没有重抽机会'}
             ps.custom_vars['reality_redraw_charges'] = charges - 1
-            fresh = self.reality_turn_start_draw_choices(player_id, len(cards_list))
+            remaining = max(1, int(pending.get('remaining') or len(cards_list) or 1))
+            fresh = self.reality_turn_start_draw_choices(player_id, remaining)
             if fresh:
                 fresh['operation_id'] = pending.get('operation_id')
                 fresh['player_id'] = player_id
                 self.pending_choice = fresh
                 return {'success': True, 'needs_choice': True, 'choice_type': 'reality_draw'}
-            return {'success': True }
+            return {'success': True}
         def_id = str(choice.get('def_id') or '')
-        if def_id not in CARD_DEFS:
+        options = list((pending.get('choice_params') or {}).get('options') or [])
+        if def_id not in CARD_DEFS or def_id not in options:
             return {'success': False, 'error': '无效选择'}
         self.pending_choice = None
         # 修复2026-10-25：一次结算只发所选的一张牌（原实现循环按窗口数连发）。
@@ -2335,8 +2336,18 @@ class GameEngine(reality_events.RealityEngineMixin):
                 self.pending_choice = nxt
                 return {'success': True, 'needs_choice': True, 'choice_type': 'reality_draw'}
         self.log_msg(f"{self.pn(player_id)}完成了操纵现实三选一")
-        self._continue_turn_start_auto_settlement(player_id)
+        self._resume_turn_start_after_reality_draw(player_id)
         return {'success': True}
+
+    def _resume_turn_start_after_reality_draw(self, player_id: int):
+        """发现选牌结束后，从抽牌后续节点继续，不能跳过回复和回合开始效果。"""
+        self._run_timed_effects_for_turn(player_id, 'after_turn_start_draw')
+        self._run_target_turn_start_after_draw_equipment(player_id)
+        if self.game_over or getattr(self, 'pending_v2_ui', None) or self.pending_choice is not None:
+            self._defer_turn_start_death_checks = False
+            return
+        # 与预知换牌共用回合开始后段；发现已经替代抽牌，不能再次消耗抽牌减免。
+        self._resume_turn_start_after_foresight(player_id, {'draw_count': 0}, skip_draw=True)
 
     def _apply_forced_target_choice(self, player_id: int, card: Optional[CardInstance], choice):
         target_id = self._forced_target_for_card(player_id, card)
@@ -4973,6 +4984,8 @@ class GameEngine(reality_events.RealityEngineMixin):
             return
         if not card or card.def_id == ERROR_CARD_ID:
             return
+        if getattr(self, '_ordered_all_exile', False):
+            card.instance_flags.add('exile')
         ps = self.players[player_id]
         if getattr(self, 'v2_event_hooks', None):
             # Round 63 / 批次 BA：``on_card_enter_hand``——牌真正进入某人的手牌时触发一次
@@ -5747,6 +5760,9 @@ class GameEngine(reality_events.RealityEngineMixin):
             ps = self.players[i]
             ps.is_first_player = (i == self.first_player)
             ps.deck = create_deck_from_draft(self.draft_picks[i], self.allowed_card_ids)
+            if getattr(self, '_ordered_all_exile', False):
+                for ordered_card in ps.deck:
+                    ordered_card.instance_flags.add('exile')
             if self.reality_active(12):
                 for def_id in (getattr(self, '_reality_draft_copies', [[], []])[i] or []):
                     ps.deck.append(CardInstance(str(def_id)))
@@ -6191,11 +6207,15 @@ class GameEngine(reality_events.RealityEngineMixin):
         return isinstance(event_id, int) or (isinstance(event_id, str) and event_id.isdigit())
 
     def _apply_builtin_opening_events_before_initial_draw(self):
+        if getattr(self, '_ordered_skip_opening_events', False):
+            return
         for i in range(len(self.players)):
             if self._is_builtin_opening_event(self.opening_event_picks[i]):
                 self._apply_opening_event(i)
 
     def _apply_deferred_opening_events_after_initial_draw(self):
+        if getattr(self, '_ordered_skip_opening_events', False):
+            return
         for i in range(len(self.players)):
             if not self._is_builtin_opening_event(self.opening_event_picks[i]):
                 self._apply_opening_event(i)
@@ -8985,9 +9005,19 @@ class GameEngine(reality_events.RealityEngineMixin):
             if isinstance(owned, CardInstance):
                 yield owned
 
-    def _player_owns_card_def(self, player_id: int, def_id: str, *, excluding_instance_id: Optional[int] = None) -> bool:
+    def _player_owns_card_def(
+        self,
+        player_id: int,
+        def_id: str,
+        *,
+        excluding_instance_id: Optional[int] = None,
+        excluding_card: Optional[CardInstance] = None,
+    ) -> bool:
         for owned in self._iter_player_owned_cards(player_id) or ():
-            if excluding_instance_id is not None and int(getattr(owned, 'instance_id', -1)) == int(excluding_instance_id):
+            if excluding_card is not None:
+                if owned is excluding_card:
+                    continue
+            elif excluding_instance_id is not None and int(getattr(owned, 'instance_id', -1)) == int(excluding_instance_id):
                 continue
             if getattr(owned, 'def_id', None) == def_id:
                 return True
@@ -8999,7 +9029,7 @@ class GameEngine(reality_events.RealityEngineMixin):
         return not self._player_owns_card_def(
             player_id,
             card.def_id,
-            excluding_instance_id=getattr(card, 'instance_id', None),
+            excluding_card=card,
         )
 
     def _forced_unique_copy_needs_penalty(
@@ -9016,16 +9046,24 @@ class GameEngine(reality_events.RealityEngineMixin):
             or self._player_owns_card_def(
                 player_id,
                 copied_card.def_id,
-                excluding_instance_id=getattr(copied_card, 'instance_id', None),
+                excluding_card=copied_card,
             )
         )
 
-    def _exile_unique_duplicate_grant_void(self, player_id: int, card: CardInstance, message: Optional[str] = None) -> bool:
+    def _exile_unique_duplicate_grant_void(
+        self,
+        player_id: int,
+        card: CardInstance,
+        message: Optional[str] = None,
+        *,
+        remove_owned: bool = True,
+    ) -> bool:
         """2026-10-19 设计：获得唯一牌时若已拥有同名牌——新获得的副本放逐，
         一张虚空加入手中（取代旧规则"保留副本+虚空进牌组/直接没收"）。"""
         if not (0 <= player_id < len(self.players)) or card is None:
             return False
-        self._remove_owned_card_instance(player_id, card)
+        if remove_owned:
+            self._remove_owned_card_instance(player_id, card)
         self._put_card_in_exile(player_id, card, trigger=False)
         from engine_runtime_support import VOID_CARD_ID
         void_def_id = self._void_resolve_card_def_id(VOID_CARD_ID)
@@ -9085,34 +9123,76 @@ class GameEngine(reality_events.RealityEngineMixin):
         if not (0 <= player_id < len(self.players)):
             return False
         ps = self.players[player_id]
+        # 快照复制可能沿用 instance_id。目标对象仍在区域内时必须先按身份移除，
+        # 否则会把同编号的原始卡删掉、把真正的重复副本留下来。
         for zone in (ps.hand, ps.deck, ps.discard, ps.exile):
             for index, owned in enumerate(list(zone or [])):
-                if owned is card or getattr(owned, 'instance_id', None) == getattr(card, 'instance_id', None):
+                if owned is card:
                     del zone[index]
                     return True
+        for index, equipment in enumerate(list(ps.equipment or [])):
+            if getattr(equipment, 'card_instance', None) is card:
+                self._cleanup_equipment_derived_effects(player_id, equipment, run_destroy_event=False)
+                del ps.equipment[index]
+                self._refresh_equipment_derived_player_flags(player_id)
+                self._refresh_hand_limit_bonuses()
+                return True
+        # 选择窗口等流程可能只持有反序列化后的引用，此时再按实例编号定位。
+        for zone in (ps.hand, ps.deck, ps.discard, ps.exile):
+            for index, owned in enumerate(list(zone or [])):
+                if getattr(owned, 'instance_id', None) == getattr(card, 'instance_id', None):
+                    del zone[index]
+                    return True
+        for index, equipment in enumerate(list(ps.equipment or [])):
+            owned = getattr(equipment, 'card_instance', None)
+            if owned is not None and getattr(owned, 'instance_id', None) == getattr(card, 'instance_id', None):
+                self._cleanup_equipment_derived_effects(player_id, equipment, run_destroy_event=False)
+                del ps.equipment[index]
+                self._refresh_equipment_derived_player_flags(player_id)
+                self._refresh_hand_limit_bonuses()
+                return True
         return False
 
     def _enforce_unique_cards_for_player(self, player_id: int, preferred_card: Optional[CardInstance] = None):
-        """Reject a newly generated duplicate; never delete already-owned copies.
+        """同名唯一牌在可用区域最多保留一张，多余副本放逐并补偿虚空。
 
-        Drafting prevents normal duplicate acquisition before it happens. Forced
-        copy effects bypass this helper and use `_add_forced_copy_to_hand`, which
-        keeps every copy and adds the Void penalty instead.
+        放逐区是重复副本的处理终点，不参与全局扫描，避免每次结算都重复补偿。
         """
         if not (0 <= player_id < len(self.players)):
             return False
-        if preferred_card is None or 'unique' not in self._effective_card_flags(preferred_card):
+        if preferred_card is None:
+            ps = self.players[player_id]
+            active_cards = [
+                owned
+                for zone in (ps.hand, ps.deck, ps.discard)
+                for owned in list(zone or [])
+                if isinstance(owned, CardInstance)
+            ]
+            active_cards.extend(
+                equipment.card_instance
+                for equipment in list(ps.equipment or [])
+                if isinstance(getattr(equipment, 'card_instance', None), CardInstance)
+            )
+            seen_def_ids = set()
+            for owned in active_cards:
+                if 'unique' not in self._effective_card_flags(owned):
+                    continue
+                if owned.def_id in seen_def_ids:
+                    self._enforce_unique_cards_for_player(player_id, preferred_card=owned)
+                else:
+                    seen_def_ids.add(owned.def_id)
+            return True
+        if 'unique' not in self._effective_card_flags(preferred_card):
             return True
         if not self._player_owns_card_def(
             player_id,
             preferred_card.def_id,
-            excluding_instance_id=getattr(preferred_card, 'instance_id', None),
+            excluding_card=preferred_card,
         ):
             return True
-        # 2026-10-19 设计：重复生成的唯一牌放逐 + 虚空加入手中（不再直接没收）。
         removed = self._remove_owned_card_instance(player_id, preferred_card)
         if removed:
-            self._exile_unique_duplicate_grant_void(player_id, preferred_card)
+            self._exile_unique_duplicate_grant_void(player_id, preferred_card, remove_owned=False)
         return not removed
 
     def _enforce_unique_cards_for_all(self):
@@ -14842,7 +14922,7 @@ class GameEngine(reality_events.RealityEngineMixin):
             return False
         self._cleanup_equipment_derived_effects(owner_id, eq, run_destroy_event=True)
         ps.equipment.remove(eq)
-        if 'exile' in eq.card_instance.flags:
+        if 'exile' in self._effective_card_flags(eq.card_instance):
             self._put_card_in_exile(owner_id, eq.card_instance)
         else:
             self._discard_card(ps, eq.card_instance)
@@ -15920,6 +16000,8 @@ class GameEngine(reality_events.RealityEngineMixin):
     def _remember_created_card(self, card_obj, context=None):
         if card_obj is None:
             return
+        if getattr(self, '_ordered_all_exile', False):
+            card_obj.instance_flags.add('exile')
         self._last_created_card_instance_id = getattr(card_obj, 'instance_id', None)
         if isinstance(context, dict):
             context['last_created_card_instance_id'] = self._last_created_card_instance_id
@@ -18244,6 +18326,8 @@ class GameEngine(reality_events.RealityEngineMixin):
         if 'desert_citron_stealth_play' in setup_modifiers:
             flags.add('stealth')
         flags.difference_update(normalize_card_flags(getattr(target_card, 'disabled_flags', set()) or set()))
+        if getattr(self, '_ordered_all_exile', False):
+            flags.add('exile')
         return flags
 
     @staticmethod
@@ -19465,6 +19549,7 @@ class GameEngine(reality_events.RealityEngineMixin):
                     pending['operation_id'] = f'reality-draw:{player_id}:{self.round_num}'
                     pending['player_id'] = player_id
                     self.pending_choice = pending
+                    self._pending_turn_start_early_owner_equipment = set(early_owner_turn_start_equipment)
                     return
             if self._queue_foresight_replace_choice(player_id, draw_count, 'turn_start_after_foresight'):
                 self._pending_turn_start_early_owner_equipment = set(early_owner_turn_start_equipment)
@@ -19626,7 +19711,9 @@ class GameEngine(reality_events.RealityEngineMixin):
         }
         return True
 
-    def _resume_turn_start_after_foresight(self, player_id: int, foresight_result: Optional[dict] = None):
+    def _resume_turn_start_after_foresight(
+        self, player_id: int, foresight_result: Optional[dict] = None, skip_draw: bool = False,
+    ):
         ps = self.players[player_id]
         opp_id = 1 - player_id
         opp = self.players[opp_id]
@@ -19648,7 +19735,7 @@ class GameEngine(reality_events.RealityEngineMixin):
             self._defer_turn_start_death_checks = False
             return
         self._trigger_v2_status_events_for_player(player_id, 'on_turn_start_before_status_damage', {'player_id': player_id})
-        if self.round_num > 1:
+        if self.round_num > 1 and not skip_draw:
             from formal_logic_runtime import consume_draw_reduction
             draw_count = max(
                 0,
@@ -20324,14 +20411,19 @@ class GameEngine(reality_events.RealityEngineMixin):
                 delattr(card, '_placed_as_equipment')
             if hasattr(card, '_placed_as_equipment_owner'):
                 delattr(card, '_placed_as_equipment_owner')
-        elif blood_knife_return:
-            ps.add_to_hand(card)
-            self.log_msg(f"{self.pn(player_id)}的{card.name_cn}因实际回复能量回到手中")
         elif force_exile_after_auto_play:
             card.instance_flags.discard('return_to_hand')
             owner_id, zone_name, _ = self._find_card_location(card)
             if owner_id is None or zone_name is None:
                 self._put_card_in_exile(ps.player_id, card)
+        elif 'exile' in card.flags or getattr(self, '_ordered_all_exile', False):
+            # 放逐优先于血刃回手、通用回手与回转，不能从放逐堆返回。
+            owner_id, zone_name, _ = self._find_card_location(card)
+            if owner_id is None or zone_name is None:
+                self._put_card_in_exile(ps.player_id, card)
+        elif blood_knife_return:
+            ps.add_to_hand(card)
+            self.log_msg(f"{self.pn(player_id)}的{card.name_cn}因实际回复能量回到手中")
         elif 'return_to_hand' in card.instance_flags:
             card.instance_flags.discard('return_to_hand')
             ps.add_to_hand(card)
@@ -20351,11 +20443,6 @@ class GameEngine(reality_events.RealityEngineMixin):
                 ))
             else:
                 self.log_msg(f"{self.pn(player_id)}的{card.name_cn}立即回到手中")
-        elif 'exile' in card.flags:
-            # 反馈 #100：放逐优先于回转；两者同时存在时进入放逐区。
-            owner_id, zone_name, _ = self._find_card_location(card)
-            if owner_id is None or zone_name is None:
-                self._put_card_in_exile(ps.player_id, card)
         elif 'rebound' in card.flags:
             ps.add_to_hand(card)
             self.log_msg(f"{self.pn(player_id)}的{card.name_cn}因回转回到手中")

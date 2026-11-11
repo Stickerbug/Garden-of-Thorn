@@ -1,4 +1,5 @@
 import inspect
+import json
 import re
 import time
 from pathlib import Path
@@ -188,9 +189,14 @@ def test_security_critical_runtime_dependencies_are_pinned():
 def test_security_headers_and_cookie_defaults():
     gtn.app.config.update(TESTING=True)
     response = gtn.app.test_client().get('/api/healthz')
-    assert response.headers['X-Content-Type-Options'] == 'nosniff'
-    assert response.headers['X-Frame-Options'] == 'SAMEORIGIN'
-    assert response.headers['Referrer-Policy'] == 'same-origin'
+    expected_headers = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+    }
+    for name, value in expected_headers.items():
+        assert response.headers.getlist(name) == [value]
+    assert response.headers['Content-Encoding'] == 'identity'
     csp = response.headers['Content-Security-Policy']
     assert "default-src 'self'" in csp
     assert "object-src 'none'" in csp
@@ -200,6 +206,11 @@ def test_security_headers_and_cookie_defaults():
     assert "'unsafe-inline'" not in script_policy
     assert "'nonce-" in script_policy
     assert "script-src-attr 'none'" in csp
+    style_elements = next(part.strip() for part in csp.split(';') if part.strip().startswith('style-src-elem '))
+    assert "'unsafe-inline'" not in style_elements
+    assert "'nonce-" in style_elements
+    # 动态样式属性是独立例外；脚本和 style 元素均不接受 unsafe-inline。
+    assert "style-src-attr 'unsafe-inline'" in csp
     assert gtn.app.config['SESSION_COOKIE_HTTPONLY'] is True
     assert gtn.app.config['SESSION_COOKIE_SECURE'] is True
 
@@ -218,6 +229,8 @@ def test_inline_scripts_use_the_response_nonce_and_inline_handlers_are_absent():
         source = template.read_text(encoding='utf-8')
         inline_tags = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>', source, flags=re.I)
         assert all('nonce="{{ csp_nonce }}"' in tag for tag in inline_tags), template.name
+        inline_styles = re.findall(r'<style[^>]*>', source, flags=re.I)
+        assert all('nonce="{{ csp_nonce }}"' in tag for tag in inline_styles), template.name
         assert not re.search(r'\son[a-z]+\s*=', source, flags=re.I), template.name
 
     game_source = (root / 'static/js/game.js').read_text(encoding='utf-8')
@@ -466,7 +479,7 @@ def test_feedback_handling_mutations_require_page_csrf_token():
             json={'resolved': True},
             base_url='https://localhost',
         )
-        page = client.get('/feedback/handling-pane', base_url='https://localhost')
+        page = client.get('/feedback/handling-pane', base_url='https://localhost', follow_redirects=True)
     assert rejected.status_code == 403
     assert b'gtn-feedback-handling-csrf' in page.data
     assert b'handling-test-token' in page.data
@@ -476,3 +489,104 @@ def test_soft_delete_verifies_current_password_before_mutation():
     source = inspect.getsource(db.soft_delete_user)
     assert 'check_password_hash' in source
     assert source.index('check_password_hash') < source.index('UPDATE users')
+
+
+def test_dynamic_responses_are_identity_and_static_assets_remain_compressible():
+    gtn.app.config.update(TESTING=True)
+    client = gtn.app.test_client()
+    dynamic = client.get('/api/version')
+    assert dynamic.headers['Content-Encoding'] == 'identity'
+    static = client.get('/static/js/dew-hud.js')
+    assert static.status_code == 200
+    assert 'Content-Encoding' not in static.headers
+
+
+def test_nginx_deduplicates_security_headers_and_disables_dynamic_gzip():
+    root = Path(__file__).resolve().parents[1]
+    nginx = (root / 'scripts' / 'nginx-blue-green-gtn.conf.template').read_text(encoding='utf-8')
+    assert 'gzip off;' in nginx
+    for name in ('X-Content-Type-Options', 'X-Frame-Options', 'Referrer-Policy'):
+        assert f'proxy_hide_header {name};' in nginx
+    assert 'add_header Referrer-Policy "strict-origin-when-cross-origin" always;' in nginx
+    assert 'add_header Referrer-Policy "same-origin" always;' not in nginx
+
+
+def test_public_build_version_is_short_and_hides_internal_markers(tmp_path, monkeypatch):
+    secret_marker = 'internal-feature-fix-implementation-details'
+    version_file = tmp_path / 'static_version.txt'
+    version_file.write_text(f'-{secret_marker}', encoding='utf-8')
+    monkeypatch.setattr(gtn, '_GTN_STATIC_VERSION_FILE', str(version_file))
+    monkeypatch.setattr(gtn, '_GTN_STATIC_VERSION_BOOT', 'gtn-test')
+    monkeypatch.setattr(gtn, '_gtn_static_version_file_state', {'live': '', 'mtime': None})
+    monkeypatch.setattr(gtn, 'GTN_STATIC_VERSION', 'gtn-test')
+    gtn._refresh_static_version_from_file()
+    public_version = gtn.GTN_STATIC_VERSION
+    assert public_version.startswith('gtn-test-b')
+    assert re.search(r'-b[0-9a-f]{20}$', public_version)
+    assert len(public_version) <= 64
+    assert secret_marker not in public_version
+
+    gtn.app.config.update(TESTING=True)
+    payload = gtn.app.test_client().get('/api/version').get_json()
+    assert payload['success'] is True
+    assert payload['version'] == public_version
+    assert secret_marker not in json.dumps(payload)
+
+
+def test_auth_payload_omits_internal_moderation_history_and_credentials():
+    internal = {
+        'id': 41,
+        'username': 'Player',
+        'player_id': 'P0000041',
+        'created_at': '2026-01-01',
+        'last_login_at': '2026-11-01',
+        'false_report_count': 3,
+        'banned': True,
+        'ban_reason': 'internal-review',
+        'banned_at': '2026-11-01',
+        'ban_until': '2026-11-02',
+        'deleted_at': None,
+        'deleted': False,
+        'password_hash': 'must-not-leak',
+        'password_changed_at': '2026-11-01',
+        'season_gr': 1234,
+        'total_gr': 2345,
+        'highest_gr': 3456,
+        'gr_season_id': 'S1',
+        'gr_history': [{'season_gr': 1234}],
+        'team_reports': [{'reason': 'private-report'}],
+        'online_seconds': 100,
+        'online_session_started_at': '2026-11-01',
+        'online_seconds_total': 200,
+        'thorn_dew_total': 100,
+        'rank': {'tier': 'common'},
+        'skin': {'skin_id': 'classic'},
+        'keybindings': {'end_turn': 'Space'},
+    }
+    with (
+        mock.patch.object(gtn, 'DB_AVAILABLE', True),
+        mock.patch.object(gtn.account_integrity, 'recover_reputation_daily'),
+        mock.patch.object(gtn.account_integrity, 'get_reputation_profile', return_value={'value': 85}),
+        mock.patch.object(gtn.account_integrity, 'list_team_reports') as reports,
+        mock.patch.object(gtn, 'list_user_gr_snapshots') as gr_history,
+        mock.patch.object(gtn, 'get_special_account_profile', return_value=None),
+        mock.patch.object(gtn, 'get_active_user_warnings', return_value=[]),
+    ):
+        payload = gtn.auth_user_payload(internal)
+    for field in (
+        'created_at', 'last_login_at', 'false_report_count', 'banned', 'ban_reason',
+        'banned_at', 'ban_until', 'deleted_at', 'deleted', 'password_hash', 'password_changed_at',
+        'season_gr', 'total_gr', 'highest_gr', 'gr_season_id', 'gr_history', 'team_reports',
+        'online_seconds', 'online_session_started_at', 'online_seconds_total',
+    ):
+        assert field not in payload
+    assert payload['id'] == 41
+    assert payload['username'] == 'Player'
+    assert payload['player_id'] == 'P0000041'
+    assert payload['thorn_dew_total'] == 100
+    assert payload['rank'] == {'tier': 'common'}
+    assert payload['skin'] == {'skin_id': 'classic'}
+    assert payload['keybindings'] == {'end_turn': 'Space'}
+    assert payload['reputation'] == 85
+    reports.assert_not_called()
+    gr_history.assert_not_called()

@@ -67,6 +67,29 @@ class _TempDbCase(unittest.TestCase):
         self.temp_dir.cleanup()
 
 
+class StageArchiveTests(unittest.TestCase):
+    """换幕归档必须记「旧幕」的幕号（2026-11-10 修复的 off-by-one）。"""
+
+    def test_stage_switch_archives_the_map_under_its_own_stage(self):
+        import story_engine
+
+        state = {
+            'stage': 1,
+            'biome': 'garden',
+            'map': {'floors': [{'nodes': [{'id': 'n-1'}]}], 'edges': []},
+        }
+        story_engine._enter_stage(state, 2, 'desert')
+        self.assertEqual(state['stage'], 2)
+        self.assertEqual(state['biome'], 'desert')
+        self.assertEqual([item['stage'] for item in state['past_maps']], [1])
+        self.assertEqual(state['past_maps'][0]['biome'], 'garden')
+
+        state['map'] = {'floors': [{'nodes': [{'id': 'n-2'}]}], 'edges': []}
+        story_engine._enter_stage(state, 3, 'ocean')
+        self.assertEqual([item['stage'] for item in state['past_maps']], [1, 2])
+        self.assertEqual(state['stage'], 3)
+
+
 class StoryHistoryServiceTests(_TempDbCase):
     def test_record_and_list_with_filters(self):
         with db.get_db_connection() as conn:
@@ -166,6 +189,29 @@ class StoryHistoryServiceTests(_TempDbCase):
             {'stage': 2, 'floor': 1, 'type': 'elite', 'final': True,
              'enemies': [], 'event_id': None, 'cards_gained': []},
         ])
+
+
+    def test_detail_maps_are_labelled_with_their_own_stage(self):
+        """详情返回的多幕地图，幕号与地图本身一一对应（1、2、3 幕不再整体 +1）。"""
+        state = _make_state(phase='game_over')
+        state['past_maps'] = [
+            {'stage': 1, 'biome': 'garden', 'map': {'floors': [], 'edges': []}},
+            {'stage': 2, 'biome': 'desert', 'map': {'floors': [], 'edges': []}},
+        ]
+        state['stage'] = 3
+        state['biome'] = 'ocean'
+        run, _ = db.create_story_run(self.uid_a, 'seed-6', 'story-redesign-10-test', state)
+        with db.get_db_connection() as conn:
+            story_history.record_run_summary_conn(
+                conn, run['id'], self.uid_a, state,
+                started_at='2026-11-10T01:00:00Z', ended_at='2026-11-10T02:00:00Z',
+                result='defeat',
+            )
+            conn.commit()
+            detail = story_history.get_history_detail(conn, self.uid_a, run['id'])
+        self.assertEqual([section['stage'] for section in detail['maps']], [1, 2, 3])
+        self.assertEqual(detail['maps'][0]['biome'], 'garden')
+        self.assertEqual(detail['maps'][1]['biome'], 'desert')
 
 
 if __name__ == '__main__':

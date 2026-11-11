@@ -445,62 +445,66 @@ def get_community_feed(viewer_user_id=None, *, can_manage=False):
     }
 
 
-def mark_community_feed_read(user_id):
-    """Record the current visible feed as read for one account."""
+def mark_community_feed_read(user_id, content_types=None):
+    """按内容类型记录已读；缺省保持原行为，全部标为已读。"""
 
     user_id = _positive_id(user_id, label='账号')
+    requested = set(content_types or ('announcement', 'poll', 'chain'))
     now = _utc_now()
     now_iso = _iso(now)
     chain_cutoff = _iso(now - timedelta(days=COMMUNITY_CLOSED_CHAIN_RETENTION_DAYS))
     with closing(db.get_db_connection()) as conn:
         conn.execute('BEGIN IMMEDIATE')
-        conn.execute(
-            '''
-            INSERT OR IGNORE INTO community_reads(
-                user_id, content_type, content_id, read_at
-            )
-            SELECT ?, 'announcement', id, ?
-            FROM community_announcements
-            WHERE state = 'published'
-              AND starts_at <= ?
-              AND (ends_at IS NULL OR ends_at > ?)
-            ''',
-            (user_id, now_iso, now_iso, now_iso),
-        )
-        poll_candidates = conn.execute(
-            '''
-            SELECT * FROM community_polls
-            WHERE state IN ('published', 'closed')
-              AND feed_visibility != 'hide'
-              AND starts_at <= ?
-            ''',
-            (now_iso,),
-        ).fetchall()
-        for poll in poll_candidates:
-            if not _poll_player_visible(poll, now):
-                continue
+        if 'announcement' in requested:
             conn.execute(
                 '''
                 INSERT OR IGNORE INTO community_reads(
                     user_id, content_type, content_id, read_at
-                ) VALUES (?, 'poll', ?, ?)
+                )
+                SELECT ?, 'announcement', id, ?
+                FROM community_announcements
+                WHERE state = 'published'
+                  AND starts_at <= ?
+                  AND (ends_at IS NULL OR ends_at > ?)
                 ''',
-                (user_id, int(poll['id']), now_iso),
+                (user_id, now_iso, now_iso, now_iso),
             )
-        conn.execute(
-            '''
-            INSERT OR IGNORE INTO community_chain_reads(user_id, chain_id, read_at)
-            SELECT ?, id, ?
-            FROM community_chains
-            WHERE (
-                state = 'published' AND starts_at <= ?
-                AND (ends_at IS NULL OR ends_at > ?)
-            ) OR (
-                state = 'closed' AND closed_at IS NOT NULL AND closed_at >= ?
+        if 'poll' in requested:
+            poll_candidates = conn.execute(
+                '''
+                SELECT * FROM community_polls
+                WHERE state IN ('published', 'closed')
+                  AND feed_visibility != 'hide'
+                  AND starts_at <= ?
+                ''',
+                (now_iso,),
+            ).fetchall()
+            for poll in poll_candidates:
+                if not _poll_player_visible(poll, now):
+                    continue
+                conn.execute(
+                    '''
+                    INSERT OR IGNORE INTO community_reads(
+                        user_id, content_type, content_id, read_at
+                    ) VALUES (?, 'poll', ?, ?)
+                    ''',
+                    (user_id, int(poll['id']), now_iso),
+                )
+        if 'chain' in requested:
+            conn.execute(
+                '''
+                INSERT OR IGNORE INTO community_chain_reads(user_id, chain_id, read_at)
+                SELECT ?, id, ?
+                FROM community_chains
+                WHERE (
+                    state = 'published' AND starts_at <= ?
+                    AND (ends_at IS NULL OR ends_at > ?)
+                ) OR (
+                    state = 'closed' AND closed_at IS NOT NULL AND closed_at >= ?
+                )
+                ''',
+                (user_id, now_iso, now_iso, now_iso, chain_cutoff),
             )
-            ''',
-            (user_id, now_iso, now_iso, now_iso, chain_cutoff),
-        )
         conn.commit()
     return get_community_feed(user_id)
 

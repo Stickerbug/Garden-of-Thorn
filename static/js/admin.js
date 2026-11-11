@@ -814,6 +814,18 @@ function cardTypeLabel(type) {
   return type || '-';
 }
 
+function draftStatsModeLabel(mode) {
+  const text = String(mode || '');
+  if (text === 'merged') return '合并';
+  const [base, suffix] = text.split(':');
+  if (!suffix) return text || '-';
+  const labels = {
+    ranked: '天梯', original: '娱乐原版', reality: '操纵现实',
+    fancy: '花样百出', ordered: '乱中有序',
+  };
+  return `${base} · ${suffix.split('+').map((part) => labels[part] || part).join(' + ')}`;
+}
+
 function renderDraftStats(data) {
   const items = data.items || [];
   const count = $('draft-stats-count');
@@ -830,12 +842,12 @@ function renderDraftStats(data) {
   }
   table.innerHTML = `
     <table>
-      <thead><tr><th>范围</th><th>模式</th><th>卡牌</th><th>类型</th><th>模组</th><th>抽取率</th><th>抽到胜率</th><th>胜者选择率</th><th>抽取</th><th>刷出</th><th>${winnerOnly ? '胜者选中' : '抽到胜利'}</th><th>抽到局数</th><th>最近更新</th></tr></thead>
+      <thead><tr><th>范围</th><th>模式</th><th>卡牌</th><th>类型</th><th>模组</th><th>抽取率</th><th>抽到胜率</th><th>胜者选择率</th><th>抽取</th><th>刷出</th><th>${winnerOnly ? '胜者选中（卡数）' : '抽到胜利（卡数）'}</th><th>抽到局数</th><th>最近更新</th></tr></thead>
       <tbody>
         ${items.map((item) => `
           <tr>
             <td>${escapeHtml(scopeLabel)}</td>
-            <td>${escapeHtml(item.mode === 'merged' ? '合并' : (item.mode || '-'))}</td>
+            <td>${escapeHtml(draftStatsModeLabel(item.mode))}</td>
             <td>
               <strong>${escapeHtml(item.name_cn || item.card_id || '-')}</strong>
               <span class="muted"> ${escapeHtml(item.card_id || '')}</span>
@@ -875,7 +887,7 @@ function renderOpeningEventStats(data) {
         ${items.map((item) => `
           <tr>
             <td>${escapeHtml(scopeLabel)}</td>
-            <td>${escapeHtml(item.mode === 'merged' ? '合并' : (item.mode || '-'))}</td>
+            <td>${escapeHtml(draftStatsModeLabel(item.mode))}</td>
             <td>
               <strong>${escapeHtml(item.name_cn || item.event_id || '-')}</strong>
               <span class="muted"> ${escapeHtml(item.event_id || '')}</span>
@@ -999,7 +1011,14 @@ function renderRegisteredUserCard(user) {
   const detail = registeredUserDetails.get(key);
   const winRate = formatPercent(user.win_rate);
   const playTime = formatUptime(user.play_seconds || 0);
-  const thornDewTotal = Number(user.thorn_dew_total ?? ((Number(user.thorn_dew_free || 0) || 0) + (Number(user.thorn_dew_paid || 0) || 0))) || 0;
+  const thornDewTotal = formatNumber(user.dew_current_total ?? user.thorn_dew_total ?? ((Number(user.thorn_dew_free || 0) || 0) + (Number(user.thorn_dew_paid || 0) || 0)));
+  const dewEarnedTotal = formatNumber(user.dew_earned_total);
+  const dewDailyAvg7d = formatNumber(user.dew_daily_avg_7d);
+  const dewDailyAvg30d = formatNumber(user.dew_daily_avg_30d);
+  const goldenDewTotal = formatNumber(user.golden_dew_current_total ?? user.golden_dew);
+  const goldenDewEarnedTotal = formatNumber(user.golden_dew_earned_total);
+  const goldenDewDailyAvg7d = formatNumber(user.golden_dew_daily_avg_7d);
+  const goldenDewDailyAvg30d = formatNumber(user.golden_dew_daily_avg_30d);
   const detailsHtml = expanded ? renderRegisteredUserDetails(user, detail) : '';
   return `
     <article class="registered-user-card ${expanded ? 'expanded' : ''}">
@@ -1024,7 +1043,14 @@ function renderRegisteredUserCard(user) {
           <span><b>${escapeHtml(user.draws || 0)}</b> 平</span>
           <span><b>${escapeHtml(winRate)}</b> 胜率</span>
           <span><b class="admin-data">${escapeHtml(playTime)}</b> 总对局时长</span>
-          <span><b>${escapeHtml(thornDewTotal)}</b> 荆露</span>
+          <span><b>${escapeHtml(dewEarnedTotal)}</b> 总荆露流水</span>
+          <span><b>${escapeHtml(thornDewTotal)}</b> 目前荆露</span>
+          <span><b>${escapeHtml(dewDailyAvg7d)}</b> 近 7 天日均荆露</span>
+          <span><b>${escapeHtml(dewDailyAvg30d)}</b> 近 30 天日均荆露</span>
+          <span><b>${escapeHtml(goldenDewEarnedTotal)}</b> 总金露流水</span>
+          <span><b>${escapeHtml(goldenDewTotal)}</b> 目前金露</span>
+          <span><b>${escapeHtml(goldenDewDailyAvg7d)}</b> 近 7 天日均金露</span>
+          <span><b>${escapeHtml(goldenDewDailyAvg30d)}</b> 近 30 天日均金露</span>
         </div>
         <span class="expand-mark">${expanded ? '收起' : '详情'}</span>
       </button>
@@ -1044,7 +1070,14 @@ function renderRegisteredUserDetails(user, detail) {
   const detailUser = detail.user || user;
   const thornDewFree = Number(detailUser.thorn_dew_free || 0) || 0;
   const thornDewPaid = Number(detailUser.thorn_dew_paid || 0) || 0;
-  const thornDewTotal = Number(detailUser.thorn_dew_total ?? (thornDewFree + thornDewPaid)) || 0;
+  const thornDewTotal = formatNumber(detailUser.dew_current_total ?? detailUser.thorn_dew_total ?? (thornDewFree + thornDewPaid));
+  const dewEarnedTotal = formatNumber(detailUser.dew_earned_total);
+  const dewDailyAvg7d = formatNumber(detailUser.dew_daily_avg_7d);
+  const dewDailyAvg30d = formatNumber(detailUser.dew_daily_avg_30d);
+  const goldenDewTotal = formatNumber(detailUser.golden_dew_current_total ?? detailUser.golden_dew);
+  const goldenDewEarnedTotal = formatNumber(detailUser.golden_dew_earned_total);
+  const goldenDewDailyAvg7d = formatNumber(detailUser.golden_dew_daily_avg_7d);
+  const goldenDewDailyAvg30d = formatNumber(detailUser.golden_dew_daily_avg_30d);
   return `
     <div class="registered-user-details">
       <div class="user-detail-grid">
@@ -1057,7 +1090,14 @@ function renderRegisteredUserDetails(user, detail) {
             <div><dt>注册时间</dt><dd class="admin-data">${escapeHtml(formatAdminTime(user.created_at))}</dd></div>
             <div><dt>上次下线</dt><dd class="admin-data">${escapeHtml(formatAdminTime(user.last_login_at))}</dd></div>
             <div><dt>总对局时长</dt><dd class="admin-data">${escapeHtml(formatUptime(user.play_seconds || 0))}</dd></div>
-            <div><dt>荆露</dt><dd>${escapeHtml(thornDewTotal)} <span class="muted">普通 ${escapeHtml(thornDewFree)} / 充值 ${escapeHtml(thornDewPaid)}</span></dd></div>
+            <div><dt>总荆露流水</dt><dd>${escapeHtml(dewEarnedTotal)}</dd></div>
+            <div><dt>目前荆露</dt><dd>${escapeHtml(thornDewTotal)}</dd></div>
+            <div><dt>近 7 天日均荆露获取</dt><dd>${escapeHtml(dewDailyAvg7d)}</dd></div>
+            <div><dt>近 30 天日均荆露获取</dt><dd>${escapeHtml(dewDailyAvg30d)}</dd></div>
+            <div><dt>总金露流水</dt><dd>${escapeHtml(goldenDewEarnedTotal)}</dd></div>
+            <div><dt>目前金露</dt><dd>${escapeHtml(goldenDewTotal)}</dd></div>
+            <div><dt>近 7 天日均金露获取</dt><dd>${escapeHtml(goldenDewDailyAvg7d)}</dd></div>
+            <div><dt>近 30 天日均金露获取</dt><dd>${escapeHtml(goldenDewDailyAvg30d)}</dd></div>
             <div><dt>当前状态</dt><dd>${online ? `${escapeHtml(labelFrom(STATUS_LABELS, online.status))} ${online.room_id != null ? `#${escapeHtml(online.room_id)}` : ''}` : '离线'}</dd></div>
           </dl>
         </div>

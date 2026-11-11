@@ -69,6 +69,16 @@ class Ai1v1TestGateTests(unittest.TestCase):
             response = self.client.get('/api/ai-1v1/status')
         self.assertFalse(response.get_json()['available'])
 
+    def test_setup_script_opens_the_public_entry(self):
+        """装 AI 运行时生成的 ai.env 要把大厅入口打开（程序内默认仍是关）。"""
+        script = (Path(gtn.__file__).resolve().parent / 'scripts' / 'setup_gtn_ai.sh').read_text(encoding='utf-8')
+        self.assertIn('GTN_AI_1V1_TEST_ENABLED=1', script)
+        self.assertIn('GTN_AI_PUBLIC_ENTRY_ENABLED=1', script)
+        self.assertNotIn('GTN_AI_PUBLIC_ENTRY_ENABLED=0', script)
+        # 程序内默认必须保持关：没配 ai.env 的实例不能自己把入口开出来
+        source = Path(gtn.__file__).read_text(encoding='utf-8')
+        self.assertIn("os.environ.get('GTN_AI_PUBLIC_ENTRY_ENABLED', '0')", source)
+
     def test_public_entry_flag_defaults_off_and_is_reported_separately(self):
         source = Path(gtn.__file__).read_text(encoding='utf-8')
         self.assertIn("os.environ.get('GTN_AI_PUBLIC_ENTRY_ENABLED', '0')", source)

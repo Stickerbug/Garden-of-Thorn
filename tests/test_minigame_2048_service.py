@@ -87,9 +87,13 @@ class SyncTests(unittest.TestCase):
         self.assertEqual(record["verified_at"], "2026-09-20T01:00:00Z")
 
     def test_ticket_mode_sync_labels_records_as_ticket(self):
-        """限时（门票）模式的同步必须把 play_mode 写进记录——此前最后一跳
-        没有转发，门票局的分数被记成 normal，门票榜永远为空。"""
-        result = svc.sync_progress(self.conn, 1, self.game["game_uid"], 0, self.ops,
+        """门票局自身的 play_mode 必须原样写入成绩记录。"""
+        state = svc.create_game(
+            self.conn, 1, seed=424243, now="2026-09-20T00:30:00Z", play_mode="ticket",
+        )
+        game = state["game"]
+        ops = valid_ops(game["seed"], 6)
+        result = svc.sync_progress(self.conn, 1, game["game_uid"], 0, ops,
                                    now="2026-09-20T01:00:00Z", play_mode="ticket")
         self.assertEqual(result["status"], "ok", result)
         record = self.conn.execute("SELECT * FROM minigame_2048_records").fetchone()
@@ -360,6 +364,32 @@ class SettlementTests(unittest.TestCase):
         self.assertEqual({row["id"]: int(row["thorn_dew_free"])
                           for row in self.conn.execute("SELECT * FROM users").fetchall()},
                          balances)
+
+    def test_finalized_periods_skip_leaderboard_recomputation(self):
+        """补做扫描只读终结状态，不为 paid/skipped 旧奖期重扫成绩表。"""
+        from unittest.mock import patch
+
+        now = "2026-10-01T00:00:00+08:00"
+        for index, cutoff in enumerate(svc.week_cutoffs(now)):
+            status = "paid" if index % 2 == 0 else "skipped"
+            self.conn.execute(
+                """INSERT INTO minigame_2048_periods
+                   (period_key, cutoff_at, participants, pool, winners_json, amounts_json,
+                    status, reason, created_at, completed_at)
+                   VALUES (?, ?, 7, 0, '[]', '{}', ?, '', ?, ?)""",
+                (svc.period_key_for(cutoff), svc.now_iso(cutoff), status,
+                 svc.now_iso(cutoff), svc.now_iso(cutoff)),
+            )
+        self.conn.commit()
+        with patch.object(
+            svc,
+            "leaderboard",
+            side_effect=AssertionError("finalized period recomputed its leaderboard"),
+        ):
+            results = svc.settle_due(self.conn, now=now)
+        self.assertEqual([item["status"] for item in results], ["paid", "skipped"])
+        self.assertEqual([item["participants"] for item in results], [7, 7])
+        self.assertEqual([item["credited"] for item in results], [0, 0])
 
     def test_two_accounts_are_not_enough(self):
         for user_id in (1, 2):

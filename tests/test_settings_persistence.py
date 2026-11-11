@@ -102,6 +102,19 @@ class SettingsPersistenceTests(unittest.TestCase):
         self.assertIn('const cookieValue = readCookie(mapped)', STORY_HTML)
         self.assertIn('writeCookie(mapped, text)', STORY_HTML)
 
+    def test_new_players_default_to_classic_without_overwriting_saved_style(self):
+        section = source_between(
+            GAME_JS,
+            'function migrateStoredUiStyle()',
+            'let currentUiStyle = migrateStoredUiStyle();',
+        )
+        self.assertIn("return stored === 'minimal' ? 'minimal' : 'classic';", section)
+        self.assertNotIn('setItem', section)
+        self.assertIn('data-ui-style="classic"', INDEX_HTML)
+        bootstrap = source_between(INDEX_HTML, '<script nonce="{{ csp_nonce }}">', '</script>')
+        self.assertIn("const uiStyle = savedUiStyle === 'minimal' ? 'minimal' : 'classic';", bootstrap)
+        self.assertNotIn('storage.setItem(uiStyleKey', bootstrap)
+
 
 if __name__ == '__main__':
     unittest.main()

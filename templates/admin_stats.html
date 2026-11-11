@@ -108,6 +108,14 @@
           <option value="draws">平局</option>
           <option value="play_seconds">总对局时长</option>
           <option value="win_rate">胜率</option>
+          <option value="dew_earned_total">总荆露流水</option>
+          <option value="dew_current_total">目前荆露</option>
+          <option value="dew_daily_avg_7d">近 7 天日均荆露获取</option>
+          <option value="dew_daily_avg_30d">近 30 天日均荆露获取</option>
+          <option value="golden_dew_earned_total">总金露流水</option>
+          <option value="golden_dew_current_total">目前金露</option>
+          <option value="golden_dew_daily_avg_7d">近 7 天日均金露获取</option>
+          <option value="golden_dew_daily_avg_30d">近 30 天日均金露获取</option>
           <option value="username">用户名</option>
           <option value="player_id">ID</option>
           <option value="id">注册顺序</option>
@@ -155,8 +163,13 @@
         </select>
         <select id="draft-stats-mode" aria-label="模式筛选">
           <option value="">全部模式</option>
-          <option value="1v1">1v1</option>
-          <option value="2v2">2v2</option>
+          <option value="1v1">1v1（全部类型）</option>
+          <option value="2v2">2v2（全部类型）</option>
+          <option value="ranked">天梯</option>
+          <option value="original">娱乐原版</option>
+          <option value="reality">操纵现实（娱乐 1v1）</option>
+          <option value="fancy">花样百出（娱乐 1v1）</option>
+          <option value="ordered">乱中有序（娱乐 1v1）</option>
         </select>
         <div id="draft-stats-mods" class="mod-chip-row" aria-label="模组筛选"></div>
         <select id="draft-stats-rank" aria-label="段位来源">
@@ -166,7 +179,7 @@
           <option value="pick_rate">抽取率</option>
           <option value="card_win_rate">抽到胜率</option>
           <option value="winner_pick_rate">胜者选择率</option>
-          <option value="win_games">胜利局数</option>
+          <option value="win_games">胜利卡数</option>
           <option value="picked_games">抽到局数</option>
           <option value="picked_count">抽取次数</option>
           <option value="shown_count">刷出次数</option>
@@ -179,7 +192,7 @@
         </select>
         <button id="draft-stats-refresh" class="ghost-btn" type="button">刷新统计</button>
       </div>
-      <p id="draft-stats-rebuild-result" class="empty-detail">统计口径：玩家最终选择某张牌时，当前三个候选项计入“刷出”；被选中的牌计入“抽取”。被重抽掉的候选项不计入刷出。</p>
+      <p id="draft-stats-rebuild-result" class="empty-detail">统计口径：玩家最终选择某张牌时，当前三个候选项计入“刷出”；被选中的牌计入“抽取”。被重抽掉的候选项不计入刷出。抽到局数与平局局数按玩家×卡牌×对局去重；抽到胜利按实际获胜的同名卡副本数量累计。</p>
       <div id="draft-stats-table" class="admin-table"></div>
       <div class="section-title compact-title">
         <h3>配装选取率 / 胜者选取率</h3>
@@ -217,6 +230,6 @@
     <span id="storage-last-result" hidden>-</span>
   </section>
 </main>
-<script src="/static/js/admin.js?v=30"></script>
+<script src="/static/js/admin.js?v=33"></script>
 </body>
 </html>

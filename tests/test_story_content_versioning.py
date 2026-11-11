@@ -349,18 +349,19 @@ def test_duplicate_old_solo_action_remains_idempotently_readable():
     assert payload['run']['compatible'] is False
 
 
-def test_old_solo_run_rejects_manual_save_and_load_before_db_mutation():
+def test_manual_save_endpoints_are_removed_without_db_mutation():
     client = gtn.app.test_client()
     run = gtn._story_run_with_compatibility(_legacy_run())
     requests = (
-        ('/api/story/run/save', {
-            'run_id': run['id'],
-            'state_version': run['state_version'],
+        ('GET', '/api/story/run/saves', None),
+        ('POST', '/api/story/run/save', {
+            'run_id': run['id'], 'state_version': run['state_version'],
         }),
-        ('/api/story/run/load', {
-            'run_id': run['id'],
-            'state_version': run['state_version'],
-            'save_id': 1,
+        ('POST', '/api/story/run/save/delete', {
+            'run_id': run['id'], 'save_id': 1,
+        }),
+        ('POST', '/api/story/run/load', {
+            'run_id': run['id'], 'state_version': run['state_version'], 'save_id': 1,
         }),
     )
     with (
@@ -368,16 +369,20 @@ def test_old_solo_run_rejects_manual_save_and_load_before_db_mutation():
         mock.patch.object(gtn, '_current_story_run', return_value=run),
         mock.patch.object(gtn, 'create_story_manual_save') as create_save,
         mock.patch.object(gtn, 'load_story_manual_save') as load_save,
+        mock.patch.object(gtn, 'delete_story_manual_save') as delete_save,
+        mock.patch.object(gtn, 'list_story_manual_saves') as list_saves,
     ):
-        responses = [client.post(path, json=body) for path, body in requests]
+        responses = [client.open(path, method=method, json=body) for method, path, body in requests]
 
-    assert [response.status_code for response in responses] == [409, 409]
+    assert [response.status_code for response in responses] == [410, 410, 410, 410]
     assert all(
-        response.get_json()['code'] == 'STORY_CONTENT_VERSION_OLD'
+        response.get_json()['code'] == 'STORY_MANUAL_SAVES_REMOVED'
         for response in responses
     )
     create_save.assert_not_called()
     load_save.assert_not_called()
+    delete_save.assert_not_called()
+    list_saves.assert_not_called()
 
 
 def test_story_commit_rejects_cross_content_state(tmp_path, monkeypatch):

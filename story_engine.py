@@ -257,11 +257,17 @@ class _StoryEventList(list):
 
 
 def _mysterious_person_damage(state):
-    """神秘人物事件伤害 = 本次旅程得分（与通关奖励同一套分数公式）。"""
+    """神秘人物事件伤害 = 本次旅程得分（与通关奖励同一套分数公式）。
+
+    SL 系数与结算同口径：用过「重新开始本层」/手动读档即为 1.0，否则 1.5。
+    引擎状态里用 ``sl_used`` 记录，避免结局文案比实际到账多算 1.5 倍。
+    """
     try:
         from story_score import compute_score
-        total, _ = compute_score(state, str(state.get('difficulty') or 'normal'),
-                                 int(state.get('_load_count') or 0))
+        load_count = int(state.get('_load_count') or 0)
+        if not load_count and state.get('sl_used'):
+            load_count = 1
+        total, _ = compute_score(state, str(state.get('difficulty') or 'normal'), load_count)
         return max(1, total)
     except Exception:
         return 9961
@@ -676,9 +682,13 @@ def _fail(code, message):
 
 
 def _checkpoint_snapshot(state):
-    snapshot = copy.deepcopy(state)
-    snapshot.pop('recovery_checkpoint', None)
-    snapshot.pop('floor_entry_checkpoint', None)
+    # 旧检查点在快照中本来就会被丢弃；先排除再深拷贝，避免每个动作
+    # 都递归复制两份完整的旧旅程快照。浅层选取不会破坏剩余字段间的别名。
+    snapshot = copy.deepcopy({
+        key: value
+        for key, value in state.items()
+        if key not in ('recovery_checkpoint', 'floor_entry_checkpoint')
+    })
     snapshot['last_events'] = []
     return snapshot
 
@@ -750,6 +760,9 @@ def _restore_floor_entry_checkpoint(state, events):
     restored = copy.deepcopy(snapshot)
     state.clear()
     state.update(restored)
+    # 2026-11-08：记录本旅程用过「重新开始本层」，结局文案的神秘人物伤害
+    # 与通关结算的 SL 系数保持一致（结算侧仍以数据库动作日志为准）。
+    state['sl_used'] = True
     # 2026-10-16 修复：与恢复检查点同口径的银行保护
     if int(state.get('event_bank') or 0) > bank_before:
         state['event_bank'] = bank_before
@@ -3393,27 +3406,29 @@ def _surrender_run(state, events):
     events.append({'type': 'game_over'})
 
 
-def _must_play_attack_card(state, card):
+def _must_play_attack_card(state, card, value_resolver=None):
+    resolve = value_resolver or _card_values
     if not _has_relic(state, 'frenzy_relic'):
         return False
-    if _card_values(card).get('type') == 'thorn':
+    if resolve(card).get('type') == 'thorn':
         return False
     return any(
-        _card_values(hand_card).get('type') == 'thorn'
+        resolve(hand_card).get('type') == 'thorn'
         for hand_card in (state.get('combat') or {}).get('hand', [])
     )
 
 
-def _must_play_flagged_card(state, card):
+def _must_play_flagged_card(state, card, value_resolver=None):
     """恶魔的瘟疫（表15）：此牌在手牌中且可支付费用时，必须先打出此牌。"""
+    resolve = value_resolver or _card_values
     combat = state.get('combat') or {}
-    values = _card_values(card)
+    values = resolve(card)
     if values.get('must_play_first'):
         return False
     for hand_card in combat.get('hand', []):
         if hand_card is card:
             continue
-        hand_values = _card_values(hand_card)
+        hand_values = resolve(hand_card)
         if not hand_values.get('must_play_first'):
             continue
         cost = max(0, int(hand_values.get('cost_e') or 0))
@@ -3423,17 +3438,18 @@ def _must_play_flagged_card(state, card):
     return False
 
 
-def _is_card_playable(state, card, automatic=False):
+def _is_card_playable(state, card, automatic=False, value_resolver=None):
+    resolve = value_resolver or _card_values
     combat = state.get('combat') or {}
-    values = _card_values(card)
+    values = resolve(card)
     tags = _card_tags(values)
     if (
         'unplayable' in tags
         or combat.get('turn') != 'player'
         or combat.get('opening_redraw_pending')
         or combat.get('pending_card_choice')
-        or (not automatic and _must_play_attack_card(state, card))
-        or (not automatic and _must_play_flagged_card(state, card))
+        or (not automatic and _must_play_attack_card(state, card, resolve))
+        or (not automatic and _must_play_flagged_card(state, card, resolve))
         or (
             values.get('type') == 'thorn'
             and int(combat.get('attack_blocked') or 0) > 0
@@ -3456,10 +3472,6 @@ def _is_card_playable(state, card, automatic=False):
     if locked and card in combat.get('hand', []):
         if combat['hand'].index(card) < locked:
             return False
-    selectable_hand = [
-        item for item in combat.get('hand', [])
-        if item is not card and 'sublime' not in _card_tags(_card_values(item))
-    ]
     for effect in values.get('effects') or ():
         effect_type = str(effect.get('type') or '')
         if (
@@ -6846,10 +6858,10 @@ def _enemy_intent(state, enemy):
     }
 
 
-def _card_damage_prediction(state, card, enemy):
+def _card_damage_prediction(state, card, enemy, values=None):
     if not enemy:
         return None
-    values = _card_values(card)
+    values = values or _card_values(card)
     if values.get('type') != 'thorn':
         return None
     combat = state['combat']
@@ -6875,13 +6887,6 @@ def _card_damage_prediction(state, card, enemy):
         if segment is None:
             continue
         base_amount, hits = segment
-        raw_value = _player_attack_hit_amount(
-            state,
-            simulated_enemy,
-            base_amount,
-            effect,
-            attack_multiplier=context.get('attack_multiplier', 1),
-        )
         # 力量加在每一段；卡牌威力只加首段（与实际结算同口径，2026-10-13）。
         power_bonus = _player_power_bonus(state, effect)
         enchant_bonus = max(0, int(effect.get('enchantment_damage_bonus') or 0))
@@ -6935,16 +6940,29 @@ def _refresh_combat_projections(state):
     if not isinstance(combat, dict):
         return
     living = _living_enemies(combat)
+    hand = combat.get('hand', [])
+    # 只在本次投影内复用卡牌解析结果。动作结算已结束，手牌在投影期间不会
+    # 变化；不跨动作缓存，避免 modifiers 或升级变化后读到旧值。
+    values_by_instance = {
+        str(card.get('instance_id') or ''): _card_values(card)
+        for card in hand
+        if card.get('instance_id') is not None
+    }
+
+    def projection_values(card):
+        cached = values_by_instance.get(str(card.get('instance_id') or ''))
+        return cached if cached is not None else _card_values(card)
+
     predictions = {}
     # 反馈 #120：失明期间不向客户端下发手牌伤害预测。只把卡面 prediction 关掉的话，
     # activeRun.state / F12 仍能直接读到这些数值，所以必须在引擎侧跳过。
     if not bool(combat.get('blind_active')):
-        for card in combat.get('hand', []):
+        for card in hand:
             by_target = {}
-            values = _card_values(card)
+            values = projection_values(card)
             targets = _selectable_enemy_targets(combat, values) if values.get('target') == 'enemy' else living
             for enemy in targets:
-                prediction = _card_damage_prediction(state, card, enemy)
+                prediction = _card_damage_prediction(state, card, enemy, values=values)
                 if prediction:
                     by_target[enemy['id']] = prediction
             if by_target:
@@ -6953,8 +6971,8 @@ def _refresh_combat_projections(state):
     combat['damage_predictions'] = predictions
     combat['playable_card_ids'] = [
         card['instance_id']
-        for card in combat.get('hand', [])
-        if _is_card_playable(state, card)
+        for card in hand
+        if _is_card_playable(state, card, value_resolver=projection_values)
     ]
     for enemy in combat.get('enemies', []):
         if int(enemy.get('health') or 0) > 0:
@@ -10154,6 +10172,18 @@ def _archive_current_map(state):
     })
 
 
+def _enter_stage(state, stage, biome):
+    """换幕：先按「旧幕」归档当前地图，再把 state 切到新幕。
+
+    2026-11-10 修复：此前先写 ``state['stage'] = 新幕`` 再归档，归档出来的
+    地图全被标成新幕号，旅程历史里第 1 幕显示成第 2 幕、第 2 幕显示成第 3 幕。
+    归档必须发生在覆盖 stage/biome 之前。
+    """
+    _archive_current_map(state)
+    state['stage'] = stage
+    state['biome'] = biome
+
+
 def _complete_current_node(state, events, seed=None):
     from story_mode import STORY_STAGES
     _route_log_completed(state)
@@ -11350,10 +11380,8 @@ def _advance_to_stage(state, stage, biome, boss_rush, seed, events):
             events,
             source='stage_transition',
         )
-    state['stage'] = stage
-    state['biome'] = biome
+    _enter_stage(state, stage, biome)
     state['stage_normal_battles'] = 0
-    _archive_current_map(state)
     if boss_rush:
         state['map'] = generate_boss_rush_map(
             seed,
@@ -13612,6 +13640,10 @@ def apply_story_action(source_state, action_type, payload, seed):
     payload = payload if isinstance(payload, dict) else {}
     events = _StoryEventList(state)
     action_type = str(action_type or '').strip().lower()
+    # 开发人员模式按“旅程”开启：只有开始新旅程时勾选了开发模式的存档
+    # 才能执行 dev_* 操作；普通旅程即使账号有权限也不接受。
+    if action_type.startswith('dev_') and not state.get('dev_mode'):
+        _fail('DEV_TOOLS_DISABLED', '未找到此功能')
     previous_phase = str(state.get('phase') or '')
     pending_operations = state.get('pending_deck_operations')
     if (

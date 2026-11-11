@@ -112,7 +112,8 @@ def test_character_selector_is_wired_without_allowing_planned_roles_to_start():
     assert 'id="story-character-not-ready"' in template
     assert "definition?.implementation_status || 'planned'" in script
     assert "code='STORY_CHARACTER_NOT_READY'" not in script
-    assert 'body: JSON.stringify({ character_id: selectedStoryCharacterId })' in script
+    assert 'character_id: selectedStoryCharacterId' in script
+    assert 'dev_mode: Boolean(' in script
     assert 'storyContent?.character_cards?.[item.character_card_id]' in script
     assert 'storyContent?.character_relics?.[relicId]' in script
     assert '.story-character-option.is-planned' in stylesheet

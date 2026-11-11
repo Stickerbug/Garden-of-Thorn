@@ -68,6 +68,14 @@ def test_newcomer_base_rewards_and_no_title_double_multiplier(accounts,ids,ranke
     assert profile(1)['win_streak']==1
 
 
+def test_ladder_ticket_awards_report_only_actual_grants(accounts):
+    first = award()
+    assert first['leisure_ticket_awarded'] == [{'user_id': 1, 'amount': 1}]
+    # 同一玩家每日渠道只能领取一次；后续胜利不会重复给票或重复播动画。
+    second = award()
+    assert second['leisure_ticket_awarded'] == []
+
+
 def test_bonus_tenth_game_and_title_twentieth_boundaries(accounts):
     # 2026-10-02 新口径：增幅×2 不再按总局数（旧前10局），而是「从未达 rare
     # 且前 20 个计分局」——本测试走 casual award（不计 rank_newbie_games），
@@ -94,7 +102,9 @@ def test_early_surrender_no_rewards_and_breaks_loser_streak(accounts):
     award()
     before=balances()
     result=award(win=1,early=True)
-    assert result=={'awarded':[],'skipped':'early_surrender'}
+    assert result['awarded']==[]
+    assert result['skipped']=='early_surrender'
+    assert isinstance(result.get('leisure_ticket_awarded'), list)
     assert balances()==before
     assert profile(1)['win_streak']==0
     assert profile(2)['win_streak']==0
@@ -292,11 +302,104 @@ def test_system_newcomer_title_is_not_an_equipment_choice(accounts):
     assert profile(1)['is_newcomer']
 
 
+def test_newcomer_requires_valid_games_below_20_and_highest_rank_below_rare(accounts):
+    with db.get_db_connection() as conn:
+        conn.execute("UPDATE users SET games_played=19,rank_tier=9,rank_highest_tier=9 WHERE id=1")
+        conn.commit()
+    assert not profile(1)['is_newcomer']
+    assert profile(1)['reward_multiplier']==1
+
+    # 当前段位不是判定依据；低当前段位且历史最高未达 rare basic 时可保有新人资格。
+    with db.get_db_connection() as conn:
+        conn.execute("UPDATE users SET rank_tier=1,rank_highest_tier=1,rank_newbie_games=19 WHERE id=1")
+        conn.commit()
+    assert profile(1)['is_newcomer']
+    assert profile(1)['reward_multiplier']==2
+    with db.get_db_connection() as conn:
+        conn.execute("UPDATE users SET games_played=20 WHERE id=1")
+        conn.commit()
+    assert not profile(1)['is_newcomer']
+    # 增幅仍按原 rank_newbie_games 口径，不随新人标识的场次口径改变。
+    assert profile(1)['reward_multiplier']==2
+    with db.get_db_connection() as conn:
+        conn.execute("UPDATE users SET rank_newbie_games=20 WHERE id=1")
+        conn.commit()
+    assert profile(1)['reward_multiplier']==1
+
+
+def _rank_row(uid):
+    with db.get_db_connection() as conn:
+        return dict(conn.execute('''SELECT rank_tier,rank_points,rank_streak,rank_newbie_games,
+            rank_shield_armed,rank_double_armed FROM users WHERE id=?''',(uid,)).fetchone())
+
+
+def test_non_newcomer_rank_unchanged_against_newcomer_but_gr_still_settles(accounts):
+    with db.get_db_connection() as conn:
+        conn.execute('''UPDATE users SET rank_tier=9,rank_highest_tier=9,rank_points=10,
+            rank_streak=5,total_ranked_games=20,rank_double_armed=1 WHERE id=1''')
+        conn.execute("UPDATE users SET total_ranked_games=3 WHERE id=2")
+        conn.commit()
+    preview=db.preview_gr_match_result('1v1',[1,2],viewer_user_id=1)
+    assert preview['non_newcomer_protected_user_ids']==[1]
+    mid,data=game(ranked=True,win=1)
+    result=db.apply_gr_match_result(mid,data)
+    assert result['applied']
+    assert result['non_newcomer_protected_user_ids']==[1]
+    assert result['rank']['after']['1']['delta']==0
+    assert result['rank']['after']['1']['points']==10
+    assert result['rank']['after']['1']['tier_index']==9
+    assert result['rank']['after']['1']['streak']==5
+    assert result['rank']['deltas']['1']==0
+    assert result['rank']['after']['2']['delta']>0
+    assert result['rank']['after']['2']['streak']==1
+    assert result['season_deltas']['1']!=0
+    assert result['total_deltas']['1']!=0
+    assert _rank_row(1)=={'rank_tier':9,'rank_points':10,'rank_streak':5,'rank_newbie_games':1,
+                           'rank_shield_armed':0,'rank_double_armed':0}
+    assert _rank_row(2)['rank_newbie_games']==1
+
+
+def test_non_newcomer_versus_non_newcomer_rank_still_changes(accounts):
+    with db.get_db_connection() as conn:
+        conn.execute("UPDATE users SET rank_tier=9,rank_highest_tier=9,rank_points=10,games_played=20 WHERE id IN (1,2)")
+        conn.commit()
+    mid,data=game(ranked=True)
+    result=db.apply_gr_match_result(mid,data)
+    assert result['non_newcomer_protected_user_ids']==[]
+    assert result['rank']['deltas']['1']>0
+    assert result['rank']['deltas']['2']<0
+
+
+def test_two_vs_two_protects_only_non_newcomers_facing_newcomer(accounts):
+    # 实际分组为 [1,2] 对 [3,4]：只有新人3号的对方非新人1、2号受保护。
+    with db.get_db_connection() as conn:
+        conn.execute("UPDATE users SET rank_tier=9,rank_highest_tier=9,rank_points=10,rank_streak=2 WHERE id IN (1,2)")
+        # 4号当前已掉到低段，但历史最高达到过 rare basic，仍是新人3号的非新人队友。
+        conn.execute("UPDATE users SET rank_tier=1,rank_highest_tier=9,rank_points=10,rank_streak=2 WHERE id=4")
+        conn.commit()
+    mid,data=game((1,2,3,4),ranked=True,win=1)
+    result=db.apply_gr_match_result(mid,data)
+    assert result['non_newcomer_protected_user_ids']==[1,2]
+    for uid in (1,2):
+        assert result['rank']['deltas'][str(uid)]==0
+        assert _rank_row(uid)['rank_tier']==9
+        assert _rank_row(uid)['rank_points']==10
+        assert _rank_row(uid)['rank_streak']==2
+    assert 3 not in result['non_newcomer_protected_user_ids']
+    assert 4 not in result['non_newcomer_protected_user_ids']
+    assert result['rank']['deltas']['3']>0
+    assert result['rank']['deltas']['4']>0
+    assert db.preview_gr_match_result('2v2',[1,2,3,4])['non_newcomer_protected_user_ids']==[1,2]
+
+
 def test_frontend_shows_newcomer_and_current_economy_rules():
     from pathlib import Path
     source=(Path(__file__).resolve().parents[1]/'static/js/game.js').read_text(encoding='utf-8')
     assert "profile?.newcomer?.is_newcomer === true" in source
-    assert '20场后移除新人头衔' in source
+    assert '未达到 rare basic 才显示新人标识' in source
+    assert '前20个天梯计分局' in source
+    assert 'gr.non_newcomer_protected_user_ids' in source
+    assert '与新人对战：非新人段位分不变' in source
     assert '胜利100，失败或平局60' in source
 
 

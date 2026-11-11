@@ -4,6 +4,19 @@
   const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g,
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+  function renderSponsor(data) {
+    const sponsor = data || {};
+    $('sponsor-total').innerHTML = `累计赞助 <strong>¥${esc(sponsor.total_amount || '0.00')}</strong>`;
+    const titles = Array.isArray(sponsor.titles) ? sponsor.titles : [];
+    $('sponsor-titles').innerHTML = titles.map((title, index) => {
+      const colorClass = index === 0 ? 'sponsor-title-basic' : 'sponsor-title-major';
+      return '<div class="sponsor-tier">' +
+        `<span class="sponsor-title ${colorClass}">${esc(title.name || '')}</span>` +
+        `<span>累计 ¥${esc(title.threshold_amount || '0.00')} · ${title.owned ? '已获得' : '未获得'}</span>` +
+        '</div>';
+    }).join('');
+  }
+
   function renderStatus(data) {
     $('bind-loading').hidden = true;
     $('bind-body').hidden = false;
@@ -15,16 +28,14 @@
     }
     const plans = data.plans || [];
     if (plans.length) {
-      const hasMonthly = plans.some((p) => p.kind === 'plan');
-      $('plans').innerHTML = '<table><tr><th>档位</th><th>价格</th><th>兑换</th></tr>' +
+      $('plans').innerHTML = '<table><tr><th>档位</th><th>价格</th></tr>' +
         plans.map((p) => `<tr><td>${esc(p.name || p.plan_id)}</td>` +
-          `<td>${p.price ? '¥' + esc(p.price) : '—'}</td>` +
-          `<td><b>${esc(p.dew_amount)}</b> 荆露${p.kind === 'plan' ? '/月' : ''}</td></tr>`).join('') +
-        '</table>' + (hasMonthly ? '<p class="note">按月订阅一次买多个月的，按月数累计兑换。</p>' : '');
+          `<td>${p.price ? '¥' + esc(p.price) : '自定金额'}</td></tr>`).join('') + '</table>';
     } else {
       $('plans').innerHTML = '';
     }
     $('plans-note').hidden = plans.length > 0;
+    renderSponsor(data.sponsor);
     renderOrders(data.orders || []);
   }
 
@@ -34,12 +45,12 @@
       box.innerHTML = '<div class="empty">还没有赞助记录</div>';
       return;
     }
-    box.innerHTML = '<table><tr><th>时间</th><th>档位</th><th>荆露</th><th>状态</th></tr>' +
+    box.innerHTML = '<table><tr><th>时间</th><th>档位</th><th>金额</th><th>状态</th></tr>' +
       orders.map((o) => {
         const cls = o.status === 'credited' || o.status === 'manual' ? 'ok' : 'warn';
         return `<tr><td class="muted">${esc(String(o.created_at || '').replace('T', ' ').slice(0, 16))}</td>` +
           `<td>${esc(o.plan_name || '')}${Number(o.month || 1) > 1 ? ' ×' + esc(o.month) : ''}</td>` +
-          `<td>${o.dew_amount ? '+' + esc(o.dew_amount) : '—'}</td>` +
+          `<td>¥${esc(o.total_amount || '0.00')}</td>` +
           `<td class="${cls}">${esc(o.status_text || o.status)}</td></tr>`;
       }).join('') + '</table>';
   }
@@ -86,6 +97,7 @@
       const r = await fetch('/api/afdian/requery', { method: 'POST', credentials: 'same-origin' });
       const data = await r.json();
       if (data.success) {
+        renderSponsor(data.sponsor);
         renderOrders(data.orders || []);
         $('msg').textContent = '已向爱发电核对最近订单';
       } else {

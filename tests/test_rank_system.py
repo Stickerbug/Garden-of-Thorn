@@ -2,15 +2,16 @@
 """段位系统（设计 2026-10-02）：纯函数 + 对局结算集成 + 月度结算。
 
 11 大段（Craft Eternal 顺序）× 4 小段（basic/sewage/disc/golden nazar）
-共 44 段；胜利 +5+修正（至少 1），失败 -3+修正（至少 1）；胜利后到达上限
+共 44 段；胜利 +10+修正（至少 1、最多 20），失败 -6+修正（至少 1、最多 10）；胜利后到达上限
 即升段（2026-10-11 平衡，取消两连胜要求）、归零后再败降段（0 分时保分卡
-不拦截掉段）；每日（北京）前 5 局胜利翻倍；月末 23:59 结算发
-段位×1000 荆露并按规则掉段。花阶分（GR）只在后台运行。
+不拦截掉段）；每日（北京）前 5 局胜利翻倍；赛季末按 ultra 分界掉段，
+段内分置 10，并按 30/100 局天梯对局发放基础／进阶奖励。花阶分（GR）只在后台运行。
 """
 
 import os
 import tempfile
 import unittest
+from unittest import mock
 
 import rank_system as rs
 
@@ -33,15 +34,15 @@ class RankMathTests(unittest.TestCase):
 
     def test_design_example(self):
         """设计用例：rare basic(9) 输给 rare golden nazar(12)。"""
-        self.assertEqual(1, rs.match_loss(9, 12, 0))    # 3-3=0 → 至少 1
-        self.assertEqual(2, rs.match_gain(12, 9, 0))    # 5-3=2
+        self.assertEqual(3, rs.match_loss(9, 12, 0))    # 6-3=3
+        self.assertEqual(7, rs.match_gain(12, 9, 0))    # 10-3=7
 
     def test_win_loss_bounds(self):
-        # 平衡 2026-10-02：胜 +1~+10、败 -1~-5（封顶后再吃倍率）
-        self.assertEqual(1, rs.match_gain(9, 1, 0))     # 5-8 → 至少 1
-        self.assertEqual(10, rs.match_gain(1, 9, 0))    # 5+8 → 封顶 10
-        self.assertEqual(5, rs.match_loss(12, 1, 0))    # 3+11 → 封顶 5
-        self.assertEqual(1, rs.match_loss(1, 9, 0))     # 3-8 → 至少 1
+        # 胜 +1~+20、败 -1~-10（封顶后再吃倍率）
+        self.assertEqual(2, rs.match_gain(9, 1, 0))     # 10-8=2
+        self.assertEqual(20, rs.match_gain(1, 44, 0))   # 大幅修正后封顶 20
+        self.assertEqual(10, rs.match_loss(12, 1, 0))   # 6+11 → 封顶 10
+        self.assertEqual(1, rs.match_loss(1, 44, 0))    # 大幅负修正后至少 1
 
     def test_promote_on_single_win_at_cap(self):
         """2026-10-11 平衡：满段后赢一局即升段（取消两连胜要求）。"""
@@ -53,7 +54,7 @@ class RankMathTests(unittest.TestCase):
         self.assertEqual(1, r1['streak'])
 
     def test_promote_when_win_fills_to_cap(self):
-        """未满段的一胜只打到满（48+5 → 50/50），不升段；下一胜升。"""
+        """未满段的一胜只打到满（48+10 → 50/50），不升段；下一胜升。"""
         r = rs.apply_match_result(9, 48, 0, outcome='win', opponent_tier_avg=9)
         self.assertFalse(r['promoted'])
         self.assertEqual(9, r['tier_index'])
@@ -66,15 +67,15 @@ class RankMathTests(unittest.TestCase):
         """未到上限的胜利：普通连胜计数 +1，不升段。"""
         r = rs.apply_match_result(9, 10, 0, outcome='win', opponent_tier_avg=9)
         self.assertFalse(r['promoted'])
-        self.assertEqual(15, r['points'])
+        self.assertEqual(20, r['points'])
         self.assertEqual(1, r['streak'])
 
     def test_cap_loss_breaks_streak(self):
-        # 2026-10-02：common 不掉分——改用 unusual（tier5，cap30；loss 3→减半 2）
+        # unusual（tier5，cap30；loss 6→减半 3）
         r = rs.apply_match_result(5, 30, 1, outcome='loss', opponent_tier_avg=5)
         self.assertFalse(r['promoted'])
         self.assertEqual(0, r['streak'])
-        self.assertEqual(28, r['points'])   # 30-ceil(3/2)
+        self.assertEqual(27, r['points'])   # 30-ceil(6/2)
 
     def test_loss_shield_blocks_points_but_not_demotion_at_zero(self):
         """2026-10-11 平衡：保分卡 0 分时无法阻止掉段。"""
@@ -108,12 +109,12 @@ class RankMathTests(unittest.TestCase):
         self.assertEqual(0, r['streak'])
 
     def test_daily_double_win_only_after_min(self):
-        # 2026-10-02：封顶 +10 之后再乘倍率；common 失败不掉分
+        # 封顶 +20 之后再乘倍率；common 失败不掉分
         r = rs.apply_match_result(9, 10, 0, outcome='win', opponent_tier_avg=12, daily_double=True)
-        # gain = min(10, 5+3) = 8 → ×2 = 16 → 26
-        self.assertEqual(26, r['points'])
+        # gain = min(20, 10+3) = 13 → ×2 = 26 → 36
+        self.assertEqual(36, r['points'])
         self.assertTrue(r['daily_double'])
-        # 封顶 +10 再翻倍：低段打高 44 → gain 封顶 10 → ×2=20 → cap(common)=20
+        # 封顶 +20 再翻倍：低段打高 44 → gain 封顶 20 → ×2=40 → cap(common)=20
         r2 = rs.apply_match_result(1, 0, 0, outcome='win', opponent_tier_avg=44, daily_double=True)
         self.assertEqual(20, r2['points'])
         # 失败不翻倍且 common 不掉分
@@ -134,11 +135,25 @@ class RankMathTests(unittest.TestCase):
         self.assertEqual(41, tier)   # eternal basic
 
     def test_monthly_settlement_rules(self):
-        self.assertEqual(5, rs.monthly_settlement_tier(9))     # rare basic → unusual basic
-        self.assertEqual(29, rs.monthly_settlement_tier(33))   # omega sewage → omega basic
-        self.assertEqual(1, rs.monthly_settlement_tier(1))     # common basic 不动
-        self.assertEqual(1000, rs.settlement_reward_dew(1))
-        self.assertEqual(44000, rs.settlement_reward_dew(44))
+        self.assertEqual(7, rs.monthly_settlement_tier(9))     # ultra 以下掉 2 个小段
+        self.assertEqual(19, rs.monthly_settlement_tier(21))   # mythic basic 仍属 ultra 以下
+        self.assertEqual(24, rs.monthly_settlement_tier(25))   # ultra basic 掉 1 个小段
+        self.assertEqual(32, rs.monthly_settlement_tier(33))   # ultra 以上同样掉 1 个
+        self.assertEqual(1, rs.monthly_settlement_tier(1))     # 最低段不再下降
+        self.assertEqual(1, rs.monthly_settlement_tier(2))
+        self.assertEqual(10, rs.SEASON_SETTLEMENT_POINTS)
+        self.assertEqual(0, rs.settlement_reward_dew(12, 10, 29))
+        self.assertEqual(
+            5000 + rs.tier_to_absolute(12, 10) * 10,
+            rs.settlement_reward_dew(12, 10, 30),
+        )
+        self.assertEqual(
+            rs.settlement_reward_dew(12, 10, 30),
+            rs.settlement_reward_dew(12, 10, 100),
+        )
+        self.assertEqual('S2', rs.season_name_for_month('2026-09'))
+        self.assertEqual('S3', rs.season_name_for_month('2026-10'))
+        self.assertEqual('S4', rs.season_name_for_month('2026-11'))
 
     def test_beijing_day_key(self):
         from datetime import datetime, timezone
@@ -196,9 +211,9 @@ class RankSettlementIntegrationTests(unittest.TestCase):
         self.assertTrue(after1['demoted'])
         self.assertEqual(8, after1['tier_index'])
         self.assertEqual(30, after1['points'])
-        # 赢家 +2（当日首局翻倍 → +4）
-        self.assertEqual(4, after2['delta'])
-        self.assertEqual(4, after2['points'])
+        # 赢家 +7（当日首局翻倍 → +14）
+        self.assertEqual(14, after2['delta'])
+        self.assertEqual(14, after2['points'])
 
     def test_settlement_idempotent(self):
         self._set_rank(self.uid1, 9)
@@ -209,21 +224,64 @@ class RankSettlementIntegrationTests(unittest.TestCase):
         self.assertTrue(again.get('duplicate'))
 
     def test_monthly_settlement_grants_dew_and_demotes(self):
-        self._set_rank(self.uid1, 12)   # rare golden nazar
-        self._set_rank(self.uid2, 1)    # common basic
-        result = self.db.settle_ranks_monthly('2026-09')
+        self._set_rank(self.uid1, 12, 10)   # rare golden nazar，满 30 局
+        self._set_rank(self.uid2, 1)        # common basic，不足 30 局
+        base_dew = 5000 + rs.tier_to_absolute(12, 10) * 10
+        with mock.patch.object(
+            self.db,
+            '_gr_season_valid_match_counts_for_conn',
+            return_value={self.uid1: 30, self.uid2: 0},
+        ) as count_mock:
+            result = self.db.settle_ranks_monthly('2026-09')
+        self.assertEqual('R1-S202609', count_mock.call_args.args[2])
         self.assertEqual(2, result['users'])
-        self.assertEqual(12000 + 1000, result['dew_total'])
-        dew = self.db.get_user_thorn_dew(self.uid1)
-        self.assertEqual(12000, dew.get('total'))
+        self.assertEqual(1, result['base_rewards'])
+        self.assertEqual(0, result['advanced_rewards'])
+        self.assertEqual(base_dew, result['dew_total'])
+        self.assertEqual(base_dew, self.db.get_user_thorn_dew(self.uid1).get('total'))
+        self.assertEqual(0, self.db.get_user_thorn_dew(self.uid2).get('total'))
         row1 = self.db.get_user_by_id(self.uid1)
-        self.assertEqual('rare basic', row1['rank']['label'])
-        self.assertEqual(0, row1['rank']['points'])
+        row2 = self.db.get_user_by_id(self.uid2)
+        self.assertEqual('rare sewage', row1['rank']['label'])
+        self.assertEqual(10, row1['rank']['points'])
+        self.assertEqual(1, row2['rank']['tier_index'])
+        self.assertEqual(10, row2['rank']['points'])
         # 幂等：重复结算不重复发
         again = self.db.settle_ranks_monthly('2026-09')
         self.assertEqual(0, again['users'])
-        dew2 = self.db.get_user_thorn_dew(self.uid1)
-        self.assertEqual(12000, dew2.get('total'))
+        self.assertEqual(base_dew, self.db.get_user_thorn_dew(self.uid1).get('total'))
+
+    def test_advanced_season_reward_grants_title_and_extra_dew_once(self):
+        self._set_rank(self.uid1, 25, 50)   # ultra basic，满 100 局
+        self._set_rank(self.uid2, 22, 20)   # mythic sewage，99 局仅基础奖励
+        base1 = 5000 + rs.tier_to_absolute(25, 50) * 10
+        base2 = 5000 + rs.tier_to_absolute(22, 20) * 10
+        with mock.patch.object(
+            self.db,
+            '_gr_season_valid_match_counts_for_conn',
+            return_value={self.uid1: 100, self.uid2: 99},
+        ):
+            result = self.db.settle_ranks_monthly('2026-10')
+        self.assertEqual(2, result['base_rewards'])
+        self.assertEqual(1, result['advanced_rewards'])
+        self.assertEqual(base1 + base2 + 5000, result['dew_total'])
+        self.assertEqual(base1 + 5000, self.db.get_user_thorn_dew(self.uid1).get('total'))
+        self.assertEqual(base2, self.db.get_user_thorn_dew(self.uid2).get('total'))
+        self.assertEqual(24, self.db.get_user_by_id(self.uid1)['rank']['tier_index'])
+        self.assertEqual(20, self.db.get_user_by_id(self.uid2)['rank']['tier_index'])
+        titles1 = self.db.list_user_titles(self.uid1)
+        participant = next(item for item in titles1 if item['id'] == 'season:s3-participant')
+        self.assertEqual('S3赛季参与者', participant['name'])
+        self.assertFalse(any(item['id'] == 'season:s3-participant' for item in self.db.list_user_titles(self.uid2)))
+        transactions = self.db.list_user_thorn_dew_transactions(self.uid1, limit=10)
+        self.assertEqual(
+            {'rank_season_base', 'rank_season_advanced'},
+            {item['source_type'] for item in transactions if item['source_type'].startswith('rank_season_')},
+        )
+        again = self.db.settle_ranks_monthly('2026-10')
+        self.assertEqual(0, again['users'])
+        self.assertEqual(base1 + 5000, self.db.get_user_thorn_dew(self.uid1).get('total'))
+        self.assertEqual(len(titles1), len(self.db.list_user_titles(self.uid1)))
 
     def test_special_correction_stacks(self):
         self.db.set_rank_global_special(1.0)
@@ -231,13 +289,13 @@ class RankSettlementIntegrationTests(unittest.TestCase):
         self._set_rank(self.uid1, 9)
         self._set_rank(self.uid2, 9, 10)
         res = self.db.apply_gr_match_result(91003, self._summary(winner_index=0, winner_user_ids=[self.uid1]))
-        # RankA 胜：5+0+1.5=6.5 → 7；双倍日 → 14
+        # RankA 胜：10+0+1.5=11.5 → 12；双倍日 → 24
         after1 = res['rank']['after'][str(self.uid1)]
-        self.assertEqual(14, after1['points'])
-        # RankB 负：3-0-1.5=1.5 → 2（不翻倍）
+        self.assertEqual(24, after1['points'])
+        # RankB 负：6-0-1.5=4.5 → 5（不翻倍）
         after2 = res['rank']['after'][str(self.uid2)]
-        self.assertEqual(-2, after2['delta'])
-        self.assertEqual(8, after2['points'])
+        self.assertEqual(-5, after2['delta'])
+        self.assertEqual(5, after2['points'])
 
     def test_preview_rank_match(self):
         self._set_rank(self.uid1, 9)
@@ -248,8 +306,8 @@ class RankSettlementIntegrationTests(unittest.TestCase):
         self.assertEqual('rare golden_nazar', viewer['label'])
         # 新账号当日首胜 → 每日双倍 ×2（#351 预估口径与结算对齐）
         self.assertTrue(viewer.get('daily_double_active'))
-        self.assertEqual(4, viewer['win_delta'])
-        self.assertEqual(5, viewer['loss_delta'])    # 3+3 → 封顶 5（2026-10-02 上限）；输不参与双倍
+        self.assertEqual(14, viewer['win_delta'])
+        self.assertEqual(9, viewer['loss_delta'])    # 6+3=9；输不参与双倍
 
     def test_user_payload_has_rank_no_gr_leak(self):
         payload = self.db.user_rank_payload(self.uid1)

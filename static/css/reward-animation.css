@@ -1,0 +1,154 @@
+/* 长期奖励：统一揭幕舞台。动效只在本组件挂载期间运行。 */
+.gra-overlay {
+  --gra-bg: #f7f4ea;
+  --gra-primary: #b8a4e6;
+  --gra-lime: #6c9636;
+  --gra-pink: #c174c4;
+  --gra-peach: #f4c9a8;
+  --gra-lavender: #756786;
+  --gra-ink: #40334f;
+  --gra-wipe-lavender: #ddd2f0;
+  position: fixed;
+  inset: 0;
+  z-index: 30000;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--gra-bg);
+  color: var(--gra-ink);
+  font-family: 'Kreadon', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', system-ui, sans-serif;
+  clip-path: inset(0 0 0 0);
+  transition: clip-path .45s cubic-bezier(.42, 0, .21, 1);
+}
+.gra-overlay.is-leaving { clip-path: inset(0 0 100% 0); pointer-events: none; }
+.gra-particles, .gra-wipe { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gra-wipe { transform: translateY(102%); animation: gra-wipe-in .65s cubic-bezier(.65, 0, .35, 1) forwards; }
+.gra-wipe-one { background: var(--gra-primary); border-radius: 48% 52% 0 0 / 9% 11% 0 0; }
+.gra-wipe-two { background: var(--gra-wipe-lavender); border-radius: 53% 47% 0 0 / 12% 8% 0 0; animation-delay: .08s; }
+.gra-wipe-three { background: var(--gra-peach); border-radius: 46% 54% 0 0 / 8% 13% 0 0; animation-delay: .16s; }
+@keyframes gra-wipe-in {
+  0% { transform: translateY(102%); }
+  72% { transform: translateY(0); }
+  100% { transform: translateY(0); opacity: 0; }
+}
+.gra-stage {
+  position: relative;
+  z-index: 2;
+  width: min(680px, 92vw);
+  min-height: min(660px, 88vh);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 54px 24px 42px;
+  text-align: center;
+}
+.gra-kicker {
+  margin-bottom: 22px;
+  color: var(--gra-lavender);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+}
+.gra-art-wrap {
+  width: clamp(170px, 31vw, 310px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  clip-path: inset(0 100% 0 0 round 18px);
+  animation: gra-art-reveal .7s cubic-bezier(.65, 0, .35, 1) .22s forwards;
+}
+.gra-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: rotate(var(--gra-tilt, -3deg));
+  filter: drop-shadow(6px 8px 0 rgba(76, 55, 100, .14));
+}
+.gra-text-art {
+  width: 100%;
+  color: var(--gra-ink);
+  font-size: clamp(30px, 7vw, 66px);
+  font-weight: 900;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+  text-shadow: 3px 4px 0 rgba(90, 70, 110, .12);
+}
+@keyframes gra-art-reveal { to { clip-path: inset(0 0 0 0 round 18px); } }
+.gra-amount {
+  margin-top: 12px;
+  color: var(--gra-lime);
+  font-size: clamp(46px, 8vw, 78px);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -.045em;
+  text-shadow: 3px 4px 0 rgba(80, 110, 40, .12);
+}
+.gra-name { margin-top: 12px; font-size: clamp(22px, 3.6vw, 32px); font-weight: 850; line-height: 1.35; }
+.gra-reason { max-width: 480px; margin-top: 10px; color: var(--gra-lavender); font-size: 14px; line-height: 1.65; }
+.gra-char {
+  display: inline-block;
+  white-space: pre;
+  clip-path: inset(0 100% 0 0);
+  animation: gra-char-reveal .42s cubic-bezier(.65, 0, .35, 1) forwards;
+  animation-delay: var(--gra-char-delay, .6s);
+}
+@keyframes gra-char-reveal { to { clip-path: inset(0 0 0 0); } }
+.gra-collect, .gra-skip {
+  border: 0;
+  border-radius: 8px;
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+.gra-collect {
+  margin-top: 28px;
+  padding: 12px 32px;
+  background: #d9eeb2;
+  color: var(--gra-ink);
+  box-shadow: 3px 4px 0 rgba(70, 60, 80, .22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.gra-collect.is-ready { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.gra-collect:hover { filter: brightness(1.06); }
+.gra-collect:active { transform: translate(3px, 4px); box-shadow: 1px 2px 0 rgba(70, 60, 80, .22); }
+.gra-skip {
+  position: absolute;
+  z-index: 3;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(20px, env(safe-area-inset-right));
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--gra-lavender);
+  border: 1px solid rgba(110, 88, 130, .35);
+}
+.gra-skip:hover { color: var(--gra-ink); border-color: #6f558b; }
+.gra-progress {
+  position: absolute;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  color: var(--gra-lavender);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .14em;
+}
+.gra-collect:focus-visible, .gra-skip:focus-visible { outline: 3px solid var(--gra-pink); outline-offset: 4px; }
+@media (max-height: 620px) {
+  .gra-stage { min-height: 100vh; padding-top: 38px; padding-bottom: 24px; }
+  .gra-kicker { margin-bottom: 8px; }
+  .gra-art-wrap { width: clamp(120px, 29vh, 190px); }
+  .gra-amount { margin-top: 4px; font-size: 44px; }
+  .gra-name { margin-top: 6px; font-size: 22px; }
+  .gra-reason { margin-top: 4px; }
+  .gra-collect { margin-top: 14px; padding: 9px 26px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gra-overlay, .gra-wipe, .gra-art-wrap, .gra-char, .gra-collect { animation: none !important; transition: none !important; }
+  .gra-wipe, .gra-particles { display: none; }
+  .gra-art-wrap, .gra-char { clip-path: none; }
+  .gra-collect, .gra-collect.is-ready { opacity: 1; pointer-events: auto; transform: none; }
+}

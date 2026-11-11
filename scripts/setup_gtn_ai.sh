@@ -65,7 +65,10 @@ install -d -m 0750 "${AI_DATA_ROOT}/runtime" "${AI_DATA_ROOT}/human-sessions" \
 
 cat >"${AI_ENV_FILE}" <<EOF
 GTN_AI_1V1_TEST_ENABLED=1
-GTN_AI_PUBLIC_ENTRY_ENABLED=0
+# 大厅入口：0=隐藏且点击回「平衡性调整中」，1=对登录账号开放。
+# 程序内默认值仍是 0（app.py 的 GTN_AI_PUBLIC_ENTRY_ENABLED），
+# 要开放 AI 对战就在装 AI 运行时的时候把它写成 1。
+GTN_AI_PUBLIC_ENTRY_ENABLED=1
 GTN_AI_ROOT=${AI_ROOT}
 GTN_AI_PYTHON=${AI_VENV}/bin/python
 GTN_AI_RUNTIME_ROOT=${AI_DATA_ROOT}/runtime

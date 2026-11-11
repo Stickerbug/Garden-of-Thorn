@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".62" numOctaves="3" seed="17"/>
+      <feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .13 0"/>
+    </filter>
+    <linearGradient id="olive" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#384732"/>
+      <stop offset=".58" stop-color="#2F3D29"/>
+      <stop offset="1" stop-color="#2A2520"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="#2A2520"/>
+  <path d="M0 0h1600v900H0z" fill="url(#olive)"/>
+  <path d="M0 92 47 81 88 96 136 73 184 88 231 68 284 86 327 70 381 85 426 64 478 78 530 59 583 76 632 61 681 79 733 66 785 84 836 69 890 91 944 72 1001 87 1054 66 1110 81 1168 63 1224 80 1282 65 1340 86 1401 72 1460 94 1518 77 1600 96V0H0Z" fill="#191715" opacity=".72"/>
+  <path d="M0 741 52 726 103 749 157 721 211 744 267 716 321 739 378 711 434 736 491 705 548 731 607 701 667 725 725 696 786 722 847 692 909 719 972 690 1036 716 1102 685 1167 711 1234 680 1301 706 1369 675 1438 701 1512 673 1600 694v206H0Z" fill="#191715" opacity=".76"/>
+  <path d="M-70 900 168 581 252 611 339 475 424 513 501 389 594 431 685 322 762 356 856 235 939 272 1046 153 1140 204 1241 96 1337 151 1455 44 1665 154v746Z" fill="#384732" opacity=".42"/>
+  <path d="M-60 900 192 681 277 704 362 609 452 642 543 548 631 579 724 489 811 521 906 431 997 467 1090 377 1184 411 1279 324 1376 361 1476 274 1660 364v536Z" fill="#F4ECD8" opacity=".055"/>
+  <circle cx="1270" cy="192" r="86" fill="#D8B84A" opacity=".16"/>
+  <circle cx="1270" cy="192" r="54" fill="#F4ECD8" opacity=".12"/>
+  <path d="M112 206 142 178 174 205 207 174 237 204 269 177 301 207 334 179 365 210" fill="none" stroke="#F4ECD8" stroke-width="3" opacity=".1"/>
+  <rect width="1600" height="900" filter="url(#grain)" opacity=".42"/>
+</svg>

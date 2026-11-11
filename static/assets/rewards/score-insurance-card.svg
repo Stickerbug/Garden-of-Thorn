@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 283.5 283.5">
+  <!-- Generator: Adobe Illustrator 29.0.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 186)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #80cde7;
+      }
+
+      .st1, .st2 {
+        fill: none;
+      }
+
+      .st3 {
+        clip-path: url(#clippath-1);
+      }
+
+      .st2 {
+        stroke: #4fc0e2;
+        stroke-miterlimit: 10;
+        stroke-width: 3.7px;
+      }
+
+      .st4 {
+        fill: #f8f9dd;
+        stroke: #f4ef73;
+        stroke-linejoin: round;
+        stroke-width: 10px;
+      }
+
+      .st5 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <rect class="st1" x="84.4" y="84.4" width="114.6" height="114.6" transform="translate(-46.6 73.2) rotate(-25)"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect class="st1" x="84.4" y="84.4" width="114.6" height="114.6" transform="translate(-46.6 73.2) rotate(-25)"/>
+    </clipPath>
+  </defs>
+  <rect class="st4" x="55.8" y="91.5" width="171.8" height="100.4" transform="translate(-46.6 73.2) rotate(-25)"/>
+  <g class="st5">
+    <g class="st3">
+      <path class="st0" d="M169.5,149.4l-13.1,20.8c-.5.8-1.4,1.2-2.3,1l-24.3-3.3c-.8-.1-1.4-.6-1.8-1.3l-19.7-42.2c-.5-1.1,0-2.5,1.1-3l37.4-17.4c1.1-.5,2.5,0,3,1.1l19.7,42.2c.3.7.3,1.5-.1,2.2"/>
+      <path class="st2" d="M169.5,149.4l-13.1,20.8c-.5.8-1.4,1.2-2.3,1l-24.3-3.3c-.8-.1-1.4-.6-1.8-1.3l-19.7-42.2c-.5-1.1,0-2.5,1.1-3l37.4-17.4c1.1-.5,2.5,0,3,1.1l19.7,42.2c.3.7.3,1.5-.1,2.2Z"/>
+    </g>
+  </g>
+</svg>

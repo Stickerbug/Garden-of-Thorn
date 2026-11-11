@@ -1,0 +1,40 @@
+/* 眼睛贴图叠加层：保留原有脸部、皮肤和战斗状态。 */
+.skin-eye-art {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  /* SVG 的眼心原在 50%；普通眼睛为 top 32% + height 20% / 2，即 42%。 */
+  transform: translateY(-8%);
+  transition: transform 180ms ease-out;
+}
+.skin-eye-art-free,
+.skin-eye-art-white {
+  transform: translate(var(--skin-eye-art-x, 0%), calc(var(--skin-eye-art-y, 0%) - 8%));
+}
+/* 眼白按原版瞳孔逻辑移动，但始终被固定眼眶裁切。 */
+.skin-eye-art-white {
+  -webkit-mask-image: var(--skin-eye-socket-image);
+  mask-image: var(--skin-eye-socket-image);
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+/* 付费贴图替代普通眼珠；战败时恢复原来的叉眼。 */
+.skin-avatar.skin-eye-shape-angry:not(.is-defeated) .skin-eye,
+.skin-avatar.skin-eye-shape-coin:not(.is-defeated) .skin-eye,
+.skin-avatar.skin-eye-shape-dizzy:not(.is-defeated) .skin-eye { visibility: hidden; }
+.skin-avatar.is-defeated .skin-eye-art,
+.skin-avatar.skin-hide-eyes .skin-eye-art,
+.skin-avatar.phelren-avatar .skin-eye-art { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .skin-eye-art { transition: none; transform: translateY(-8%); }
+}

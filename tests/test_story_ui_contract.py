@@ -771,47 +771,27 @@ def test_story_map_boss_node_uses_the_frozen_encounter_portrait():
 def test_story_floor_restart_is_confirmed_and_available_after_combat_failure():
     assert 'id="story-save-open-global"' not in STORY_TEMPLATE
     assert 'id="story-settings-save"' not in STORY_TEMPLATE
-    assert 'id="story-hud-save"' in STORY_TEMPLATE
-    assert 'id="story-restart-floor"' in STORY_TEMPLATE
+    assert 'id="story-hud-save"' not in STORY_TEMPLATE
+    assert 'id="story-save-dialog"' not in STORY_TEMPLATE
+    settings = STORY_TEMPLATE.split('<dialog id="story-settings-dialog"', 1)[1].split('</dialog>', 1)[0]
+    assert 'id="story-restart-floor"' in settings
     assert 'id="story-restart-floor-dialog"' in STORY_TEMPLATE
     assert "await storyAction('restart_floor', {});" in STORY_JS
     assert "Boolean(state.floor_entry_checkpoint?.state)" in STORY_JS
+    assert "$('story-settings-dialog')?.close();" in STORY_JS
 
 
-def test_story_manual_save_delete_is_confirmed_and_refreshes_list():
-    assert 'id="story-save-delete-dialog"' in STORY_TEMPLATE
-    assert 'id="story-save-delete-confirm"' in STORY_TEMPLATE
-    assert 'story-save-row-actions' in STORY_JS
-    assert 'story-save-delete' in STORY_JS
-    assert '/api/story/run/save/delete' in STORY_JS
-    assert 'function deleteManualStorySave(saveId)' in STORY_JS
-    assert 'renderManualStorySaves(payload.saves' in STORY_JS
-    assert ".story-save-row-actions {" in STORY_CSS
-
-
-def test_story_manual_saves_cover_every_committed_ui_phase_and_block_animations():
-    for phase in (
-        'journey_setup', 'easy_relic', 'blessing', 'map', 'combat',
-        'room', 'reward', 'stage_choice', 'complete', 'game_over',
+def test_story_manual_save_controls_are_removed_from_the_player_ui():
+    for element_id in (
+        'story-hud-save', 'story-save-dialog', 'story-save-create',
+        'story-save-load-dialog', 'story-save-delete-dialog',
     ):
-        assert f"'{phase}'" in STORY_JS.split(
-            'const STORY_MANUAL_SAVE_STABLE_PHASES = new Set([',
-            1,
-        )[1].split(']);', 1)[0]
-    blocker = STORY_JS.split(
-        'function storyManualSaveOperationBlocked(run = activeRun) {',
-        1,
-    )[1].split(
-        'function updateStoryManualSaveControls(run = activeRun) {',
-        1,
-    )[0]
-    assert 'actionInFlight' in blocker
-    assert 'cardPlayInFlight' in blocker
-    assert 'storyCombatEntranceAnimating' in blocker
-    assert 'storyManualSaveInFlight' in blocker
-    assert "document.body.dataset.enemyAnimating === 'true'" in blocker
-    assert "activeRun.state?.phase !== 'map'" not in STORY_JS
-    assert "save.phase || ''" in STORY_JS
+        assert f'id="{element_id}"' not in STORY_TEMPLATE
+    assert "$('story-hud-save')?.addEventListener" not in STORY_JS
+    assert "$('story-save-create')?.addEventListener" not in STORY_JS
+    assert "$('story-save-load-dialog')?.addEventListener" not in STORY_JS
+    assert "$('story-save-delete-dialog')?.addEventListener" not in STORY_JS
+    assert 'updateStoryManualSaveControls(run);' not in STORY_JS
 
 
 def test_story_cards_use_rarity_frames_type_tints_and_blind_concealment():
@@ -933,19 +913,16 @@ def test_story_persistent_hud_keeps_player_map_deck_and_settings_available():
         'story-hud-gold',
         'story-hud-map',
         'story-hud-deck',
-        'story-hud-save',
         'story-hud-settings',
         'story-hud-surrender',
     ):
         assert f'id="{element_id}"' in STORY_TEMPLATE
+    assert 'id="story-hud-save"' not in STORY_TEMPLATE
     assert 'function renderStoryPersistentHud(run)' in STORY_JS
     assert 'renderStoryPersistentHud(run);' in STORY_JS
     assert "$('story-hud-map')?.addEventListener('click', openStoryCombatMap);" in STORY_JS
     assert "$('story-hud-deck')?.addEventListener('click', () => openStoryPile('deck'));" in STORY_JS
-    assert "$('story-hud-save')?.addEventListener('click', openManualStorySaves);" in STORY_JS
     assert "$('story-hud-settings')?.addEventListener('click', openStorySettings);" in STORY_JS
-    assert 'manual_save_count' in STORY_JS
-    assert 'manual_load_count' in STORY_JS
     assert 'id="story-settings-fullscreen"' in STORY_TEMPLATE
     assert 'id="story-settings-hide-borders"' in STORY_TEMPLATE
     assert 'id="story-settings-speed-options"' in STORY_TEMPLATE
@@ -988,15 +965,7 @@ def test_story_settings_dialog_is_not_gated_behind_coop_access():
         STORY_TEMPLATE,
         flags=re.DOTALL,
     )
-    assert len(coop_blocks) >= 2
-    for coop_block in coop_blocks:
-        assert 'story-settings-dialog' not in coop_block
-        # 协作权限块里只应出现协作相关元素，避免再有普通界面被误关进权限块。
-        coop_ids = re.findall(r'id="([^"]+)"', coop_block)
-        offenders = [
-            element_id for element_id in coop_ids if not element_id.startswith('story-coop')
-        ]
-        assert offenders == []
+    assert len(coop_blocks) == 0
     assert STORY_TEMPLATE.count('<dialog id="story-settings-dialog"') == 1
 
 

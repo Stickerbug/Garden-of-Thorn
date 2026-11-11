@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GTN 称号编辑器</title>
 <link rel="stylesheet" href="/static/css/titleeditor.css?v={{ static_version }}">
+<link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version }}">
 </head>
 <body>
 <div id="title-editor-app" class="te-app" data-can-publish="{{ '1' if can_publish else '0' }}">
@@ -72,7 +73,7 @@
             <label><span>来源类型</span><input id="te-source-type" maxlength="24"></label>
             <label><span>来源标识</span><input id="te-source-ref" maxlength="96"></label>
             <label><span>普通荆露价格</span><input id="te-price-free" type="number" min="0" step="1"></label>
-            <label><span>充值荆露价格</span><input id="te-price-paid" type="number" min="0" step="1"></label>
+            <label hidden><input id="te-price-paid" type="number" min="0" step="1"></label>
             <label><span>商店刷新权重</span><input id="te-shop-weight" type="number" min="0" step="1"></label>
             <label class="te-checkbox-field"><input id="te-purchasable" type="checkbox"><span>允许在商店出现</span></label>
           </div>
@@ -189,6 +190,7 @@
 
 <div id="te-toast" class="te-toast hidden" role="status"></div>
 <script nonce="{{ csp_nonce }}">window.__GTN_STATIC_VERSION__ = {{ static_version|tojson }};</script>
+<script src="/static/js/backgrounds.js?v={{ static_version }}"></script>
 <script src="/static/js/titleeditor.js?v={{ static_version }}"></script>
 </body>
 </html>

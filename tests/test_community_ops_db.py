@@ -14,6 +14,7 @@ from community_ops import (
     get_community_feed,
     join_community_chain,
     list_community_ops_workspace,
+    mark_community_feed_read,
     mutate_community_announcement,
     mutate_community_chain,
     mutate_community_poll,
@@ -213,6 +214,20 @@ class CommunityOpsPersistenceTests(unittest.TestCase):
         self.assertEqual(closed['effective_state'], 'closed')
         with self.assertRaisesRegex(CommunityOpsError, '已经结束'):
             join_community_chain(self.staff['id'], chain['id'], '不能继续接龙')
+
+    def test_mark_read_can_be_scoped_by_content_type(self):
+        announcement = create_community_announcement(
+            self.actor, title='合并公告', body='公告与更新日志合并。', pinned=True, publish=True,
+        )
+        poll = create_community_poll(
+            self.actor, question='独立投票', options=['A', 'B'],
+            ends_at=self.iso_after(2), publish=True,
+        )
+        feed = mark_community_feed_read(self.voter['id'], ['announcement'])
+        self.assertIn(announcement['id'], feed['viewer']['read']['announcements'])
+        self.assertEqual(feed['viewer']['read']['polls'], [])
+        feed = mark_community_feed_read(self.voter['id'], ['poll', 'chain'])
+        self.assertIn(poll['id'], feed['viewer']['read']['polls'])
 
 
 if __name__ == '__main__':

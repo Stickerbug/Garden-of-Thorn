@@ -79,55 +79,53 @@ class AfdianServiceTests(unittest.TestCase):
         self.assertEqual(f(''), '')
         self.assertEqual(f('没有码'), '')
 
-    def test_ingest_credits_paid_dew_idempotently(self):
+    def test_ingest_grants_titles_without_golden_dew_and_is_idempotent(self):
         code = afdian_service.bind_code_for(self.user['id'])
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_plan('plan_small', 1000, '¥10 档')
+        db.adjust_user_golden_dew(self.user['id'], 7, reason='既有余额', source_type='test')
         result = afdian_service.ingest_order(self._order(remark=f'赞助！绑定码 {code}'))
         self.assertEqual(result['status'], 'credited')
-        self.assertEqual(result['dew'], 1000)
-        dew = db.get_user_thorn_dew(self.user['id'])
-        self.assertEqual(dew['paid'], 1000)
-        self.assertEqual(dew['free'], 0)
+        self.assertEqual(result['total_amount'], '10.00')
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 7)
         with db.get_db_connection() as conn:
             tx = conn.execute(
                 "SELECT * FROM user_currency_transactions WHERE source_type='afdian' "
                 'AND source_id=?', ('AFD20260924NO1',)).fetchone()
-        self.assertIsNotNone(tx)
-        self.assertEqual(int(tx['paid_delta']), 1000)
-        # 同一订单再推一次：duplicate，不重复入账
+        self.assertIsNone(tx)
+        titles = {item['id']: item for item in db.get_user_title_center(self.user['id'])['items']}
+        self.assertIn('afdian:sponsor', titles)
+        self.assertIn('afdian:major-sponsor', titles)
+        self.assertEqual(titles['afdian:major-sponsor']['style']['segments'][0]['paint']['kind'], 'rainbow')
         again = afdian_service.ingest_order(self._order(remark=f'绑定码 {code}'))
         self.assertEqual(again['status'], 'duplicate')
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 1000)
+        progress = afdian_service.sponsor_progress(self.user['id'])
+        self.assertEqual(progress['total_fen'], 1000)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 7)
+        titles = {item['id']: item for item in db.get_user_title_center(self.user['id'])['items']}
+        self.assertEqual(titles['afdian:sponsor']['quantity'], 1)
+        self.assertEqual(titles['afdian:major-sponsor']['quantity'], 1)
 
-    def test_month_multiplier(self):
+    def test_month_count_does_not_multiply_actual_order_amount(self):
         code = afdian_service.bind_code_for(self.user['id'])
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_plan('plan_small', 1000, '¥10 档')
         result = afdian_service.ingest_order(
             self._order(out_trade_no='AFD-M3', remark=code, month=3))
         self.assertEqual(result['status'], 'credited')
-        self.assertEqual(result['dew'], 3000)
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 3000)
+        self.assertEqual(result['amount_fen'], 1000)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 1000)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
 
-    def test_unmatched_then_unmapped_then_settle_after_mapping(self):
-        # 没填绑定码 → unmatched
+    def test_unmatched_order_does_not_count_until_a_valid_code_arrives(self):
         result = afdian_service.ingest_order(self._order(remark='没有码'))
         self.assertEqual(result['status'], 'unmatched')
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 0)
-        # 填了码但方案未配置 → unmapped
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 0)
         code = afdian_service.bind_code_for(self.user['id'])
         result = afdian_service.ingest_order(
-            self._order(out_trade_no='AFD-UNMAP', remark=f'码 {code}'))
-        self.assertEqual(result['status'], 'unmapped')
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 0)
-        # 配置映射后再推同单 → 自动补结
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_plan('plan_small', 500, '¥10 档')
-        result = afdian_service.ingest_order(
-            self._order(out_trade_no='AFD-UNMAP', remark=f'码 {code}'))
+            self._order(out_trade_no='AFD-VALID', remark=f'码 {code}'))
         self.assertEqual(result['status'], 'credited')
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 500)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 1000)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
+        again = afdian_service.ingest_order(self._order(out_trade_no='AFD-VALID', remark=code))
+        self.assertEqual(again['status'], 'duplicate')
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 1000)
 
     def test_non_success_order_is_ignored(self):
         result = afdian_service.ingest_order(self._order(status=1))
@@ -146,30 +144,24 @@ class AfdianServiceTests(unittest.TestCase):
             self._order(out_trade_no='AFD-M2', remark='',
                         plan_id='plan_monthly', user_id='afd-sub-1'))
         self.assertEqual(renewal['status'], 'credited')
-        self.assertEqual(renewal['dew'], 500)
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 1000)
+        self.assertEqual(renewal['amount_fen'], 1000)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 2000)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
         # 陌生爱发电账号的无留言单仍是 unmatched
         stranger = afdian_service.ingest_order(
             self._order(out_trade_no='AFD-M3', remark='',
                         plan_id='plan_monthly', user_id='afd-stranger'))
         self.assertEqual(stranger['status'], 'unmatched')
 
-    def test_sale_order_sku_mapping_and_combos(self):
-        """售卖项多价格方案：按 SKU 名称映射；单项多次/多项组合都按 份数×荆露 求和；
-        未配置的 SKU 安全挂起；到账一次后自动学会 sku_id。"""
+    def test_sale_orders_use_actual_amounts_even_with_legacy_skus(self):
         code = afdian_service.bind_code_for(self.user['id'])
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_sku(250, 'Y1 档')
-            afdian_service.admin_set_sku(800, 'Y3 档')
-        order = {
+        result = afdian_service.ingest_order({
             'out_trade_no': 'AFD-SKU1', 'plan_id': 'plan_shop', 'month': 1, 'status': 2,
             'remark': f'码 {code}', 'total_amount': '3.00',
             'sku_detail': [{'sku_id': 'sku-aaa', 'name': 'Y3 档', 'count': 2}],
-        }
-        result = afdian_service.ingest_order(order)
+        })
         self.assertEqual(result['status'], 'credited')
-        self.assertEqual(result['dew'], 1600)          # 800 × 2 份
-        # 组合：两项各不同份数
+        self.assertEqual(result['amount_fen'], 300)
         combo = afdian_service.ingest_order({
             'out_trade_no': 'AFD-SKU2', 'plan_id': 'plan_shop', 'month': 1, 'status': 2,
             'remark': f'码 {code}', 'total_amount': '7.00',
@@ -179,52 +171,34 @@ class AfdianServiceTests(unittest.TestCase):
             ],
         })
         self.assertEqual(combo['status'], 'credited')
-        self.assertEqual(combo['dew'], 800 + 250 * 3)  # 1550
-        # sku_id 已自学：改名后仍按 sku_id 命中
+        self.assertEqual(combo['amount_fen'], 700)
         renamed = afdian_service.ingest_order({
             'out_trade_no': 'AFD-SKU3', 'plan_id': 'plan_shop', 'month': 1, 'status': 2,
             'remark': f'码 {code}', 'total_amount': '3.00',
             'sku_detail': [{'sku_id': 'sku-aaa', 'name': '新名字了', 'count': 1}],
         })
         self.assertEqual(renamed['status'], 'credited')
-        self.assertEqual(renamed['dew'], 800)
-        # 未配置的 SKU：安全挂起，不发
         unknown = afdian_service.ingest_order({
             'out_trade_no': 'AFD-SKU4', 'plan_id': 'plan_shop', 'month': 1, 'status': 2,
             'remark': f'码 {code}', 'total_amount': '68.00',
             'sku_detail': [{'sku_id': 'sku-zzz', 'name': 'Y68 档', 'count': 1}],
         })
-        self.assertEqual(unknown['status'], 'unmapped')
-        total = db.get_user_thorn_dew(self.user['id'])['paid']
-        self.assertEqual(total, 1600 + 1550 + 800)
+        self.assertEqual(unknown['status'], 'credited')
+        self.assertEqual(unknown['amount_fen'], 6800)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 8100)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
 
-    def test_sku_mapping_recovers_from_stale_name_norm(self):
-        """A renamed SKU still matches by its current name and learns its ID."""
+    def test_custom_amount_does_not_require_sku_mapping(self):
         code = afdian_service.bind_code_for(self.user['id'])
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_sku(80000, '荆露之海(80000荆露)', price='68')
-        with db.get_db_connection() as conn:
-            conn.execute(
-                "UPDATE afdian_skus SET name_norm=? WHERE name=?",
-                ('荆露之海(20000荆露)', '荆露之海(80000荆露)'),
-            )
-            conn.commit()
         result = afdian_service.ingest_order({
-            'out_trade_no': 'AFD-STALE-NORM', 'plan_id': 'plan_shop', 'month': 1,
+            'out_trade_no': 'AFD-CUSTOM', 'plan_id': 'custom', 'month': 1,
             'status': 2, 'remark': code, 'total_amount': '204.00',
-            'sku_detail': [{
-                'sku_id': 'sku-new-sea', 'name': '荆露之海(80000荆露)', 'count': 3,
-            }],
+            'sku_detail': [{'sku_id': 'sku-custom', 'name': '自定义赞助', 'count': 1}],
         })
         self.assertEqual(result['status'], 'credited')
-        self.assertEqual(result['dew'], 240000)
-        with db.get_db_connection() as conn:
-            row = conn.execute(
-                "SELECT sku_id, name_norm FROM afdian_skus WHERE name=?",
-                ('荆露之海(80000荆露)',),
-            ).fetchone()
-        self.assertEqual(row['sku_id'], 'sku-new-sea')
-        self.assertEqual(row['name_norm'], '荆露之海(80000荆露)'.upper())
+        self.assertEqual(result['amount_fen'], 20400)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 20400)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
 
     def test_tombstoned_order_cannot_be_recreated(self):
         with db.get_db_connection() as conn:
@@ -246,34 +220,68 @@ class AfdianServiceTests(unittest.TestCase):
                 ('AFD-TOMBSTONE',),
             ).fetchone())
 
-    def test_public_plans_lists_sku_tiers_with_price(self):
-        """兑换页档位要包含 SKU 档（此前只读方案表，六个真实档位看不到）。"""
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_sku(250, '一滴荆露(250荆露)', price='1')
-            afdian_service.admin_set_sku(800, '小瓶荆露(800荆露)', price='3')
-            afdian_service.admin_set_plan('plan_monthly', 500, '月度订阅')
-        plans = afdian_service.public_plans()
-        names = [(p['name'], p['kind'], p['price']) for p in plans]
-        self.assertIn(('一滴荆露(250荆露)', 'sku', '1.00'), names)
-        self.assertIn(('小瓶荆露(800荆露)', 'sku', '3.00'), names)
-        self.assertTrue(any(kind == 'plan' for _, kind, _ in names))
+    def test_history_backfill_thresholds_styles_and_idempotence(self):
+        def add_order(order_id, amount, status='credited'):
+            with db.get_db_connection() as conn:
+                afdian_service.ensure_schema(conn)
+                conn.execute(
+                    "INSERT INTO afdian_orders (out_trade_no, game_user_id, total_amount, status, received_at) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (order_id, self.user['id'], amount, status, '2026-10-01T00:00:00Z'),
+                )
+                conn.commit()
 
-    def test_no_sku_order_settles_by_price_fallback(self):
-        """无 SKU 明细的订单按总价匹配档位兜底（替代危险的平底方案映射）。"""
+        add_order('HISTORY-099', '0.99')
+        first = afdian_service.sync_all_sponsor_titles()
+        self.assertEqual(first['granted_titles'], 0)
+        self.assertEqual(db.get_user_title_center(self.user['id'])['items'], [])
+
+        add_order('HISTORY-001', '0.01', status='manual')
+        second = afdian_service.sync_all_sponsor_titles()
+        self.assertEqual(second['granted_titles'], 1)
+        titles = {item['id']: item for item in db.get_user_title_center(self.user['id'])['items']}
+        self.assertIn('afdian:sponsor', titles)
+        self.assertNotIn('afdian:major-sponsor', titles)
+        self.assertEqual(titles['afdian:sponsor']['style']['segments'][0]['paint']['color'], '#808080')
+
+        add_order('HISTORY-900', '9.00')
+        third = afdian_service.sync_all_sponsor_titles()
+        self.assertEqual(third['granted_titles'], 1)
+        self.assertEqual(afdian_service.sync_all_sponsor_titles()['granted_titles'], 0)
+        titles = {item['id']: item for item in db.get_user_title_center(self.user['id'])['items']}
+        self.assertEqual(titles['afdian:sponsor']['quantity'], 1)
+        self.assertEqual(titles['afdian:major-sponsor']['quantity'], 1)
+        self.assertEqual(titles['afdian:major-sponsor']['style']['segments'][0]['paint']['kind'], 'rainbow')
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_amount'], '10.00')
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
+
+    def test_public_plans_lists_new_sponsor_tiers(self):
+        plans = afdian_service.public_plans()
+        self.assertEqual(
+            [(p['name'], p['price'], p['kind']) for p in plans],
+            [
+                ('请开发组打两把舞萌', '3.00', 'sku'),
+                ('为开发组购买喵斯快跑', '18.00', 'sku'),
+                ('请开发组吃一顿疯狂星期四', '50.00', 'sku'),
+                ('自定义', '', 'custom'),
+            ],
+        )
+        self.assertTrue(all('dew_amount' not in plan for plan in plans))
+
+    def test_no_sku_order_uses_actual_amount_for_fixed_and_custom_prices(self):
         code = afdian_service.bind_code_for(self.user['id'])
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            afdian_service.admin_set_sku(800, '小瓶荆露(800荆露)', price='3')
         result = afdian_service.ingest_order(self._order(
             out_trade_no='AFD-NOSKU', remark=f'码 {code}',
-            total_amount='3.00', plan_id='plan_shop'))   # 无 sku_detail
+            total_amount='3.00', plan_id='plan_shop'))
         self.assertEqual(result['status'], 'credited')
-        self.assertEqual(result['dew'], 800)
-        # 总价没有对应档位 → 安全挂起
+        self.assertEqual(result['amount_fen'], 300)
         other = afdian_service.ingest_order(self._order(
             out_trade_no='AFD-NOSKU2', remark=f'码 {code}',
-            total_amount='68.00', plan_id='plan_shop'))
-        self.assertEqual(other['status'], 'unmapped')
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 800)
+            total_amount='68.00', plan_id='custom'))
+        self.assertEqual(other['status'], 'credited')
+        self.assertEqual(other['amount_fen'], 6800)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 7100)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
 
     def test_plan_set_zero_disables_mapping(self):
         with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
@@ -298,12 +306,12 @@ class AfdianServiceTests(unittest.TestCase):
         self.assertEqual(afdian_service.get_page_url(), '')
 
     def test_admin_credit_manual(self):
-        code = afdian_service.bind_code_for(self.user['id'])
         afdian_service.ingest_order(self._order(out_trade_no='AFD-BAD', remark='忘了写码'))
-        with mock.patch.object(afdian_service, 'requery_recent', lambda **kw: {'ok': False}):
-            result = afdian_service.admin_credit('AFD-BAD', 800, self.user['id'])
+        result = afdian_service.admin_credit('AFD-BAD', self.user['id'])
         self.assertTrue(result.get('ok'))
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 800)
+        self.assertEqual(result['total_amount'], '10.00')
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 1000)
         with db.get_db_connection() as conn:
             row = conn.execute(
                 "SELECT status FROM afdian_orders WHERE out_trade_no='AFD-BAD'").fetchone()
@@ -343,7 +351,8 @@ class AfdianWebhookRouteTests(unittest.TestCase):
             ok = self.client.post('/api/afdian/webhook/s3cret', json=payload)
             self.assertEqual(ok.status_code, 200)
             self.assertEqual(ok.get_json()['ec'], 200)
-        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['paid'], 1000)
+        self.assertEqual(db.get_user_golden_dew(self.user['id']), 0)
+        self.assertEqual(afdian_service.sponsor_progress(self.user['id'])['total_fen'], 1000)
 
 
 

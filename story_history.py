@@ -272,6 +272,43 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
             'current_node_id': str(state.get('current_node_id') or ''),
         },
     })
+    settlement = None
+    if str(summary_row['result'] or '') == 'victory':
+        from story_score import compute_score_breakdown, ensure_story_clear_animation_schema
+
+        ensure_story_clear_animation_schema(conn)
+        ledger = conn.execute(
+            'SELECT base_score, total_score, load_count, bank_cleared, dev_used, animation_seen_at, '
+            'golden_dew_reward, completed_stages, golden_multiplier, dew_gain_multiplier '
+            'FROM story_reward_ledger WHERE run_id = ? AND user_id = ? LIMIT 1',
+            (str(run_id), int(user_id)),
+        ).fetchone()
+        load_count = int(ledger['load_count'] or 0) if ledger is not None else 0
+        breakdown = compute_score_breakdown(state, summary_row['difficulty'], load_count)
+        raw_total = int(breakdown['total_score'])
+        awarded = int(ledger['total_score'] or 0) if ledger is not None else 0
+        stored_dew_gain = ledger['dew_gain_multiplier'] if ledger is not None else None
+        if stored_dew_gain is not None:
+            dew_gain_multiplier = float(stored_dew_gain)
+        elif ledger is not None and raw_total > 0:
+            # 新列上线前的旧台账只能按实际入账反推历史有效倍率。
+            dew_gain_multiplier = awarded / raw_total
+        else:
+            dew_gain_multiplier = 1.0
+        settlement = {
+            'score': breakdown,
+            'dew_awarded': awarded,
+            'raw_total': raw_total,
+            'global_adjustment': awarded - raw_total,
+            'dew_gain_multiplier': dew_gain_multiplier,
+            'recorded': ledger is not None,
+            'dev_used': bool(ledger['dev_used']) if ledger is not None else False,
+            'bank_cleared': int(ledger['bank_cleared'] or 0) if ledger is not None else 0,
+            'golden_dew_reward': int(ledger['golden_dew_reward'] or 0) if ledger is not None else 0,
+            'completed_stages': int(ledger['completed_stages'] or 0) if ledger is not None else 0,
+            'golden_multiplier': float(ledger['golden_multiplier'] or 1) if ledger is not None else 1,
+            'animation_seen_at': str(ledger['animation_seen_at'] or '') if ledger is not None else '',
+        }
     return {
         'summary': _row_to_summary(summary_row),
         'deck': deck,
@@ -282,4 +319,5 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
             'completed_nodes': sum(1 for item in visited if not item['final']),
             'visited': visited,
         },
+        'settlement': settlement,
     }

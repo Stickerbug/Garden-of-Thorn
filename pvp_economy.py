@@ -31,8 +31,8 @@ def profile_conn(conn, uid):
             # already played on any confirmed account consume the shared quota.
             valid = sum(entry[1] for entry in members)
             ranked = sum(entry[2] for entry in members)
-    # 荆露增幅（设计 2026-10-02）：新人=从未达到过 rare（rank_highest_tier），
-    # 增幅 ×2 只持续其前 20 个计分局（rank_newbie_games，天梯结算累计）。
+    # 标识与增幅是两项独立权益：标识看有效 PvP 场次，增幅只看前 20 个天梯计分局。
+    # 两者都要求在历史最高段位（不是当前段位）上从未达到 rare basic。
     import rank_system as _rank
     _rare_start = _rank.MAJOR_TIERS.index('rare') * len(_rank.SUB_TIERS) + 1
     newcomer_boost = (
@@ -40,7 +40,12 @@ def profile_conn(conn, uid):
         and int(row['rank_highest_tier'] or 1) < _rare_start
         and int(row['rank_newbie_games'] or 0) < 20
     )
-    return {'is_newcomer':primary and valid<20,'valid_games':valid,'ranked_games':ranked,
+    is_newcomer = (
+        primary
+        and valid < 20
+        and int(row['rank_highest_tier'] or 1) < _rare_start
+    )
+    return {'is_newcomer':is_newcomer,'valid_games':valid,'ranked_games':ranked,
             'reward_multiplier':2 if newcomer_boost else 1,
             'protected_ranked_remaining':max(0,3-ranked) if primary else 0,
             'title_remaining':max(0,20-valid) if primary else 0,'win_streak':streak,
@@ -186,8 +191,8 @@ def settle_conn(conn,match_id,summary,award_time=None):
             continue
         conn.execute('''INSERT INTO pvp_economy_accounts VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE
             SET valid_games=excluded.valid_games,win_streak=excluded.win_streak''',(uid,valid+1,next_streak,now))
-        free=max(0,int(user['thorn_dew_free'] or 0))+amount
-        paid=max(0,int(user['thorn_dew_paid'] or 0))
+        free=int(user['thorn_dew_free'] or 0)+amount
+        paid=int(user['thorn_dew_paid'] or 0)
         reward_note='娱乐×0.75 ' if casual else ''
         if early or not allowed:
             # 0 奖励必须把原因写明白（反馈 GB-194）：此前仍打印基础/连胜公式，
@@ -210,6 +215,7 @@ def settle_conn(conn,match_id,summary,award_time=None):
                            'base':base,'streak_bonus':streak_bonus,'newcomer_multiplier':profile['reward_multiplier']})
     # 休闲花园门票（设计 2026-09-26）：天梯胜场渠道——本局赢家各领 1 张/天（上限见
     # leisure_ticket），前提是本局无人被扣信誉分（reputation_ledger 关联本局）。
+    ticket_awards = []
     try:
         if winners and not is_draw:
             penalty_rows = conn.execute(
@@ -218,10 +224,16 @@ def settle_conn(conn,match_id,summary,award_time=None):
             if not penalty_rows:
                 import leisure_ticket as _lt
                 for uid in winners:
-                    _lt.claim_daily_channel_ticket(conn, uid, _lt.CHANNEL_LADDER)
+                    ticket_granted, _ = _lt.claim_daily_channel_ticket(conn, uid, _lt.CHANNEL_LADDER)
+                    if ticket_granted:
+                        ticket_awards.append({'user_id': uid, 'amount': 1})
     except Exception:
         pass
-    result={'awarded':awards,'skipped':'early_surrender' if early else None}
+    result={
+        'awarded': awards,
+        'leisure_ticket_awarded': ticket_awards,
+        'skipped': 'early_surrender' if early else None,
+    }
     conn.execute('UPDATE pvp_reward_settlements SET result_json=? WHERE settlement_key=?',(integrity._json(result),key))
     return result
 

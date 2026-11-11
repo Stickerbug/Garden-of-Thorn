@@ -86,11 +86,9 @@
   }
 
   function currentFeedItems() {
-    const announcements = Array.isArray(state.feed?.announcements) ? state.feed.announcements : [];
     const polls = Array.isArray(state.feed?.polls) ? state.feed.polls : [];
     const chains = Array.isArray(state.feed?.chains) ? state.feed.chains : [];
     return [
-      ...announcements.map((item) => ({ type: 'announcements', receipt: announcementReceipt(item), id: Number(item?.id || 0) })),
       ...polls.map((item) => ({ type: 'polls', receipt: pollReceipt(item), id: Number(item?.id || 0) })),
       ...chains.map((item) => ({ type: 'chains', receipt: chainReceipt(item), id: Number(item?.id || 0) })),
     ].filter((item) => item.receipt && item.id > 0);
@@ -124,7 +122,7 @@
       !read.has(item.receipt) && !serverReadIds(item.type).has(item.id)
     ));
     button.classList.toggle('has-unread', hasUnread);
-    button.setAttribute('aria-label', hasUnread ? '公告与投票（有新内容）' : '公告与投票');
+    button.setAttribute('aria-label', hasUnread ? '投票（有新内容）' : '投票');
   }
 
   async function markCommunityItemsRead() {
@@ -138,7 +136,7 @@
           'Content-Type': 'application/json',
           'X-Community-CSRF': csrf,
         },
-        body: '{}',
+        body: JSON.stringify({ types: ['poll', 'chain'] }),
       })
         .then((payload) => {
           applyServerRead(payload);
@@ -299,20 +297,14 @@
     const feed = byId('community-feed');
     if (!feed) return;
     feed.textContent = '';
-    const announcements = Array.isArray(state.feed?.announcements) ? state.feed.announcements : [];
     const polls = Array.isArray(state.feed?.polls) ? state.feed.polls : [];
     const chains = Array.isArray(state.feed?.chains) ? state.feed.chains : [];
-    if (!announcements.length && !polls.length && !chains.length) {
-      feed.appendChild(createElement('p', 'community-empty muted', '目前没有正在展示的公告、投票或接龙。'));
+    if (!polls.length && !chains.length) {
+      feed.appendChild(createElement('p', 'community-empty muted', '目前没有正在展示的投票或接龙。'));
     } else {
-      // 置顶优先于普通；同为置顶时投票排在公告上面（2026-10-22）
       const rank = (item) => (item.pinned ? 0 : 1);
-      const pinnedPolls = polls.filter((item) => rank(item) === 0);
-      const pinnedAnnouncements = announcements.filter((item) => rank(item) === 0);
-      pinnedPolls.forEach((item) => feed.appendChild(renderPoll(item)));
-      pinnedAnnouncements.forEach((item) => feed.appendChild(renderAnnouncement(item)));
+      polls.filter((item) => rank(item) === 0).forEach((item) => feed.appendChild(renderPoll(item)));
       polls.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderPoll(item)));
-      announcements.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderAnnouncement(item)));
       chains.forEach((item) => feed.appendChild(renderChain(item)));
     }
     const manage = byId('community-manage-link');

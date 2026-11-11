@@ -127,7 +127,7 @@ class AccountSessionTakeoverTests(unittest.TestCase):
         helper = source_between(
             GAME_JS,
             'function isReplacementNoticeForCurrentSocket(data = {})',
-            'function connectSocket(serverUrl)',
+            'function connectSocket(serverUrl, options = {})',
         )
         self.assertIn("String(data.replacement_sid) === String(socket.id || '')", helper)
 

@@ -41,3 +41,53 @@ def test_bulk_maintenance_helper_keeps_the_original_operations():
 def test_dm_cleanup_also_runs_off_the_event_loop():
     worker = _function_source('_dm_cleanup_worker', 'ensure_dm_cleanup_started')
     assert 'run_off_event_loop(cleanup_old_dm_messages_once)' in worker
+
+
+def test_minigame_settlement_also_runs_off_the_event_loop():
+    worker = _function_source(
+        '_minigame_2048_settlement_worker',
+        'ensure_minigame_2048_settlement_worker',
+    )
+    assert 'run_off_event_loop(_minigame_2048_settlement_once)' in worker
+
+
+def test_minigame_settlement_helper_keeps_both_games():
+    helper = _function_source(
+        '_minigame_2048_settlement_once',
+        '_minigame_2048_settlement_worker',
+    )
+    assert 'minigame_2048_service.settle_due(conn)' in helper
+    assert 'minigame_suika_service.settle_due(conn)' in helper
+
+
+def test_reputation_database_reads_run_off_the_event_loop():
+    worker = _function_source('refresh_online_reputation', 'refresh_chat_special_fields')
+    assert 'run_off_event_loop(' in worker
+    assert '_online_reputation_profiles' in worker
+
+
+def test_draft_stats_flush_paths_run_off_the_event_loop():
+    async_flush = _function_source('flush_draft_stats_async', '_draft_stats_worker')
+    worker = _function_source('_draft_stats_worker', 'start_draft_stats_worker')
+    assert 'start_background_task(run_off_event_loop, flush_draft_stats_once)' in async_flush
+    assert 'run_off_event_loop(flush_draft_stats_once)' in worker
+
+
+def test_last_seen_flush_paths_run_off_the_event_loop():
+    async_flush = _function_source('flush_last_seen_async', '_last_seen_worker')
+    worker = _function_source('_last_seen_worker', 'start_last_seen_worker')
+    assert 'start_background_task(run_off_event_loop, flush_last_seen_once)' in async_flush
+    assert 'run_off_event_loop(flush_last_seen_once)' in worker
+
+
+def test_leisure_session_settlement_runs_off_the_event_loop():
+    worker = _function_source('_leisure_session_worker', 'ensure_leisure_session_worker')
+    assert 'run_off_event_loop(leisure_sessions.sweep)' in worker
+
+
+def test_rank_monthly_settlement_runs_off_the_event_loop():
+    worker = _function_source(
+        '_rank_monthly_settlement_worker',
+        'ensure_rank_monthly_settlement_worker',
+    )
+    assert 'run_off_event_loop(db_module.settle_ranks_monthly, month_key)' in worker

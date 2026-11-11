@@ -186,18 +186,19 @@ class StoryScoreTests(unittest.TestCase):
             total, _ = story_score.compute_score(state, difficulty, 0)
             self.assertEqual(total, int(621 * mult * 1.5))
 
-    def test_sl_penalty_and_no_sl_bonus(self):
+    def test_sl_multiplier_and_no_sl_bonus(self):
         state = self._state()
-        # 无 SL：×1.5；有 SL：max(100-N, 80)/100
+        # 无 SL：×1.5；只要用过重新开始本层即为 ×1，不再按次数递减。
         no_sl, _ = story_score.compute_score(state, 'normal', 0)
         five_sl, _ = story_score.compute_score(state, 'normal', 5)
         twelve_sl, _ = story_score.compute_score(state, 'normal', 12)
         self.assertEqual(no_sl, int(621 * 1.5))
-        self.assertEqual(five_sl, int(621 * 0.95))
-        self.assertEqual(twelve_sl, int(621 * 0.88))
+        self.assertEqual(five_sl, 621)
+        self.assertEqual(twelve_sl, 621)
 
-    def test_sl_penalty_floor(self):
-        self.assertEqual(story_score.compute_multiplier(50), 0.8)
+    def test_sl_multiplier_has_no_count_floor(self):
+        self.assertEqual(story_score.compute_multiplier(50), 1.0)
+        self.assertEqual(story_score.compute_multiplier(1), 1.0)
         self.assertEqual(story_score.compute_multiplier(0), 1.5)
 
 

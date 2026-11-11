@@ -5,6 +5,8 @@
 11 个大段（Craft Eternal 稀有度顺序）× 4 个小段（basic/sewage/disc/
 golden nazar，由低到高）共 44 个段位。段位分只在 0 与该段上限之间变动；
 到上限后赢一局即升段（2026-10-11 取消两连胜要求），到 0 后再败一局降段。
+赛季结算时 ultra 以下掉 2 个小段、ultra 及以上掉 1 个，段内分置 10；
+30 局天梯发基础奖励，100 局再发进阶荆露与赛季参与者称号。
 
 本模块只放纯函数与常量；数据库读写与结算 worker 在 db.py / app.py。
 """
@@ -40,11 +42,11 @@ _MAJOR_CAPS: Dict[str, int] = {
 }
 _DEFAULT_CAP = 200
 
-WIN_BASE = 5
-LOSS_BASE = 3
+WIN_BASE = 10
+LOSS_BASE = 6
 MIN_CHANGE = 1
-MAX_WIN = 10     # 平衡 2026-10-02：胜利加分上限（封顶后再吃倍率）
-MAX_LOSS = 5     # 失败扣分上限
+MAX_WIN = 20     # 胜利加分上限（封顶后再吃倍率）
+MAX_LOSS = 10    # 失败扣分上限
 DAILY_DOUBLE_GAMES = 5      # 每日前 5 局计分对局，胜利加分翻倍
 BEIJING_TZ_OFFSET_HOURS = 8
 
@@ -201,13 +203,13 @@ def opponent_correction(own_tier: int, opponent_tier_avg: float) -> float:
 
 
 def match_gain(own_tier: int, opponent_tier_avg: float, special_total: float = 0.0) -> int:
-    """胜利加分：5 + 段位修正 + 特殊修正，至少 1。"""
+    """胜利加分：10 + 段位修正 + 特殊修正，至少 1，最多 20。"""
     raw = WIN_BASE + opponent_correction(own_tier, opponent_tier_avg) + float(special_total or 0.0)
     return max(MIN_CHANGE, min(MAX_WIN, _round_half_up(raw)))
 
 
 def match_loss(own_tier: int, opponent_tier_avg: float, special_total: float = 0.0) -> int:
-    """失败扣分：3 - 段位修正 - 特殊修正，至少 1（返回正数）。"""
+    """失败扣分：6 - 段位修正 - 特殊修正，至少 1，最多 10（返回正数）。"""
     raw = LOSS_BASE - opponent_correction(own_tier, opponent_tier_avg) - float(special_total or 0.0)
     return max(MIN_CHANGE, min(MAX_LOSS, _round_half_up(raw)))
 
@@ -319,20 +321,41 @@ def apply_match_result(
     return result
 
 
+CURRENT_SEASON_NAME = 'S3'
+SEASON_BASE_REWARD_GAMES = 30
+SEASON_ADVANCED_REWARD_GAMES = 100
+SEASON_ADVANCED_REWARD_DEW = 5000
+SEASON_SETTLEMENT_POINTS = 10
+
+
+def season_name_for_month(month_key) -> str:
+    """月度赛季名：2026-10 为 S3，之后逐月递增；非法键回退当前赛季。"""
+    try:
+        year_text, month_text = str(month_key or '').split('-', 1)
+        year, month = int(year_text), int(month_text)
+        if not 1 <= month <= 12:
+            raise ValueError(month)
+        season_number = 3 + (year - 2026) * 12 + (month - 10)
+        return f'S{max(1, season_number)}'
+    except (TypeError, ValueError):
+        return CURRENT_SEASON_NAME
+
+
 def monthly_settlement_tier(tier_index: int) -> int:
-    """月度结算的掉段：basic → 前一个大段的 basic；非 basic → 本大段 basic。"""
+    """赛季结算：ultra 以下掉 2 个小段，ultra 及以上掉 1 个小段。"""
     tier_index = clamp_tier(tier_index)
-    major_i, sub_i = decompose(tier_index)
-    if sub_i == 0:
-        if major_i == 0:
-            return tier_index
-        return compose(major_i - 1, 0)
-    return compose(major_i, 0)
+    major_i, _ = decompose(tier_index)
+    ultra_i = MAJOR_TIERS.index('ultra')
+    drop = 2 if major_i < ultra_i else 1
+    return clamp_tier(tier_index - drop)
 
 
-def settlement_reward_dew(tier_index: int) -> int:
-    """月度结算荆露：段位序号 × 1000（common basic = 1 × 1000）。"""
-    return clamp_tier(tier_index) * 1000
+def settlement_reward_dew(tier_index: int, points: int, ranked_games: int) -> int:
+    """满 30 局发基础奖励：5000 + 结算前绝对段位分 × 10。"""
+    if int(ranked_games or 0) < SEASON_BASE_REWARD_GAMES:
+        return 0
+    absolute_points = tier_to_absolute(tier_index, points)
+    return 5000 + absolute_points * 10
 
 
 def beijing_day_key(utc_dt) -> str:

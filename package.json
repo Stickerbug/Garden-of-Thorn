@@ -1,0 +1,8 @@
+{
+  "name": "gtn-local-preview",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "node scripts/dev_server.js"
+  }
+}

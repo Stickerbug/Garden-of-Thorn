@@ -40,6 +40,7 @@ const GTN_BETA_STORAGE_EXACT_KEYS = new Set([
     'gtn_show_card_images',
     'gtn_home_ui',
     'gtn_landscape_mode',
+    'gtn_lock_aspect_ratio',
     'gtn_story_hide_card_borders',
     'gtn_audio_enabled',
     'gtn_audio_master',
@@ -96,6 +97,7 @@ const GTN_COOKIE_FALLBACK_KEYS = new Set([
     'gtn_show_card_images',
     'gtn_home_ui',
     'gtn_landscape_mode',
+    'gtn_lock_aspect_ratio',
     'gtn_story_hide_card_borders',
     'gtn_audio_enabled',
     'gtn_audio_master',
@@ -1564,8 +1566,8 @@ Object.assign(I18N.ja, {
 });
 
 Object.assign(I18N.zh, {
-    about_title: '关于', about_gameplay: '游戏玩法', about_credits: '致谢', about_changelog: '更新日志', about_contact: '联系方式',
-    changelog_empty: '暂无更新日志。', changelog_error: '更新日志加载失败。',
+    about_title: '关于', about_gameplay: '游戏玩法', about_credits: '致谢', about_changelog: '公告', about_contact: '联系方式',
+    changelog_empty: '暂无公告。', changelog_error: '公告加载失败。',
     credits_developer: '开发者', credits_design: '设计', credits_art: '美工', credits_special: '特别鸣谢',
     rules_intro_title: '游戏介绍', rules_type_thorn: '攻击(Thorn)', rules_type_bloom: '技能(Bloom)', rules_type_root: '装备(Root)', rules_type_guard: '反制(Guard)',
     rules_goal_title: '基本目标',
@@ -1607,7 +1609,7 @@ Object.assign(I18N.zh, {
     tag_desc_uncancellable: '此牌弹出选择窗口时不能取消，玩家必须完成选择。',
     tag_desc_infinite_exclude: '此牌不会进入无限火力的随机牌库。',
     tag_desc_copy: '此牌进入手中时，将对应层数张带有放逐的复制加入手中。',
-    tag_desc_unique: '同一玩家通常只能获得1张同名唯一牌；已拥有时不会再次出现在选牌中。拟态无法复制唯一牌；其他强制复制仍会保留副本，但每个多余副本会向牌组加入1张虚空。',
+    tag_desc_unique: '如果有同名牌，则将其放逐，将一张虚空加入手中。',
     tag_desc_swift: '此牌的E花费减少X，最低为0E。',
     tag_desc_rebound: '此牌打出并结算后立即回到使用者手中，并经历一次弃牌堆清理。若同时带有放逐，则放逐优先。',
     tag_desc_stealth: '此牌不会触发任何反制窗口。',
@@ -1617,8 +1619,8 @@ Object.assign(I18N.zh, {
 });
 
 Object.assign(I18N.en, {
-    about_title: 'About', about_gameplay: 'How to Play', about_credits: 'Credits', about_changelog: 'Changelog', about_contact: 'Contact',
-    changelog_empty: 'No changelog yet.', changelog_error: 'Failed to load changelog.',
+    about_title: 'About', about_gameplay: 'How to Play', about_credits: 'Credits', about_changelog: 'Announcements', about_contact: 'Contact',
+    changelog_empty: 'No announcements yet.', changelog_error: 'Failed to load announcements.',
     credits_developer: 'Developer', credits_design: 'Design', credits_art: 'Art', credits_special: 'Special Thanks',
     rules_intro_title: 'Game Introduction', rules_type_thorn: 'Thorn attacks', rules_type_bloom: 'Bloom skills', rules_type_root: 'Root equipment', rules_type_guard: 'Guard counters',
     rules_goal_title: 'Goal',
@@ -1676,7 +1678,7 @@ Object.assign(I18N.en, {
     tag_desc_uncancellable: 'Choice keyword. Selection windows from this card do not show a cancel button; the player must complete the choice. This prevents checking hidden information for 0 cost and canceling, such as with Magnet.',
     tag_desc_infinite_exclude: 'Mode keyword. This card is excluded from Infinite Fire random pools because it conflicts with that mode.',
     tag_desc_copy: 'Draw keyword. When this card enters your hand, add N exile copies to your hand.',
-    tag_desc_unique: 'Normally, you can obtain only one copy of a Unique card, and owned cards are removed from later draft choices. Mimic cannot copy Unique cards; other forced copies remain, but each extra copy adds 1 Void to your deck.',
+    tag_desc_unique: 'A player can have only one copy of a Unique card with the same name across their hand, deck, discard pile, and equipment. Owned cards are removed from later draft choices. Mimic cannot copy Unique cards; any extra copy produced by other effects is exiled and adds 1 Void to your hand.',
     tag_desc_swift: 'Cost keyword. This card\'s E cost is reduced by X (minimum 0E).',
     tag_desc_rebound: 'Resolution keyword. After being played and resolved, this card immediately returns to its user’s hand. If it also has Exile, Exile takes priority.',
     tag_desc_default: 'Mod or extension tag. Its exact meaning is defined by the relevant mod or card effect.',
@@ -1686,8 +1688,8 @@ Object.assign(I18N.en, {
 });
 
 Object.assign(I18N.fr, {
-    about_title: 'À propos', about_gameplay: 'Règles', about_credits: 'Crédits', about_changelog: 'Journal', about_contact: 'Contact',
-    changelog_empty: 'Aucun journal de mise à jour.', changelog_error: 'Impossible de charger le journal.',
+    about_title: 'À propos', about_gameplay: 'Règles', about_credits: 'Crédits', about_changelog: 'Annonces', about_contact: 'Contact',
+    changelog_empty: 'Aucune annonce.', changelog_error: 'Impossible de charger les annonces.',
     credits_developer: 'Développeur', credits_design: 'Design', credits_art: 'Art', credits_special: 'Remerciements',
     rules_intro_title: 'Présentation du jeu', rules_type_thorn: 'attaques Thorn', rules_type_bloom: 'compétences Bloom', rules_type_root: 'équipements Root', rules_type_guard: 'contres Guard',
     rules_goal_title: 'Objectif',
@@ -1740,8 +1742,8 @@ Object.assign(I18N.fr, {
 });
 
 Object.assign(I18N.ja, {
-    about_title: '概要', about_gameplay: '遊び方', about_credits: 'クレジット', about_changelog: '更新履歴', about_contact: '連絡先',
-    changelog_empty: '更新履歴はありません。', changelog_error: '更新履歴の読み込みに失敗しました。',
+    about_title: '概要', about_gameplay: '遊び方', about_credits: 'クレジット', about_changelog: 'お知らせ', about_contact: '連絡先',
+    changelog_empty: 'お知らせはありません。', changelog_error: 'お知らせの読み込みに失敗しました。',
     credits_developer: '開発者', credits_design: 'デザイン', credits_art: '美術', credits_special: 'Special Thanks',
     rules_intro_title: 'ゲーム紹介', rules_type_thorn: '攻撃(Thorn)', rules_type_bloom: 'スキル(Bloom)', rules_type_root: '装備(Root)', rules_type_guard: 'カウンター(Guard)',
     rules_goal_title: '基本目標',
@@ -1806,7 +1808,7 @@ Object.assign(I18N.fr, {
     tag_desc_uncancellable: 'Mot-clé de choix. Les fenêtres de choix de cette carte n’affichent pas de bouton Annuler ; le joueur doit terminer le choix. Cela évite de consulter une information cachée gratuitement puis d’annuler, par exemple avec Aimant.',
     tag_desc_infinite_exclude: 'Mot-clé de mode. Cette carte est exclue de la réserve aléatoire d’Infinite Fire car elle entre en conflit avec ce mode.',
     tag_desc_copy: 'Mot-clé de pioche. Quand cette carte entre en main, ajoute N copies exilées.',
-    tag_desc_unique: 'Vous ne pouvez normalement obtenir qu’un exemplaire d’une carte Unique, qui disparaît ensuite des choix. Le Mimétisme ne peut pas copier les cartes Uniques ; les autres copies forcées restent, mais ajoutent 1 Vide à votre deck par exemplaire excédentaire.',
+    tag_desc_unique: 'Un joueur ne peut avoir qu’un exemplaire d’une carte Unique du même nom entre sa main, sa pioche, sa défausse et ses équipements. Les cartes possédées disparaissent des choix suivants. Le Mimétisme ne peut pas copier les cartes Uniques ; tout exemplaire supplémentaire créé par un autre effet est exilé et ajoute 1 Vide à votre main.',
     tag_desc_swift: 'Mot-clé de coût. Le coût E de cette carte est réduit de X (minimum 0E).',
     tag_desc_rebound: 'Mot-clé de résolution. Après avoir été jouée et résolue, cette carte revient immédiatement dans la main de son utilisateur. Si elle a aussi Exil, l’Exil est prioritaire.',
     tag_desc_default: 'Tag de mod ou d\'extension. Son sens exact est défini par le mod ou l\'effet de carte correspondant.',
@@ -1846,7 +1848,7 @@ Object.assign(I18N.ja, {
     tag_desc_uncancellable: '選択制限キーワード。このカードの選択画面にはキャンセルボタンが表示されず、必ず選択を完了します。Magnet のように0コストで非公開情報を見てからキャンセルすることを防ぎます。',
     tag_desc_infinite_exclude: 'モード制限キーワード。このカードは Infinite Fire のランダムカードプールに入りません。',
     tag_desc_copy: 'ドローキーワード。このカードが手札に入った時、追放コピーをN枚手札に加える。',
-    tag_desc_unique: '通常、同名の唯一カードは1枚だけ獲得でき、所持後は選択肢に出ません。擬態は唯一カードを複製できません。その他の強制複製は残りますが、余分な1枚ごとにデッキへ虚空を1枚加えます。',
+    tag_desc_unique: '同名の唯一カードは、手札・デッキ・捨て札・装備を合わせて各プレイヤーにつき1枚までです。所持後は選択肢に出ず、擬態でも複製できません。その他の効果で余分な複製が作られた場合、その複製は追放され、虚空を1枚手札に加えます。',
     tag_desc_swift: 'コストキーワード。このカードのE消費がX減少（最低0E）。',
     tag_desc_rebound: '解決先キーワード。打ち出して解決した後、ただちに使用者の手札へ戻ります。放逐も持つ場合、放逐が優先されます。',
     tag_desc_default: 'Mod または拡張タグです。具体的な意味は対応する Mod またはカード効果で定義されます。',
@@ -1898,10 +1900,10 @@ Object.assign(I18N.en, { settings_show_english_card_names: 'Show English card na
 Object.assign(I18N.zh, { settings_show_english_card_names: '显示卡牌英文名称', settings_show_hand_order: '显示手牌序数', settings_show_card_images: '显示卡牌图片', settings_show_own_skins: '显示自己卡牌皮肤', settings_show_others_skins: '显示他人卡牌皮肤', no_selectable_player: '没有可选中的玩家', season_ends_in: '赛季结束：{0}', season_has_ended: '赛季已结束' });
 Object.assign(I18N.fr, { settings_show_english_card_names: 'Afficher les noms anglais des cartes', settings_show_hand_order: 'Afficher l’ordre des cartes en main', settings_show_card_images: 'Afficher les images des cartes', settings_show_own_skins: 'Afficher mes skins', settings_show_others_skins: 'Afficher les skins des autres', no_selectable_player: 'Aucun joueur ciblable', season_ends_in: 'La saison se termine dans {0}', season_has_ended: 'La saison est terminée' });
 Object.assign(I18N.ja, { settings_show_english_card_names: '英語のカード名を表示', settings_show_hand_order: '手札の順番を表示', settings_show_card_images: 'カード画像を表示', settings_show_own_skins: '自分のカードスキンを表示', settings_show_others_skins: '他人のカードスキンを表示', no_selectable_player: '選択可能なプレイヤーがいません', season_ends_in: 'シーズン終了まで {0}', season_has_ended: 'シーズンは終了しました' });
-Object.assign(I18N.en, { settings_landscape_mode: 'Enable landscape mode', settings_fullscreen: 'Fullscreen', settings_enter_fullscreen: 'Enter fullscreen', settings_exit_fullscreen: 'Exit fullscreen', settings_fullscreen_unsupported: 'Fullscreen unavailable', settings_fullscreen_failed: 'Could not change fullscreen mode' });
-Object.assign(I18N.zh, { settings_landscape_mode: '开启横屏模式', settings_fullscreen: '全屏', settings_enter_fullscreen: '进入全屏', settings_exit_fullscreen: '退出全屏', settings_fullscreen_unsupported: '浏览器不支持全屏', settings_fullscreen_failed: '无法切换全屏模式' });
-Object.assign(I18N.fr, { settings_landscape_mode: 'Activer le mode paysage', settings_fullscreen: 'Plein écran', settings_enter_fullscreen: 'Passer en plein écran', settings_exit_fullscreen: 'Quitter le plein écran', settings_fullscreen_unsupported: 'Plein écran indisponible', settings_fullscreen_failed: 'Impossible de changer le mode plein écran' });
-Object.assign(I18N.ja, { settings_landscape_mode: '横画面モードを有効化', settings_fullscreen: 'フルスクリーン', settings_enter_fullscreen: 'フルスクリーンにする', settings_exit_fullscreen: 'フルスクリーンを終了', settings_fullscreen_unsupported: 'フルスクリーン非対応', settings_fullscreen_failed: 'フルスクリーンを切り替えられませんでした' });
+Object.assign(I18N.en, { settings_landscape_mode: 'Enable landscape mode', settings_lock_aspect_ratio: 'Lock aspect ratio (16:9)', settings_fullscreen: 'Fullscreen', settings_enter_fullscreen: 'Enter fullscreen', settings_exit_fullscreen: 'Exit fullscreen', settings_fullscreen_unsupported: 'Fullscreen unavailable', settings_fullscreen_failed: 'Could not change fullscreen mode' });
+Object.assign(I18N.zh, { settings_landscape_mode: '开启横屏模式', settings_lock_aspect_ratio: '锁定长宽比（16:9）', settings_fullscreen: '全屏', settings_enter_fullscreen: '进入全屏', settings_exit_fullscreen: '退出全屏', settings_fullscreen_unsupported: '浏览器不支持全屏', settings_fullscreen_failed: '无法切换全屏模式' });
+Object.assign(I18N.fr, { settings_landscape_mode: 'Activer le mode paysage', settings_lock_aspect_ratio: 'Verrouiller le format (16:9)', settings_fullscreen: 'Plein écran', settings_enter_fullscreen: 'Passer en plein écran', settings_exit_fullscreen: 'Quitter le plein écran', settings_fullscreen_unsupported: 'Plein écran indisponible', settings_fullscreen_failed: 'Impossible de changer le mode plein écran' });
+Object.assign(I18N.ja, { settings_landscape_mode: '横画面モードを有効化', settings_lock_aspect_ratio: 'アスペクト比を固定（16:9）', settings_fullscreen: 'フルスクリーン', settings_enter_fullscreen: 'フルスクリーンにする', settings_exit_fullscreen: 'フルスクリーンを終了', settings_fullscreen_unsupported: 'フルスクリーン非対応', settings_fullscreen_failed: 'フルスクリーンを切り替えられませんでした' });
 Object.assign(I18N.en, { settings_story_hide_card_borders: 'Hide Story Mode card borders' });
 Object.assign(I18N.zh, { settings_story_hide_card_borders: '隐藏故事模式卡牌边框' });
 Object.assign(I18N.fr, { settings_story_hide_card_borders: 'Masquer les bordures des cartes du mode histoire' });
@@ -1979,7 +1981,7 @@ Object.assign(I18N.en, {
     account_password_confirm: 'Confirm Password', account_old_password: 'Current Password', account_new_password: 'New Password',
     account_new_password_confirm: 'Confirm New Password', account_change_password: 'Change Password', account_password_changed: 'Password changed',
     account_change_username: 'Change Username', account_info: 'Account Info', account_online_time: 'Total Match Time', thorn_dew: 'Thorn Dew', account_delete: 'Delete Account', stats: 'Stats',
-    achievements: 'Achievements', achievements_title: 'Achievements & Thorn Dew', achievements_empty: 'No achievements yet.', achievements_hidden: 'Hidden achievement. Unlock it to reveal.',
+    achievements: 'Achievements', achievements_title: 'Achievements & Currency', achievements_empty: 'No achievements yet.', achievements_hidden: 'Hidden achievement. Unlock it to reveal.',
     leaderboard: 'Leaderboard', leaderboard_note: 'Ranked by rank tier. Season board needs 8 ranked games; total board needs 20.', leaderboard_empty: 'No ranked players yet.', leaderboard_loading: 'Loading leaderboard...', leaderboard_next_refresh: 'Refresh in {0}', leaderboard_gr: 'Rank', leaderboard_season: 'Season', leaderboard_total: 'All-time', leaderboard_raw_rate: 'Win %', leaderboard_hide_titles: 'Hide Titles', leaderboard_show_titles: 'Show Titles',
     account_login: 'Log In', account_register: 'Register', account_enter: 'Enter with Account', account_logout: 'Log Out',
     account_not_logged_in: 'Not logged in', account_logged_in_as: 'Signed in as {0}', account_stats: 'Games {0} / Wins {1} / Losses {2} / Draws {3}',
@@ -1991,7 +1993,7 @@ Object.assign(I18N.zh, {
     account_password_confirm: '确认密码', account_old_password: '原密码', account_new_password: '新密码',
     account_new_password_confirm: '确认新密码', account_change_password: '修改密码', account_password_changed: '密码已修改',
     account_change_username: '修改用户名', account_info: '账号信息', account_online_time: '总对局时长', thorn_dew: '荆露', account_delete: '注销账户', stats: '统计',
-    achievements: '成就', achievements_title: '成就与荆露', achievements_empty: '暂无成就。', achievements_hidden: '隐藏成就，达成后揭晓。',
+    achievements: '成就', achievements_title: '成就与货币', achievements_empty: '暂无成就。', achievements_hidden: '隐藏成就，达成后揭晓。',
     leaderboard: '排行榜', leaderboard_note: '排行按照段位计算。赛季榜需本赛季至少8场计分对局，总榜需至少20场计分对局。', leaderboard_empty: '暂无符合条件的玩家。', leaderboard_loading: '正在加载排行榜...', leaderboard_next_refresh: '刷新倒计时 {0}', leaderboard_gr: '段位', leaderboard_season: '赛季榜', leaderboard_total: '总榜', leaderboard_raw_rate: '胜率', leaderboard_hide_titles: '隐藏称号', leaderboard_show_titles: '显示称号',
     account_login: '登录', account_register: '注册', account_enter: '账号进入', account_logout: '退出登录',
     account_not_logged_in: '未登录', account_logged_in_as: '已登录：{0}', account_stats: '对局 {0} / 胜 {1} / 负 {2} / 平 {3}',
@@ -2003,7 +2005,7 @@ Object.assign(I18N.fr, {
     account_password_confirm: 'Confirmer', account_old_password: 'Mot de passe actuel', account_new_password: 'Nouveau mot de passe',
     account_new_password_confirm: 'Confirmer le nouveau', account_change_password: 'Changer le mot de passe', account_password_changed: 'Mot de passe changé',
     account_change_username: 'Changer le nom', account_info: 'Compte', account_online_time: 'Temps total en match', thorn_dew: 'Rosée d’épines',
-    achievements: 'Succès', achievements_title: 'Succès et Rosée', achievements_empty: 'Aucun succès.', achievements_hidden: 'Succès caché.',
+    achievements: 'Succès', achievements_title: 'Succès et monnaie', achievements_empty: 'Aucun succès.', achievements_hidden: 'Succès caché.',
     account_delete: 'Supprimer le compte', stats: 'Stats',
     leaderboard: 'Classement', leaderboard_note: 'Classement par palier. Saison : 8 parties classées ; total : 20.', leaderboard_empty: 'Aucun joueur classé.', leaderboard_loading: 'Chargement du classement...', leaderboard_next_refresh: 'Actualisation {0}', leaderboard_gr: 'Rank', leaderboard_season: 'Saison', leaderboard_total: 'Total', leaderboard_raw_rate: 'Victoire', leaderboard_hide_titles: 'Masquer les titres', leaderboard_show_titles: 'Afficher les titres',
     account_login: 'Connexion', account_register: 'Inscription', account_enter: 'Entrer avec le compte', account_logout: 'Déconnexion',
@@ -2016,7 +2018,7 @@ Object.assign(I18N.ja, {
     account_password_confirm: '確認', account_old_password: '現在のパスワード', account_new_password: '新しいパスワード',
     account_new_password_confirm: '新しい確認', account_change_password: 'パスワード変更', account_password_changed: '変更しました',
     account_change_username: 'ユーザー名変更', account_info: 'アカウント情報', account_online_time: '総対戦時間', thorn_dew: 'ソーンデュー',
-    achievements: '実績', achievements_title: '実績とソーンデュー', achievements_empty: '実績はありません。', achievements_hidden: '隠し実績です。',
+    achievements: '実績', achievements_title: '実績と通貨', achievements_empty: '実績はありません。', achievements_hidden: '隠し実績です。',
     account_delete: 'アカウント削除', stats: '統計',
     leaderboard: 'ランキング', leaderboard_note: '段位で順位を計算します。シーズン榜は8戦、総合榜は20戦以上が必要です。', leaderboard_empty: '該当プレイヤーはいません。', leaderboard_loading: 'ランキング読込中...', leaderboard_next_refresh: '更新まで {0}', leaderboard_gr: 'Rank', leaderboard_season: 'シーズン', leaderboard_total: '総合', leaderboard_raw_rate: '勝率', leaderboard_hide_titles: '称号を隠す', leaderboard_show_titles: '称号を表示',
     account_login: 'ログイン', account_register: '登録', account_enter: 'アカウントで入る', account_logout: 'ログアウト',
@@ -2710,6 +2712,7 @@ function touchDblclickHandledManually() {
     return Date.now() - lastManualTouchToggleAt < 600;
 }
 let landscapeModeEnabled = localStorage.getItem('gtn_landscape_mode') === '1';
+let aspectRatioLocked = localStorage.getItem('gtn_lock_aspect_ratio') === '1';
 let storyCardBordersHidden = localStorage.getItem('gtn_story_hide_card_borders') === '1';
 /* 主页UI（2026-10-03，反馈单#326 概念）：simple=现状简约版（默认）；
  * touhou=東方Project风——斜排大标题、阶梯式菜单、飘动卡牌背景、右下角皮肤调控位。 */
@@ -3053,15 +3056,9 @@ function hiddenFeaturesEnabled() {
     }
 }
 function migrateStoredUiStyle() {
-    // 2026-10-25：新人（无存储）默认经典UI；已保存偏好的老玩家不受影响。
-    let stored = localStorage.getItem('gtn_ui_style') || 'classic';
-    if (!localStorage.getItem(UI_STYLE_MIGRATION_KEY) && stored === 'classic') {
-        stored = 'minimal';
-        localStorage.setItem('gtn_ui_style', stored);
-        localStorage.setItem(UI_STYLE_MIGRATION_KEY, '1');
-    }
-    if (stored !== 'classic') stored = 'minimal';
-    return stored;
+    // 未保存偏好的玩家默认经典UI；已明确选择简约的玩家不受影响。
+    const stored = localStorage.getItem('gtn_ui_style');
+    return stored === 'minimal' ? 'minimal' : 'classic';
 }
 let currentUiStyle = migrateStoredUiStyle();
 Object.assign(I18N.en, {
@@ -3134,6 +3131,7 @@ function getLobbySpecialModeLabel(mode) {
     const labels = {
         reality: currentLang === 'zh' ? '操纵现实' : 'Reality Manipulation',
         fancy: currentLang === 'zh' ? '花样百出' : 'Fancy Decks',
+        ordered: currentLang === 'zh' ? '乱中有序' : 'Ordered Chaos',
     };
     return labels[String(mode || '')] || String(mode || '');
 }
@@ -5769,8 +5767,9 @@ let accountReplayLoadToken = 0;
 let accountReplayControlsCollapsed = false;
 let accountReplayFrameFetches = new Map();
 let replayMode = false;
-const DEFAULT_SKIN_CONFIG = Object.freeze({ primary_color: '#FFE763', eye_shape: 'oval' });
-const SKIN_EYE_SHAPES = new Set(['oval', 'rectangle', 'diamond', 'hexagon']);
+const DEFAULT_SKIN_CONFIG = Object.freeze({ primary_color: '#FFE763', eye_shape: 'oval', mouth_shape: 'original', skin_id: 'classic' });
+const SKIN_EYE_SHAPES = new Set(['oval', 'rectangle', 'diamond', 'hexagon', 'angry', 'coin', 'dizzy']);
+const SKIN_MOUTH_SHAPES = new Set(['original', 'cat', 'smirk', 'open', 'angry']);
 const PHELREN_AVATAR_KIND = 'phelren';
 const PHELREN_AVATAR_FRAME_URL = '/static/assets/player-avatars/phelren-frame.svg';
 const PHELREN_AVATAR_CORRUPT_FRAME_URL = '/static/assets/player-avatars/phelren-frame-corrupted.svg';
@@ -5838,6 +5837,45 @@ const enterLobbyHandoff = (() => {
         return true; // sessionStorage 不可用时保守行为：照旧自动进大厅
     }
 })();
+
+/* 自动入厅是一次性交接，而不是 20 秒内反复点击进入。等待登录视图就绪时
+   继续轮询；第一次有效点击或手动返回主页后，本次交接永久结束。 */
+let lobbyEntryHandoffTimer = null;
+let lobbyEntryHandoffConsumed = false;
+
+function cancelLobbyEntryHandoff() {
+    lobbyEntryHandoffConsumed = true;
+    if (lobbyEntryHandoffTimer !== null) {
+        window.clearTimeout(lobbyEntryHandoffTimer);
+        lobbyEntryHandoffTimer = null;
+    }
+}
+
+function scheduleLobbyEntryHandoff() {
+    if (lobbyEntryHandoffConsumed) return;
+    const startedAt = Date.now();
+    const autoEnterLobby = () => {
+        lobbyEntryHandoffTimer = null;
+        if (lobbyEntryHandoffConsumed) return;
+        const now = Date.now();
+        if (now - startedAt >= 20000) {
+            lobbyEntryHandoffConsumed = true;
+            return;
+        }
+        const loginView = $('view-login');
+        if (loginView && !loginView.classList.contains('hidden')) {
+            const connectBtn = $('btn-connect');
+            if (connectBtn && !connectBtn.disabled) {
+                lobbyEntryHandoffConsumed = true;
+                connectBtn.click();
+                return;
+            }
+        }
+        lobbyEntryHandoffTimer = window.setTimeout(autoEnterLobby, 400);
+    };
+    lobbyEntryHandoffTimer = window.setTimeout(autoEnterLobby, 400);
+}
+
 let transientLoginRetryTimer = null;
 let latencyPingTimer = null;
 let activeAfkCheck = null;
@@ -5883,6 +5921,10 @@ function isCompleteBattleStatePayload(data) {
 }
 
 function requestFullGameState(reason = 'incomplete_state') {
+    if (window.GTNSoloLocal?.isActive() && !tutorialMode && !gameState?.ai_test) {
+        void window.GTNSoloLocal.dispatch('request_game_state', { reason });
+        return;
+    }
     if (!socket || !socket.connected) return;
     const now = performance.now();
     const rateLimitedRecently = now - gameStateResyncRateLimitedAt < 10000;
@@ -6661,6 +6703,75 @@ function applyLandscapeMode(value) {
     updateClassicMobileCanvas();
 }
 
+function calculateAspectRatioLockSize(viewportWidth, viewportHeight) {
+    const width = Math.max(1, Number(viewportWidth) || 1);
+    const height = Math.max(1, Number(viewportHeight) || 1);
+    const scale = Math.min(width / 16, height / 9);
+    return {
+        width: Math.max(1, Math.floor(scale * 16)),
+        height: Math.max(1, Math.floor(scale * 9)),
+    };
+}
+
+const ASPECT_RATIO_LAYOUT_PROPERTIES = [
+    'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+    'position', 'left', 'top', 'transform', 'margin', 'flex',
+];
+
+function updateAspectRatioLayout() {
+    const root = document.documentElement;
+    const app = $('app');
+    root.classList.toggle('aspect-ratio-locked', !!aspectRatioLocked);
+    if (!app) return;
+    if (!aspectRatioLocked) {
+        ASPECT_RATIO_LAYOUT_PROPERTIES.forEach(property => app.style.removeProperty(property));
+        root.style.removeProperty('--gtn-aspect-lock-width');
+        root.style.removeProperty('--gtn-aspect-lock-height');
+        return;
+    }
+    const viewportWidth = Math.max(1, Math.floor(
+        (window.visualViewport && window.visualViewport.width)
+        || window.innerWidth || root.clientWidth || 1,
+    ));
+    const viewportHeight = Math.max(1, Math.floor(
+        (window.visualViewport && window.visualViewport.height)
+        || window.innerHeight || root.clientHeight || 1,
+    ));
+    const size = calculateAspectRatioLockSize(viewportWidth, viewportHeight);
+    root.style.setProperty('--gtn-aspect-lock-width', `${size.width}px`);
+    root.style.setProperty('--gtn-aspect-lock-height', `${size.height}px`);
+    // transform 同时让应用内的 fixed 弹窗以锁定区域为参照，避免超出 16:9 舞台。
+    app.style.position = 'fixed';
+    app.style.left = '50%';
+    app.style.top = '50%';
+    app.style.transform = 'translate(-50%, -50%)';
+    app.style.margin = '0';
+    app.style.flex = '0 0 auto';
+    app.style.width = `${size.width}px`;
+    app.style.height = `${size.height}px`;
+    app.style.minWidth = '0';
+    app.style.minHeight = '0';
+    app.style.maxWidth = 'none';
+    app.style.maxHeight = 'none';
+}
+
+function updateAspectRatioLockInput() {
+    const input = $('settings-lock-aspect-ratio');
+    if (input) input.checked = !!aspectRatioLocked;
+}
+
+function applyAspectRatioLock(value) {
+    aspectRatioLocked = !!value;
+    localStorage.setItem('gtn_lock_aspect_ratio', aspectRatioLocked ? '1' : '0');
+    updateAspectRatioLockInput();
+    updateAspectRatioLayout();
+    battleMobileStableViewport = null;
+    updateClassicMobileCanvas();
+    scheduleAdjust();
+}
+
+updateAspectRatioLayout();
+
 function getPageFullscreenElement() {
     return document.fullscreenElement
         || document.webkitFullscreenElement
@@ -6832,9 +6943,20 @@ function isBattleTextInputFocused() {
 }
 
 function readClassicViewportSize() {
+    const root = document.documentElement;
+    if (aspectRatioLocked) {
+        const lockedWidth = Number.parseFloat(root.style.getPropertyValue('--gtn-aspect-lock-width'));
+        const lockedHeight = Number.parseFloat(root.style.getPropertyValue('--gtn-aspect-lock-height'));
+        if (Number.isFinite(lockedWidth) && Number.isFinite(lockedHeight)) {
+            return {
+                width: Math.max(1, Math.floor(lockedWidth)),
+                height: Math.max(1, Math.floor(lockedHeight)),
+            };
+        }
+    }
     const vv = window.visualViewport;
-    const width = Math.max(1, Math.floor((vv && vv.width) || window.innerWidth || document.documentElement.clientWidth || 1));
-    const height = Math.max(1, Math.floor((vv && vv.height) || window.innerHeight || document.documentElement.clientHeight || 1));
+    const width = Math.max(1, Math.floor((vv && vv.width) || window.innerWidth || root.clientWidth || 1));
+    const height = Math.max(1, Math.floor((vv && vv.height) || window.innerHeight || root.clientHeight || 1));
     return { width, height };
 }
 
@@ -7160,6 +7282,8 @@ function updateStaticText() {
     if (othersSkinsLabel) othersSkinsLabel.textContent = UI.settings_show_others_skins || '显示他人卡牌皮肤';
     const settingsLandscapeModeLabel = $('settings-label-landscape-mode');
     if (settingsLandscapeModeLabel) settingsLandscapeModeLabel.textContent = UI.settings_landscape_mode;
+    const settingsAspectRatioLockLabel = $('settings-label-lock-aspect-ratio');
+    if (settingsAspectRatioLockLabel) settingsAspectRatioLockLabel.textContent = UI.settings_lock_aspect_ratio || '锁定长宽比（16:9）';
     const settingsFullscreenLabel = $('settings-label-fullscreen');
     if (settingsFullscreenLabel) settingsFullscreenLabel.textContent = UI.settings_fullscreen || '全屏';
     const settingsStoryCardBordersLabel = $('settings-label-story-hide-card-borders');
@@ -7169,6 +7293,7 @@ function updateStaticText() {
     updateHandOrderSettingInput();
     updateHomeUiSelectValue();
     updateLandscapeModeInput();
+    updateAspectRatioLockInput();
     updateFullscreenSettingButton();
     updateStoryCardBordersInput();
     const themeSelect = $('settings-theme-select');
@@ -8542,46 +8667,90 @@ function formatChangelogDate(dateText) {
     }
 }
 
-function renderChangelogItems(items) {
+function renderChangelogItems(items, announcements = null) {
     const body = $('changelog-popover-body');
     if (!body) return;
     body.textContent = '';
-    if (!Array.isArray(items) || !items.length) {
+    const logs = (Array.isArray(items) ? items : []).map(item => ({
+        date: item && item.date || '',
+        title: '',
+        content: String(item && item.content || '').trim(),
+        pinned: true,
+    }));
+    const community = (Array.isArray(announcements) ? announcements : (changelogCache?.announcements || [])).map(item => ({
+        date: item.published_at || item.starts_at || '',
+        title: String(item.title || ''),
+        content: String(item.body || '').trim(),
+        pinned: !!item.pinned,
+    }));
+    const entries = [...community, ...logs].sort((left, right) => {
+        if (left.pinned !== right.pinned) return left.pinned ? -1 : 1;
+        return String(right.date).localeCompare(String(left.date));
+    });
+    if (!entries.length) {
         const empty = document.createElement('p');
         empty.className = 'muted';
-        empty.textContent = UI.changelog_empty || '暂无更新日志。';
+        empty.textContent = UI.changelog_empty || '暂无公告。';
         body.appendChild(empty);
         return;
     }
-    items.slice(0, 20).forEach(item => {
+    entries.slice(0, 50).forEach(item => {
         const entry = document.createElement('article');
         entry.className = 'changelog-entry';
+        const meta = document.createElement('div');
+        meta.className = 'changelog-entry-meta';
+        if (item.pinned) {
+            const badge = document.createElement('span');
+            badge.className = 'changelog-pin';
+            badge.textContent = '置顶';
+            meta.appendChild(badge);
+        }
         const date = document.createElement('h4');
         date.className = 'changelog-date';
-        date.textContent = formatChangelogDate(item && item.date);
+        date.textContent = formatChangelogDate(item.date);
+        meta.appendChild(date);
+        entry.appendChild(meta);
+        if (item.title) {
+            const title = document.createElement('h3');
+            title.className = 'changelog-announcement-title';
+            title.textContent = item.title;
+            entry.appendChild(title);
+        }
         const content = document.createElement('p');
         content.className = 'changelog-content';
-        content.textContent = String(item && item.content || '').trim();
-        entry.appendChild(date);
+        content.textContent = item.content;
         entry.appendChild(content);
         body.appendChild(entry);
     });
 }
 
 function getChangelogUnreadCount(cache = changelogCache) {
-    if (!cache || !Array.isArray(cache.items) || !cache.items.length) return 0;
-    const receipt = readChangelogReadReceipt();
-    const serverVersion = String(cache.serverVersion || '');
-    const readVersion = String(receipt && receipt.version || '')
-        || readChangelogMarker(CHANGELOG_READ_VERSION_KEY)
-        || String(cache.readVersion || '');
-    if (serverVersion && readVersion === serverVersion) return 0;
-    const readDate = String(receipt && receipt.date || '')
-        || readChangelogMarker(CHANGELOG_READ_DATE_KEY)
-        || String(cache.readDate || '');
-    if (!readDate) return Math.min(cache.items.length, 99);
-    const newerCount = cache.items.filter(item => String(item && item.date || '') > readDate).length;
-    return Math.min(Math.max(newerCount, serverVersion ? 1 : 0), 99);
+    if (!cache || !Array.isArray(cache.items)) return 0;
+    let fileUnread = 0;
+    if (cache.items.length) {
+        const receipt = readChangelogReadReceipt();
+        const serverVersion = String(cache.serverVersion || '');
+        const readVersion = String(receipt && receipt.version || '')
+            || readChangelogMarker(CHANGELOG_READ_VERSION_KEY)
+            || String(cache.readVersion || '');
+        if (!serverVersion || readVersion !== serverVersion) {
+            const readDate = String(receipt && receipt.date || '')
+                || readChangelogMarker(CHANGELOG_READ_DATE_KEY)
+                || String(cache.readDate || '');
+            if (!readDate) fileUnread = cache.items.length;
+            else {
+                const newerCount = cache.items.filter(item => String(item && item.date || '') > readDate).length;
+                fileUnread = Math.max(newerCount, serverVersion ? 1 : 0);
+            }
+        }
+    }
+    const readIds = new Set([
+        ...(Array.isArray(cache.communityReadIds) ? cache.communityReadIds : []).map(Number),
+        ...(Array.isArray(cache.viewer?.read?.announcements) ? cache.viewer.read.announcements : []).map(Number),
+    ]);
+    const communityUnread = (Array.isArray(cache.announcements) ? cache.announcements : [])
+        .filter(item => !readIds.has(Number(item.id))).length;
+    return Math.min(fileUnread + communityUnread, 99);
 }
 
 function updateChangelogBadge() {
@@ -8602,18 +8771,40 @@ function isChangelogPopoverOpen() {
     return !!(pop && !pop.classList.contains('hidden'));
 }
 
-function markChangelogRead() {
-    if (!changelogCache || !Array.isArray(changelogCache.items) || !changelogCache.items.length) return;
+async function markChangelogRead() {
+    if (!changelogCache || !Array.isArray(changelogCache.items)) return;
     const readVersion = String(changelogCache.serverVersion || currentChangelogCacheVersion());
     const readDate = String(changelogCache.items[0] && changelogCache.items[0].date || '');
     writeChangelogMarker(CHANGELOG_READ_VERSION_KEY, readVersion);
     writeChangelogMarker(CHANGELOG_READ_DATE_KEY, readDate);
     writeChangelogReadReceipt(readVersion, readDate);
+    const announcementIds = (Array.isArray(changelogCache.announcements) ? changelogCache.announcements : [])
+        .map(item => Number(item.id)).filter(id => Number.isInteger(id) && id > 0);
     changelogCache = { ...changelogCache, readVersion, readDate };
+    changelogCache.communityReadIds = announcementIds;
     try {
         localStorage.setItem(CHANGELOG_CACHE_KEY, JSON.stringify(changelogCache));
     } catch (_) {}
     updateChangelogBadge();
+    if (!changelogCache.csrfToken) return;
+    try {
+        const response = await fetch('/api/community/read', {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Community-CSRF': changelogCache.csrfToken,
+            },
+            body: JSON.stringify({ types: ['announcement'] }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.success) {
+            changelogCache = { ...changelogCache, viewer: data.viewer || changelogCache.viewer };
+            try { localStorage.setItem(CHANGELOG_CACHE_KEY, JSON.stringify(changelogCache)); } catch (_) {}
+            updateChangelogBadge();
+        }
+    } catch (_) {}
 }
 
 function loadCachedChangelog() {
@@ -8681,6 +8872,10 @@ async function loadChangelog(force = false, options = {}) {
                 version: cacheVersion,
                 serverVersion: data && data.version || '',
                 items,
+                announcements: Array.isArray(data.announcements) ? data.announcements : [],
+                viewer: data.viewer || {},
+                csrfToken: String(data.csrf_token || ''),
+                communityReadIds: Array.isArray(changelogCache?.communityReadIds) ? changelogCache.communityReadIds : [],
                 savedAt: Date.now(),
                 readVersion: readChangelogMarker(CHANGELOG_READ_VERSION_KEY),
                 readDate: readChangelogMarker(CHANGELOG_READ_DATE_KEY),
@@ -10467,6 +10662,9 @@ function enqueueAchievementToasts(items = []) {
     const list = Array.isArray(items) ? items : [items];
     const valid = list.filter(item => item && (item.name_cn || item.name_en || item.id));
     if (!valid.length) return;
+    if (window.GtnRewardAnimation && valid.some(item => Number(item.reward_dew) > 0)) {
+        window.GtnRewardAnimation.refresh();
+    }
     achievementToastQueue.push(...valid);
     achievementCenter = null;
     showNextAchievementToast();
@@ -12772,15 +12970,47 @@ function cardSkinById(skinId) {
 /* 卡面/卡背美术修订号：换图时 bump（与 GTN_STATIC_VERSION 独立，
    服务端 card_skins.py 的 URL 同步带参，避免旧 SVG 被浏览器缓存） */
 const CARD_SKIN_ART_REVISION = 11;
+/* 赛季「塔之诅咒」五款卡面单独计版本号：换过图的皮肤自己升版本，
+   其他皮肤的 URL 保持不变，不用陪着重下一次图。 */
+const TOWER_CURSE_SKIN_ART_REVISION = 12;
+
+function skinArtRevision(skinId) {
+    return String(skinId || '').startsWith('tower_curse_')
+        ? TOWER_CURSE_SKIN_ART_REVISION
+        : CARD_SKIN_ART_REVISION;
+}
 
 function cardSkinBackUrl(skinId) {
     const id = cardSkinById(skinId);
-    return id ? `/static/assets/card-skins/back/${encodeURIComponent(id)}.svg?v=${CARD_SKIN_ART_REVISION}` : '';
+    return id ? `/static/assets/card-skins/back/${encodeURIComponent(id)}.svg?v=${skinArtRevision(id)}` : '';
 }
 
 function cardSkinFrontUrl(skinId) {
     const id = cardSkinById(skinId);
-    return id ? `/static/assets/card-skins/front/${encodeURIComponent(id)}.svg?v=${CARD_SKIN_ART_REVISION}` : '';
+    return id ? `/static/assets/card-skins/front/${encodeURIComponent(id)}.svg?v=${skinArtRevision(id)}` : '';
+}
+
+/* 皮肤分类与布局绑定：服务端 card_skins.py 的 CARD_SKIN_CATALOG 是唯一来源，
+   随 /api/card-skins 下发的 item 带 category（normal/special）与 layout。
+   - 一般皮肤（layout=default）：卡面元素都在默认位置，不加任何绑定类；
+   - 特殊皮肤（layout=mana_on_star 等）：按绑定套用特殊位置，
+     例如消耗数字挂到卡面徽记、类型名嵌进金色小标签（见 style.css）。
+   目录没取到（接口失败/尚未返回）时回落到默认布局，等价于一般皮肤，
+   不会把一般皮肤画错。 */
+function cardSkinMeta(skinId) {
+    const id = cardSkinById(skinId);
+    return id ? ((window.__cardSkinCatalog || {})[id] || null) : null;
+}
+
+function cardSkinLayout(skinId) {
+    const meta = cardSkinMeta(skinId);
+    return (meta && meta.layout) || 'default';
+}
+
+function cardSkinCategory(skinId) {
+    const meta = cardSkinMeta(skinId);
+    if (meta && meta.category) return meta.category;
+    return cardSkinLayout(skinId) === 'default' ? 'normal' : 'special';
 }
 
 window.__cardSkinCatalog = window.__cardSkinCatalog || {};
@@ -13624,6 +13854,10 @@ function createCardElement(cardDict, options = {}) {
                 el.classList.add('card-skin-backed');
                 /* 非初始皮肤：右上角类型色 1/4 圆圈不显示（初始卡面保留） */
                 if (ownerSkin !== '初始') el.classList.add('card-skin-no-corner');
+                /* 特殊皮肤的特殊绑定：卡面自带橙色六边形（能量）与蓝色辉星（魔力），
+                   消耗数字改挂到徽记上、类型名嵌进金色小标签（坐标见 style.css）。
+                   绑定来自服务端目录的 layout，不再按皮肤 id 前缀硬编码。 */
+                if (cardSkinLayout(ownerSkin) === 'mana_on_star') el.classList.add('card-mana-on-star');
                 /* data-skin-id 供文字对比度自适应采样底色用 */
                 skinUnderHtml = `<img class="card-skin-under" data-skin-id="${escapeHtml(ownerSkin)}" src="${escapeHtml(frontUrl)}" alt="" draggable="false">`;
             }
@@ -15041,7 +15275,9 @@ function schedulePlayPredictionFetch() {
         const payload = { cards };
         if (gameState && gameState.room_id != null) payload.room_id = gameState.room_id;
         if (gameState && gameState.match_key) payload.match_key = gameState.match_key;
-        if (typeof socket !== 'undefined' && socket && socket.connected) {
+        if (window.GTNSoloLocal?.isActive() && !tutorialMode && !gameState?.ai_test) {
+            void window.GTNSoloLocal.dispatch('predict_hand', payload);
+        } else if (typeof socket !== 'undefined' && socket && socket.connected) {
             socket.emit('predict_hand', payload);
         }
     }, 120);
@@ -16921,6 +17157,7 @@ function emitSocketLogin() {
 }
 
 function bindSocketEvent(eventName, handler) {
+    window.GTNSoloLocal?.register(eventName, handler);
     if (!socket) return;
     try {
         socket.off(eventName);
@@ -16936,8 +17173,9 @@ function isReplacementNoticeForCurrentSocket(data = {}) {
     );
 }
 
-function connectSocket(serverUrl) {
+function connectSocket(serverUrl, options = {}) {
     let url = normalizeServerUrl(serverUrl);
+    const handlersOnly = !!options.handlersOnly;
     const readyState = socket && socket.io ? socket.io._readyState : '';
     const sameEndpoint = socket && socketConnectUrl === url;
     if (sameEndpoint && socket.connected) {
@@ -16966,6 +17204,7 @@ function connectSocket(serverUrl) {
         reconnectionDelay: 400,
         reconnectionDelayMax: 4000,
         withCredentials: true,
+        autoConnect: !handlersOnly,
     };
     socket = io(url, opts);
     window.gtnSocket = socket;
@@ -17267,6 +17506,11 @@ function connectSocket(serverUrl) {
             specialModes.push(zhInvite
                 ? '<b class="invite-special-badge">花样百出</b>'
                 : '<b class="invite-special-badge">Fancy Decks</b>');
+        }
+        if (data.ordered) {
+            specialModes.push(zhInvite
+                ? '<b class="invite-special-badge">乱中有序</b>'
+                : '<b class="invite-special-badge">Ordered Chaos</b>');
         }
         const specialRow = specialModes.length
             ? `<div class="invite-special-modes">${zhInvite ? '特殊模式：' : 'Special modes: '}${specialModes.join(' ')}</div>`
@@ -17607,6 +17851,7 @@ function connectSocket(serverUrl) {
     });
     bindSocketEvent('mod_unlock_updated', (data) => {
         setModUnlockState(data, false);
+        if (window.GtnRewardAnimation) window.GtnRewardAnimation.refresh();
     });
     bindSocketEvent('pregame_timer_update', (data) => {
         if (!data) return;
@@ -18683,11 +18928,13 @@ function thornDewTransactionReason(tx = {}) {
 }
 
 function thornDewCenterHtml(user) {
-    const free = Math.max(0, Number(user?.thorn_dew_free || 0) || 0);
-    const paid = Math.max(0, Number(user?.thorn_dew_paid || 0) || 0);
-    const total = Math.max(0, Number(user?.thorn_dew_total ?? (free + paid)) || 0);
+    const free = Number(user?.thorn_dew_free || 0) || 0;
+    const paid = Number(user?.thorn_dew_paid || 0) || 0;
+    const total = Number(user?.thorn_dew_total ?? (free + paid)) || 0;
+    const golden = Number(user?.golden_dew ?? (thornDewCenter?.golden_balance || 0)) || 0;
     const center = thornDewCenter || {};
     const txs = Array.isArray(center.transactions) ? center.transactions.slice(0, 5) : [];
+    const goldenTxs = Array.isArray(center.golden_transactions) ? center.golden_transactions.slice(0, 5) : [];
     const txHtml = txs.length
         ? txs.map(tx => `
             <div class="thorn-dew-tx">
@@ -18696,17 +18943,51 @@ function thornDewCenterHtml(user) {
             </div>
         `).join('')
         : `<div class="account-replay-sub">${escapeHtml(lt({ zh: '暂无荆露记录', en: 'No Thorn Dew records yet', fr: 'Aucun historique de Rosée d’épines', ja: 'ソーンデューの履歴はありません' }))}</div>`;
+    const goldenTxHtml = goldenTxs.length
+        ? goldenTxs.map(tx => `
+            <div class="thorn-dew-tx">
+                <span class="${(Number(tx.free_delta || 0) + Number(tx.paid_delta || 0)) >= 0 ? 'gain' : 'spend'}">${escapeHtml(thornDewDeltaText(tx))}</span>
+                <span>${escapeHtml(thornDewTransactionReason(tx))}</span>
+            </div>
+        `).join('')
+        : `<div class="account-replay-sub">${escapeHtml(lt({ zh: '暂无金露记录', en: 'No Golden Dew records yet', fr: 'Aucun historique de Rosée dorée', ja: 'ゴールデンデューの履歴はありません' }))}</div>`;
     return `
         <div class="thorn-dew-card">
             <div class="thorn-dew-head">
                 <div>
                     <div class="thorn-dew-title">${escapeHtml(UI.thorn_dew || '荆露')}</div>
-                    <div class="thorn-dew-balance">${thornDewAmountHtml(total)}</div>
+                    <div class="thorn-dew-balance">${thornDewAmountHtml(total, 'dew-amount', '/static/assets/ui-icons/thorn-dew.svg', true)}</div>
                     <div class="thorn-dew-sub">${escapeHtml(lt({ zh: '可用于未来兑换内容', en: 'Available for future rewards', fr: 'Utilisable pour de futures récompenses', ja: '今後の報酬交換に使用できます' }))}</div>
+                </div>
+            </div>
+            <div class="thorn-dew-tx-list">${txHtml}</div>
+        </div>
+        <div class="thorn-dew-card golden-dew-card">
+            <div class="thorn-dew-head">
+                <div>
+                    <div class="thorn-dew-title">金露</div>
+                    <div class="thorn-dew-balance">${thornDewAmountHtml(golden, 'dew-amount', '/static/assets/ui-icons/golden-dew.svg', true)}</div>
                 </div>
                 <button id="btn-dew-afdian" class="mini-btn thorn-dew-afdian-btn" type="button">${escapeHtml(lt({ zh: '赞助', en: 'Support', fr: 'Soutien', ja: '支援' }))}</button>
             </div>
-            <div class="thorn-dew-tx-list">${txHtml}</div>
+            <div class="thorn-dew-tx-list">${goldenTxHtml}</div>
+        </div>
+        <div class="thorn-dew-card dew-convert-card">
+            <div class="thorn-dew-title">${escapeHtml(lt({ zh: '双向兑换', en: 'Currency conversion', fr: 'Conversion', ja: '両替' }))}</div>
+            <div class="dew-convert-row">
+                <label for="dew-convert-golden-amount">${escapeHtml(lt({ zh: '金露 → 荆露（1:100）', en: 'Golden Dew → Thorn Dew (1:100)', fr: 'Rosée dorée → Rosée d’épines (1:100)', ja: 'ゴールデンデュー → ソーンデュー（1:100）' }))}</label>
+                <div class="dew-convert-controls">
+                    <input id="dew-convert-golden-amount" type="number" min="1" step="1" inputmode="numeric" autocomplete="off" placeholder="${escapeHtml(lt({ zh: '金露数量', en: 'Golden Dew amount', fr: 'Quantité de Rosée dorée', ja: 'ゴールデンデュー数' }))}">
+                    <button id="btn-golden-to-dew" class="mini-btn" type="button" ${thornDewLoading ? 'disabled' : ''}>${escapeHtml(lt({ zh: '兑换', en: 'Convert', fr: 'Convertir', ja: '両替' }))}</button>
+                </div>
+            </div>
+            <div class="dew-convert-row">
+                <label for="dew-convert-thorn-amount">${escapeHtml(lt({ zh: '荆露 → 金露（1000:1）', en: 'Thorn Dew → Golden Dew (1000:1)', fr: 'Rosée d’épines → Rosée dorée (1000:1)', ja: 'ソーンデュー → ゴールデンデュー（1000:1）' }))}</label>
+                <div class="dew-convert-controls">
+                    <input id="dew-convert-thorn-amount" type="number" min="1000" step="1000" inputmode="numeric" autocomplete="off" placeholder="${escapeHtml(lt({ zh: '荆露数量（1000的倍数）', en: 'Thorn Dew amount (multiple of 1000)', fr: 'Quantité de Rosée d’épines (multiple de 1000)', ja: 'ソーンデュー数（1000の倍数）' }))}">
+                    <button id="btn-dew-to-golden" class="mini-btn" type="button" ${thornDewLoading ? 'disabled' : ''}>${escapeHtml(lt({ zh: '兑换', en: 'Convert', fr: 'Convertir', ja: '両替' }))}</button>
+                </div>
+            </div>
         </div>
     `;
 }
@@ -18765,8 +19046,8 @@ function thornDewDailyTasksHtml() {
         [lt({zh:'连胜',en:'Win streak'}),
          lt({zh:'每次连续获胜额外+10，最多+100；失败或平局重置。',en:'Each consecutive win adds 10, capped at +100. A loss or draw resets the streak.'})],
         [lt({zh:'新人权益',en:'Newcomer benefits'}),
-         lt({zh:`前10场有效PvP最多2倍，不与头衔重复叠乘；20场后移除新人头衔。前三场排位掉分保护剩余 ${Number(newcomer.protected_ranked_remaining || 0)} 场。`,
-             en:`First 10 valid PvP games grant up to 2x, never stacked with the title. The title ends at 20 games. Protected ranked games remaining: ${Number(newcomer.protected_ranked_remaining || 0)}.`})],
+         lt({zh:`有效 PvP 少于20场且历史最高段位未达到 rare basic 才显示新人标识；前20个天梯计分局且未达到 rare basic 时荆露×2。天梯与非新人对战时，非新人段位及段位分不变。前三场天梯GR掉分保护剩余 ${Number(newcomer.protected_ranked_remaining || 0)} 场。`,
+             en:`The newcomer badge requires fewer than 20 valid PvP games and a highest rank below rare basic. Dew is doubled for the first 20 ranked scoring games while below rare basic. In ranked matches against newcomers, non-newcomer ranks and rank points do not change. First-three-game ranked GR loss protection remaining: ${Number(newcomer.protected_ranked_remaining || 0)}.`})],
         [lt({zh:'信誉与防刷',en:'Reputation and repeat limits'}),
          lt({zh:'信誉低于60荆露减半，低于40不发放。每日超10场、重复对手会衰减；确认关联账号共享额度，互相对局不刷奖励。',
              en:'Below 60 reputation: half Dew; below 40: none. Daily/repeated-opponent decay and confirmed linked-account limits apply.'})],
@@ -18797,11 +19078,12 @@ async function loadThornDewCenter(force = false) {
         // /api/thorn-dew 的最新余额同步进去，避免要等签到/重登才更新。
         const balance = data && data.balance;
         if (balance && currentAccount) {
-            const free = Math.max(0, Number(balance.free || 0) || 0);
-            const paid = Math.max(0, Number(balance.paid || 0) || 0);
+            const free = Number(balance.free || 0) || 0;
+            const paid = Number(balance.paid || 0) || 0;
             currentAccount.thorn_dew_free = free;
             currentAccount.thorn_dew_paid = paid;
-            currentAccount.thorn_dew_total = Math.max(0, Number(balance.total ?? (free + paid)) || 0);
+            currentAccount.thorn_dew_total = Number(balance.total ?? (free + paid)) || 0;
+            currentAccount.golden_dew = Number(data.golden_balance || 0) || 0;
             cacheAccount(currentAccount);
         }
     } catch (_) {
@@ -18824,7 +19106,46 @@ async function onThornDewCheckin() {
             currentAccount = data.user;
             cacheAccount(currentAccount);
         }
+        const granted = data.checkin_granted || {};
+        if (window.GtnRewardAnimation && (Number(granted.dew) > 0 || Number(granted.leisure_tickets) > 0)) {
+            window.GtnRewardAnimation.refresh();
+        }
         setAccountError(lt({ zh: '签到成功', en: 'Checked in', fr: 'Récompense récupérée', ja: '受け取りました' }));
+    } catch (err) {
+        setAccountError(err.message || UI.account_error);
+    } finally {
+        thornDewLoading = false;
+        renderAccountState();
+        if (!$('achievements-popover')?.classList.contains('hidden')) renderAchievementCenter();
+    }
+}
+
+async function onDewConvert(direction) {
+    if (!currentAccount || thornDewLoading) return;
+    const goldenToDew = direction === 'golden_to_dew';
+    const inputId = goldenToDew ? 'dew-convert-golden-amount' : 'dew-convert-thorn-amount';
+    const amount = Number($(inputId)?.value);
+    if (!Number.isInteger(amount) || amount <= 0) {
+        setAccountError(lt({ zh: '请输入正整数兑换数量', en: 'Enter a positive integer amount', fr: 'Saisissez une quantité entière positive', ja: '正の整数を入力してください' }));
+        return;
+    }
+    if (!goldenToDew && amount % 1000 !== 0) {
+        setAccountError(lt({ zh: '荆露兑换数量必须是1000的倍数', en: 'Thorn Dew amount must be a multiple of 1000', fr: 'La quantité de Rosée d’épines doit être un multiple de 1000', ja: 'ソーンデューは1000の倍数で入力してください' }));
+        return;
+    }
+    thornDewLoading = true;
+    renderAccountInfoPanel(currentAccount);
+    try {
+        const data = await authRequest('/api/thorn-dew/convert', { direction, amount }, { timeoutMs: 6000 });
+        thornDewCenter = data;
+        if (achievementCenter && data) achievementCenter.dew = data;
+        if (data.user) {
+            currentAccount = data.user;
+            cacheAccount(currentAccount);
+        }
+        if (window.GtnRewardAnimation) window.GtnRewardAnimation.refresh();
+        document.dispatchEvent(new CustomEvent('gtn:dew-updated'));
+        setAccountError(lt({ zh: '兑换成功', en: 'Conversion complete', fr: 'Conversion réussie', ja: '両替が完了しました' }));
     } catch (err) {
         setAccountError(err.message || UI.account_error);
     } finally {
@@ -19273,6 +19594,10 @@ function renderAchievementCenter() {
     // 荆露页「赞助」按钮：打开完整兑换页（绑定码/档位/补单都在那）
     const dewAfdianBtn = dewPanel.querySelector('#btn-dew-afdian');
     if (dewAfdianBtn) dewAfdianBtn.onclick = () => window.open('/afdian', '_blank', 'noopener');
+    const goldenToDewBtn = dewPanel.querySelector('#btn-golden-to-dew');
+    if (goldenToDewBtn) goldenToDewBtn.onclick = () => onDewConvert('golden_to_dew');
+    const dewToGoldenBtn = dewPanel.querySelector('#btn-dew-to-golden');
+    if (dewToGoldenBtn) dewToGoldenBtn.onclick = () => onDewConvert('dew_to_golden');
     if (achievementLoadError) {
         list.innerHTML = `<div class="account-replay-sub">${escapeHtml(achievementLoadError)}</div>`;
         return;
@@ -19367,8 +19692,10 @@ function toggleAchievementsPopover(force) {
     }
 }
 
-function thornDewAmountHtml(amount, className = 'dew-amount') {
-    return `<span class="${escapeHtml(className)}"><img class="thorn-dew-icon" src="/static/assets/ui-icons/thorn-dew.svg" alt=""><span>${escapeHtml(Math.max(0, Number(amount || 0) || 0).toLocaleString())}</span></span>`;
+function thornDewAmountHtml(amount, className = 'dew-amount', iconUrl = '/static/assets/ui-icons/thorn-dew.svg', allowNegative = false) {
+    const numericAmount = Number(amount || 0) || 0;
+    const displayAmount = allowNegative ? numericAmount : Math.max(0, numericAmount);
+    return `<span class="${escapeHtml(className)}"><img class="thorn-dew-icon" src="${escapeHtml(iconUrl)}" alt=""><span>${escapeHtml(displayAmount.toLocaleString())}</span></span>`;
 }
 
 function titleShopRemainingSeconds() {
@@ -19597,6 +19924,7 @@ async function purchaseTitleShopOffer(slot) {
             currentAccount = data.user;
             cacheAccount(currentAccount);
         }
+        if (window.GtnRewardAnimation) window.GtnRewardAnimation.refresh();
         showActionToast(lt({ zh: '称号已加入库存', en: 'Title added to inventory', fr: 'Titre ajouté à l’inventaire', ja: '称号を所持品に追加しました' }), 1800, 'info');
     } catch (err) {
         showActionToast(err.message || '购买失败', 2600, 'error');
@@ -19628,14 +19956,21 @@ function toggleTitleShopPopover(force) {
         toggleChangelogPopover(false);
         loadTitleShop(false);
         titleShopCountdownTimer = setInterval(updateTitleShopCountdown, 15000);
-        switchTitleShopTab(titleShopAfdianTabActive ? 'afdian' : (cardSkinShopActive ? 'card-skins' : 'titles'));
+        switchTitleShopTab(titleShopAfdianTabActive ? 'afdian'
+            : themeBackgroundShopActive ? 'theme-backgrounds'
+            : battleBackgroundShopActive ? 'battle-backgrounds'
+            : cardSkinShopActive ? 'card-skins'
+            : eyeStyleShopActive ? 'eye-styles'
+            : mouthStyleShopActive ? 'mouth-styles'
+            : playerSkinShopActive ? 'player-skins'
+            : rankCardsShopActive ? 'rank-cards' : 'titles');
         if (titleShopAfdianTabActive) void loadTitleShopAfdian();
     } else {
         switchTitleShopTab('titles');
     }
 }
 
-/* ---------- 商店「赞助」tab：爱发电兑换付费荆露 ---------- */
+/* ---------- 商店「赞助」tab：爱发电兑换金露 ---------- */
 
 let titleShopAfdianTabActive = false;
 
@@ -19643,11 +19978,64 @@ let cardSkinShopActive = false;
 let cardSkinShopData = null;
 let cardSkinShopBusy = false;
 
+let playerSkinShopActive = false;
+let eyeStyleShopActive = false;
+let mouthStyleShopActive = false;
+let playerSkinShopData = null;
+let playerSkinShopKind = 'player';
+let playerSkinShopBusy = false;
+
+const PLAYER_SHOP_ROUTES = Object.freeze({
+    player: Object.freeze({
+        list: '/api/player-skins',
+        refresh: '/api/player-skins/refresh',
+        purchase: '/api/player-skins/purchase',
+        equip: '/api/player-skins/equip',
+    }),
+    eye: Object.freeze({
+        list: '/api/eye-styles',
+        refresh: '/api/eye-styles/refresh',
+        purchase: '/api/eye-styles/purchase',
+        equip: '/api/eye-styles/equip',
+    }),
+    mouth: Object.freeze({
+        list: '/api/mouth-styles',
+        refresh: '/api/mouth-styles/refresh',
+        purchase: '/api/mouth-styles/purchase',
+        equip: '/api/mouth-styles/equip',
+    }),
+});
+function activePlayerShopKind() { return mouthStyleShopActive ? 'mouth' : (eyeStyleShopActive ? 'eye' : 'player'); }
+function playerShopApi(action) {
+    const route = String(action || 'list').replace(/^\/+/, '') || 'list';
+    return PLAYER_SHOP_ROUTES[activePlayerShopKind()][route];
+}
+function playerShopElementId(kind, suffix) {
+    const prefix = kind === 'eye' ? 'eye-style' : (kind === 'mouth' ? 'mouth-style' : 'player-skin');
+    return `${prefix}-${suffix}`;
+}
+function playerShopText(kind, eyeText, mouthText, playerText) {
+    if (kind === 'eye') return eyeText;
+    if (kind === 'mouth') return mouthText;
+    return playerText;
+}
+
 let rankCardsShopActive = false;
+let themeBackgroundShopActive = false;
+let battleBackgroundShopActive = false;
+const backgroundShopData = { theme: null, battle: null };
+const backgroundShopErrors = { theme: '', battle: '' };
+let backgroundShopBusy = false;
+
 function switchTitleShopTab(tab) {
     titleShopAfdianTabActive = tab === 'afdian';
     cardSkinShopActive = tab === 'card-skins';
+    playerSkinShopActive = tab === 'player-skins';
+    eyeStyleShopActive = tab === 'eye-styles';
+    mouthStyleShopActive = tab === 'mouth-styles';
     rankCardsShopActive = tab === 'rank-cards';
+    themeBackgroundShopActive = tab === 'theme-backgrounds';
+    battleBackgroundShopActive = tab === 'battle-backgrounds';
     const tabs = document.querySelectorAll('#title-shop-popover [data-shop-tab]');
     tabs.forEach((btn) => btn.classList.toggle('active', btn.dataset.shopTab === tab));
     const toolbar = document.querySelector('#title-shop-popover .title-shop-toolbar');
@@ -19655,18 +20043,469 @@ function switchTitleShopTab(tab) {
     const status = $('title-shop-status');
     const afdianPanel = $('title-shop-afdian-panel');
     const skinPanel = $('card-skin-shop-panel');
+    const playerSkinPanel = $('player-skin-shop-panel');
+    const eyeStylePanel = $('eye-style-shop-panel');
+    const mouthStylePanel = $('mouth-style-shop-panel');
+    const themeBackgroundPanel = $('theme-background-shop-panel');
+    const battleBackgroundPanel = $('battle-background-shop-panel');
     const rankCardsPanelEl = $('rank-cards-shop-panel');
-    const showTitles = !titleShopAfdianTabActive && !cardSkinShopActive && !rankCardsShopActive;
-    if (toolbar) toolbar.classList.toggle('hidden', !cardSkinShopActive ? !showTitles : true);
+    const showTitles = !titleShopAfdianTabActive && !cardSkinShopActive && !playerSkinShopActive && !eyeStyleShopActive && !mouthStyleShopActive && !rankCardsShopActive
+        && !themeBackgroundShopActive && !battleBackgroundShopActive;
+    if (toolbar) toolbar.classList.toggle('hidden', !showTitles);
     if (grid) grid.classList.toggle('hidden', !showTitles);
     if (status) status.classList.toggle('hidden', !showTitles);
     if (afdianPanel) afdianPanel.classList.toggle('hidden', !titleShopAfdianTabActive);
     if (skinPanel) skinPanel.classList.toggle('hidden', !cardSkinShopActive);
+    if (playerSkinPanel) playerSkinPanel.classList.toggle('hidden', !playerSkinShopActive);
+    if (eyeStylePanel) eyeStylePanel.classList.toggle('hidden', !eyeStyleShopActive);
+    if (mouthStylePanel) mouthStylePanel.classList.toggle('hidden', !mouthStyleShopActive);
+    if (themeBackgroundPanel) themeBackgroundPanel.classList.toggle('hidden', !themeBackgroundShopActive);
+    if (battleBackgroundPanel) battleBackgroundPanel.classList.toggle('hidden', !battleBackgroundShopActive);
     if (rankCardsPanelEl) rankCardsPanelEl.classList.toggle('hidden', !rankCardsShopActive);
     const countdown = $('title-shop-countdown');
     if (countdown && !showTitles) countdown.textContent = '';
     if (cardSkinShopActive) void loadCardSkinShop();
+    if (playerSkinShopActive || eyeStyleShopActive || mouthStyleShopActive) void loadPlayerSkinShop();
+    if (themeBackgroundShopActive) void loadBackgroundShops();
+    if (battleBackgroundShopActive) void loadBackgroundShops();
     if (rankCardsShopActive) void loadRankCardsShop();
+}
+
+let playerSkinShopError = '';
+
+async function loadPlayerSkinShop(force = false) {
+    const kind = activePlayerShopKind();
+    const status = $(playerShopElementId(kind, 'shop-status'));
+    if (playerSkinShopKind !== kind) {
+        playerSkinShopData = null;
+        playerSkinShopKind = kind;
+    }
+    if (!currentAccount) {
+        if (status) status.textContent = UI.account_need_login || '请先登录账号';
+        const grid = $(playerShopElementId(kind, 'shop-grid'));
+        if (grid) grid.innerHTML = '';
+        return;
+    }
+    if (playerSkinShopBusy) return;
+    if (playerSkinShopData && !force) { renderPlayerSkinShop(); return; }
+    playerSkinShopBusy = true;
+    playerSkinShopError = '';
+    try {
+        const data = await authRequest(playerShopApi(''), undefined, { timeoutMs: 6000 });
+        playerSkinShopData = data.shop || null;
+        renderPlayerSkinShop();
+    } catch (err) {
+        playerSkinShopError = err.message || '读取失败';
+        renderPlayerSkinShop();
+    } finally {
+        playerSkinShopBusy = false;
+    }
+}
+
+function renderPlayerSkinShop() {
+    const kind = playerSkinShopKind;
+    const grid = $(playerShopElementId(kind, 'shop-grid'));
+    const status = $(playerShopElementId(kind, 'shop-status'));
+    if (!grid || !status) return;
+    if (!playerSkinShopData) {
+        grid.innerHTML = '';
+        status.textContent = playerSkinShopError;
+        return;
+    }
+    const items = Array.isArray(playerSkinShopData.offers) ? playerSkinShopData.offers : [];
+    status.textContent = playerSkinShopError || (playerSkinShopData.locked ? lt({
+        zh: '当前商品已锁定，不会被每日刷新替换。',
+        en: 'Offers locked — daily refresh will not replace them.',
+        fr: 'Offres verrouillées — le renouvellement quotidien ne les remplacera pas.',
+        ja: 'ロック中：毎日の更新では入れ替わりません。',
+    }) : lt(playerShopText(kind, {
+        zh: '每日上架3款眼睛；已拥有商品可随时装备。',
+        en: 'Three eye styles are offered daily. Owned styles can be equipped at any time.',
+        fr: 'Trois styles d’yeux sont proposés chaque jour. Les styles possédés peuvent être équipés.',
+        ja: '毎日3つの目のスタイルを提供。所持スタイルはいつでも装備できます。',
+    }, {
+        zh: '每日上架3款嘴型；已拥有商品可随时装备。',
+        en: 'Three mouth styles are offered daily. Owned styles can be equipped at any time.',
+        fr: 'Trois styles de bouche sont proposés chaque jour. Les styles possédés peuvent être équipés.',
+        ja: '毎日3つの口のスタイルを提供。所持スタイルはいつでも装備できます。',
+    }, {
+        zh: '每日上架3款玩家皮肤；已拥有商品可随时装备。',
+        en: 'Three player skins are offered daily. Owned skins can be equipped at any time.',
+        fr: 'Trois peaux sont proposées chaque jour. Les peaux possédées peuvent être équipées.',
+        ja: '毎日3つのスキンを提供。所持スキンはいつでも装備できます。',
+    })));
+    const idKey = kind === 'player' ? 'skin_id' : `${kind}_shape`;
+    const normalize = kind === 'eye' ? window.GTNEyeStyles.normalize : (kind === 'mouth' ? window.GTNMouthStyles.normalize : window.GTNPlayerSkins.normalize);
+    grid.innerHTML = items.map((item) => {
+        const id = normalize(item[idKey]);
+        const definition = kind === 'eye' ? window.GTNEyeStyles.get(id) : (kind === 'mouth' ? window.GTNMouthStyles.get(id) : window.GTNPlayerSkins.get(id));
+        const name = lt(definition.names) || item.name || id;
+        const preview = renderSkinAvatar(
+            { primary_color: '#FFE763', eye_shape: kind === 'eye' ? id : 'oval', mouth_shape: kind === 'mouth' ? id : 'original', skin_id: kind === 'player' ? id : 'classic' },
+            { look: DEFAULT_SKIN_LOOK, lookOwner: `shop-${kind}-${id}` },
+        );
+        let action;
+        if (!item.owned) {
+            action = `<button type="button" class="title-shop-buy-btn" data-player-skin-buy="${id}" ${playerSkinShopBusy ? 'disabled' : ''}>${thornDewAmountHtml(item.price, 'dew-amount')}</button>`;
+        } else if (item.equipped) {
+            action = `<button type="button" class="title-shop-buy-btn" disabled>${escapeHtml(lt({ zh: '已装备', en: 'Equipped', fr: 'Équipée', ja: '装備中' }))}</button>`;
+        } else {
+            action = `<button type="button" class="title-shop-buy-btn" data-player-skin-equip="${id}" ${playerSkinShopBusy ? 'disabled' : ''}>${escapeHtml(lt({ zh: '装备', en: 'Equip', fr: 'Équiper', ja: '装備' }))}</button>`;
+        }
+        return `<article class="title-shop-item player-skin-shop-item" data-player-skin-item="${id}" data-slot="${Number(item.slot || 0)}">
+            <div class="player-skin-shop-preview"><div class="player-skin-shop-avatar">${preview}</div></div>
+            <div class="player-skin-shop-meta"><strong>${escapeHtml(name)}</strong><div class="player-skin-shop-actions">${action}</div></div>
+        </article>`;
+    }).join('');
+    grid.querySelectorAll('[data-player-skin-buy]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const item = items.find(entry => normalize(entry[idKey]) === button.dataset.playerSkinBuy);
+            if (item) void purchasePlayerSkinFromShop(item);
+        });
+    });
+    grid.querySelectorAll('[data-player-skin-equip]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const item = items.find(entry => normalize(entry[idKey]) === button.dataset.playerSkinEquip);
+            if (item) void equipPlayerSkinFromShop(item);
+        });
+    });
+    const refreshRow = document.createElement('div');
+    refreshRow.className = 'card-skin-refresh-row';
+    const refreshButton = document.createElement('button');
+    refreshButton.className = 'mini-btn title-shop-refresh-btn';
+    refreshButton.disabled = playerSkinShopBusy;
+    refreshButton.innerHTML = `${escapeHtml(lt({ zh: '刷新', en: 'Refresh', fr: 'Actualiser', ja: '更新' }))} · ${thornDewAmountHtml(playerSkinShopData.refresh_cost, 'dew-amount')}`;
+    refreshButton.addEventListener('click', () => void refreshPlayerSkinShop());
+    refreshRow.appendChild(refreshButton);
+    grid.appendChild(refreshRow);
+}
+
+async function refreshPlayerSkinShop() {
+    if (playerSkinShopBusy || !playerSkinShopData) return;
+    const cost = Math.max(0, Number(playerSkinShopData.refresh_cost || 0) || 0);
+    playerSkinShopBusy = true;
+    playerSkinShopError = '';
+    renderPlayerSkinShop();
+    try {
+        const kind = playerSkinShopKind;
+        const confirmed = await gameConfirm(
+            lt(playerShopText(kind,
+                { zh: '刷新眼睛商店', en: 'Refresh eye style shop', fr: 'Actualiser les styles d’yeux', ja: '目のスタイルショップを更新' },
+                { zh: '刷新嘴型商店', en: 'Refresh mouth style shop', fr: 'Actualiser les styles de bouche', ja: '口のスタイルショップを更新' },
+                { zh: '刷新玩家皮肤商店', en: 'Refresh player skin shop', fr: 'Actualiser les peaux', ja: 'スキンショップを更新' })),
+            lt(playerShopText(kind, {
+                zh: `花费 ${cost.toLocaleString()} 荆露刷新3款眼睛？本轮未购买的商品将被替换。`,
+                en: `Spend ${cost.toLocaleString()} Thorn Dew to refresh all 3 eye styles? Unpurchased offers will be replaced.`,
+                fr: `Dépenser ${cost.toLocaleString()} Rosée d’épines pour remplacer les 3 styles d’yeux ?`,
+                ja: `${cost.toLocaleString()}ソーンデューで3つの目のスタイルを更新しますか？`,
+            }, {
+                zh: `花费 ${cost.toLocaleString()} 荆露刷新3款嘴型？本轮未购买的商品将被替换。`,
+                en: `Spend ${cost.toLocaleString()} Thorn Dew to refresh all 3 mouth styles? Unpurchased offers will be replaced.`,
+                fr: `Dépenser ${cost.toLocaleString()} Rosée d’épines pour remplacer les 3 styles de bouche ?`,
+                ja: `${cost.toLocaleString()}ソーンデューで3つの口のスタイルを更新しますか？`,
+            }, {
+                zh: `花费 ${cost.toLocaleString()} 荆露刷新3个玩家皮肤？本轮未购买的商品将被替换。`,
+                en: `Spend ${cost.toLocaleString()} Thorn Dew to refresh all 3 player skins? Unpurchased offers will be replaced.`,
+                fr: `Dépenser ${cost.toLocaleString()} Rosée d’épines pour remplacer les 3 peaux ?`,
+                ja: `${cost.toLocaleString()}ソーンデューで3つのスキンを更新しますか？`,
+            })),
+        );
+        if (!confirmed) return;
+        const data = await authRequest(playerShopApi('/refresh'), {}, { timeoutMs: 8000 });
+        playerSkinShopData = data.shop || playerSkinShopData;
+        applyPlayerSkinShopAccount(data.user);
+    } catch (err) {
+        playerSkinShopError = err.message || '刷新失败';
+    } finally {
+        playerSkinShopBusy = false;
+        renderPlayerSkinShop();
+    }
+}
+
+function applyPlayerSkinShopAccount(user) {
+    if (!user) return;
+    currentAccount = user;
+    cacheAccount(user);
+    if (Array.isArray(playerSkinShopData?.owned_skin_ids)) {
+        playerSkinOwnedIds = [...new Set(['classic', ...playerSkinShopData.owned_skin_ids])];
+        playerSkinOwnershipUserId = currentAccount.id ?? null;
+    }
+    if (Array.isArray(playerSkinShopData?.owned_eye_shapes)) {
+        eyeStyleOwnedIds = normalizedEyeStyleIds(playerSkinShopData.owned_eye_shapes);
+        eyeStyleOwnershipUserId = currentAccount.id ?? null;
+        updateSkinEyeShapeOptions();
+    }
+    if (Array.isArray(playerSkinShopData?.owned_mouth_shapes)) {
+        mouthStyleOwnedIds = normalizedMouthStyleIds(playerSkinShopData.owned_mouth_shapes);
+        mouthStyleOwnershipUserId = currentAccount.id ?? null;
+        updateSkinMouthShapeOptions();
+    }
+    if (activeViewId === 'view-skin') syncSkinFormFromCurrent();
+    if (typeof refreshTitleShopQuietly === 'function') void refreshTitleShopQuietly();
+}
+
+async function purchasePlayerSkinFromShop(item) {
+    if (playerSkinShopBusy || !item || item.owned) return;
+    playerSkinShopBusy = true;
+    playerSkinShopError = '';
+    renderPlayerSkinShop();
+    try {
+        const kind = playerSkinShopKind;
+        const id = kind === 'player' ? item.skin_id : item[`${kind}_shape`];
+        const definition = kind === 'eye' ? window.GTNEyeStyles.get(id) : (kind === 'mouth' ? window.GTNMouthStyles.get(id) : window.GTNPlayerSkins.get(id));
+        const name = lt(definition.names) || item.name || id;
+        const confirmed = await gameConfirm(
+            lt(playerShopText(kind,
+                { zh: '购买眼睛', en: 'Buy eye style', fr: 'Acheter le style d’yeux', ja: '目のスタイルを購入' },
+                { zh: '购买嘴型', en: 'Buy mouth style', fr: 'Acheter le style de bouche', ja: '口のスタイルを購入' },
+                { zh: '购买玩家皮肤', en: 'Buy player skin', fr: 'Acheter la peau', ja: 'プレイヤースキンを購入' })),
+            lt({
+                zh: `花费 ${Number(item.price || 0).toLocaleString()} 荆露购买“${name}”？`,
+                en: `Buy “${name}” for ${Number(item.price || 0).toLocaleString()} Thorn Dew?`,
+                fr: `Acheter « ${name} » pour ${Number(item.price || 0).toLocaleString()} Rosée d’épines ?`,
+                ja: `「${name}」を${Number(item.price || 0).toLocaleString()}ソーンデューで購入しますか？`,
+            }),
+        );
+        if (!confirmed) return;
+        const data = await authRequest(playerShopApi('/purchase'), {
+            set_id: playerSkinShopData.set_id,
+            slot: Number(item.slot),
+        }, { timeoutMs: 8000 });
+        playerSkinShopData = data.shop || playerSkinShopData;
+        applyPlayerSkinShopAccount(data.user);
+        flashStatus(lt(playerShopText(kind,
+            { zh: '眼睛已解锁', en: 'Eye style unlocked', fr: 'Style d’yeux déverrouillé', ja: '目のスタイルを解放しました' },
+            { zh: '嘴型已解锁', en: 'Mouth style unlocked', fr: 'Style de bouche déverrouillé', ja: '口のスタイルを解放しました' },
+            { zh: '玩家皮肤已解锁', en: 'Player skin unlocked', fr: 'Peau déverrouillée', ja: 'スキンを解放しました' })), 1800);
+    } catch (err) {
+        playerSkinShopError = err.message || '购买失败';
+    } finally {
+        playerSkinShopBusy = false;
+        renderPlayerSkinShop();
+    }
+}
+
+async function equipPlayerSkinFromShop(item) {
+    if (playerSkinShopBusy || !item || !item.owned || item.equipped) return;
+    playerSkinShopBusy = true;
+    playerSkinShopError = '';
+    renderPlayerSkinShop();
+    try {
+        const kind = playerSkinShopKind;
+        const payload = kind === 'eye' ? { eye_shape: item.eye_shape } : (kind === 'mouth' ? { mouth_shape: item.mouth_shape } : { skin_id: item.skin_id });
+        const data = await authRequest(playerShopApi('/equip'), payload, { timeoutMs: 6000 });
+        playerSkinShopData = data.shop || playerSkinShopData;
+        applyPlayerSkinShopAccount(data.user);
+        if (data.user && data.user.skin) saveLocalSkinConfig(data.user.skin);
+        if (activeViewId === 'view-skin') syncSkinFormFromCurrent();
+        flashStatus(lt(playerShopText(kind,
+            { zh: '眼睛已装备', en: 'Eye style equipped', fr: 'Style d’yeux équipé', ja: '目のスタイルを装備しました' },
+            { zh: '嘴型已装备', en: 'Mouth style equipped', fr: 'Style de bouche équipé', ja: '口のスタイルを装備しました' },
+            { zh: '玩家皮肤已装备', en: 'Player skin equipped', fr: 'Peau équipée', ja: 'スキンを装備しました' })), 1600);
+    } catch (err) {
+        playerSkinShopError = err.message || '装备失败';
+    } finally {
+        playerSkinShopBusy = false;
+        renderPlayerSkinShop();
+    }
+}
+
+function applyBackgroundPayload(data) {
+    if (data.shops) {
+        backgroundShopData.theme = data.shops.theme || null;
+        backgroundShopData.battle = data.shops.battle || null;
+    }
+    if (data.preferences && window.GtnBackgrounds) window.GtnBackgrounds.applyPreferences(data.preferences);
+    if (data.user) {
+        currentAccount = data.user;
+        cacheAccount(data.user);
+    }
+    renderBackgroundShop('theme');
+    renderBackgroundShop('battle');
+    renderBackgroundInventory();
+}
+
+async function loadBackgroundShops(force = false) {
+    if (!currentAccount) {
+        const message = UI.account_need_login || '请先登录账号';
+        backgroundShopErrors.theme = message;
+        backgroundShopErrors.battle = message;
+        renderBackgroundShop('theme');
+        renderBackgroundShop('battle');
+        renderBackgroundInventory();
+        return;
+    }
+    if (backgroundShopBusy) return;
+    if (!force && backgroundShopData.theme && backgroundShopData.battle) {
+        renderBackgroundShop('theme');
+        renderBackgroundShop('battle');
+        renderBackgroundInventory();
+        return;
+    }
+    backgroundShopBusy = true;
+    backgroundShopErrors.theme = '';
+    backgroundShopErrors.battle = '';
+    try {
+        const data = await authRequest('/api/backgrounds', undefined, { timeoutMs: 6000 });
+        applyBackgroundPayload(data);
+    } catch (err) {
+        backgroundShopErrors.theme = err.message || '读取失败';
+        backgroundShopErrors.battle = err.message || '读取失败';
+    } finally {
+        backgroundShopBusy = false;
+        renderBackgroundShop('theme');
+        renderBackgroundShop('battle');
+        renderBackgroundInventory();
+    }
+}
+
+function backgroundItemElement(kind, item) {
+    const article = document.createElement('article');
+    article.className = 'background-shop-item';
+    article.classList.toggle('is-equipped', !!item.equipped);
+    article.dataset.backgroundKind = kind;
+    article.dataset.backgroundId = item.background_id;
+    article.appendChild(window.GtnBackgrounds.createPreview(kind, item.background_id));
+    const meta = document.createElement('div');
+    meta.className = 'background-shop-meta';
+    const name = document.createElement('strong');
+    name.textContent = item.name || item.background_id;
+    const description = document.createElement('small');
+    description.textContent = item.description || '';
+    meta.append(name, description);
+    article.appendChild(meta);
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.className = 'title-shop-buy-btn';
+    action.disabled = backgroundShopBusy || !!item.equipped;
+    if (item.equipped) {
+        action.textContent = '已装备';
+    } else if (item.owned) {
+        action.textContent = '装备';
+        action.addEventListener('click', () => void equipBackground(kind, item));
+    } else {
+        action.innerHTML = thornDewAmountHtml(item.price, 'dew-amount');
+        action.addEventListener('click', () => void purchaseBackground(kind, item));
+    }
+    article.appendChild(action);
+    return article;
+}
+
+function renderBackgroundShop(kind) {
+    const grid = $(`${kind}-background-shop-grid`);
+    const status = $(`${kind}-background-shop-status`);
+    if (!grid || !status) return;
+    status.textContent = backgroundShopErrors[kind] || (kind === 'theme'
+        ? '每日上架3款主题背景，购买后可在皮肤－背景中装备。'
+        : '每日上架3款战斗背景，仅在对战与观战中显示。');
+    grid.replaceChildren();
+    const items = Array.isArray(backgroundShopData[kind]?.offers) ? backgroundShopData[kind].offers : [];
+    items.forEach((item) => grid.appendChild(backgroundItemElement(kind, item)));
+    if (backgroundShopData[kind]?.set_id) {
+        const refreshRow = document.createElement('div');
+        refreshRow.className = 'card-skin-refresh-row';
+        const refreshButton = document.createElement('button');
+        refreshButton.type = 'button';
+        refreshButton.className = 'mini-btn title-shop-refresh-btn';
+        refreshButton.disabled = backgroundShopBusy;
+        refreshButton.innerHTML = `刷新 · ${thornDewAmountHtml(backgroundShopData[kind].refresh_cost, 'dew-amount')}`;
+        refreshButton.addEventListener('click', () => void refreshBackgroundShop(kind));
+        refreshRow.appendChild(refreshButton);
+        grid.appendChild(refreshRow);
+    }
+}
+
+async function purchaseBackground(kind, item) {
+    if (backgroundShopBusy || !item || item.owned) return;
+    const confirmed = await gameConfirm(
+        kind === 'theme' ? '购买主题背景' : '购买战斗背景',
+        `花费 ${Number(item.price || 0).toLocaleString()} 荆露购买“${item.name}”？`,
+    );
+    if (!confirmed) return;
+    backgroundShopBusy = true;
+    backgroundShopErrors[kind] = '';
+    renderBackgroundShop(kind);
+    try {
+        const data = await authRequest('/api/backgrounds/purchase', {
+            kind,
+            set_id: backgroundShopData[kind].set_id,
+            slot: Number(item.slot),
+        }, { timeoutMs: 8000 });
+        applyBackgroundPayload(data);
+        flashStatus('背景已解锁，可在皮肤－背景中装备', 1800);
+    } catch (err) {
+        backgroundShopErrors[kind] = err.message || '购买失败';
+    } finally {
+        backgroundShopBusy = false;
+        renderBackgroundShop('theme');
+        renderBackgroundShop('battle');
+        renderBackgroundInventory();
+    }
+}
+
+async function refreshBackgroundShop(kind) {
+    if (backgroundShopBusy || !backgroundShopData[kind]?.set_id) return;
+    const cost = Math.max(0, Number(backgroundShopData[kind].refresh_cost || 0) || 0);
+    const confirmed = await gameConfirm(
+        kind === 'theme' ? '刷新主题背景商店' : '刷新战斗背景商店',
+        `花费 ${cost.toLocaleString()} 荆露刷新3个背景？本轮未购买的商品将被替换。`,
+    );
+    if (!confirmed) return;
+    backgroundShopBusy = true;
+    backgroundShopErrors[kind] = '';
+    renderBackgroundShop(kind);
+    try {
+        const data = await authRequest('/api/backgrounds/refresh', { kind }, { timeoutMs: 8000 });
+        applyBackgroundPayload(data);
+        flashStatus('背景商店已刷新', 1600);
+    } catch (err) {
+        backgroundShopErrors[kind] = err.message || '刷新失败';
+    } finally {
+        backgroundShopBusy = false;
+        renderBackgroundShop('theme');
+        renderBackgroundShop('battle');
+        renderBackgroundInventory();
+    }
+}
+
+async function equipBackground(kind, item) {
+    if (backgroundShopBusy || !item || !item.owned || item.equipped) return;
+    backgroundShopBusy = true;
+    backgroundShopErrors[kind] = '';
+    try {
+        const data = await authRequest('/api/backgrounds/equip', {
+            kind,
+            background_id: item.background_id,
+        }, { timeoutMs: 6000 });
+        applyBackgroundPayload(data);
+        flashStatus(kind === 'theme' ? '主题背景已装备' : '战斗背景已装备', 1600);
+    } catch (err) {
+        backgroundShopErrors[kind] = err.message || '装备失败';
+    } finally {
+        backgroundShopBusy = false;
+        renderBackgroundShop('theme');
+        renderBackgroundShop('battle');
+        renderBackgroundInventory();
+    }
+}
+
+function renderBackgroundInventory() {
+    ['theme', 'battle'].forEach((kind) => {
+        const list = $(`${kind}-background-list`);
+        if (!list) return;
+        list.replaceChildren();
+        if (!currentAccount) {
+            const note = document.createElement('div');
+            note.className = 'account-replay-sub';
+            note.textContent = UI.account_need_login || '请先登录账号';
+            list.appendChild(note);
+            return;
+        }
+        const items = Array.isArray(backgroundShopData[kind]?.items)
+            ? backgroundShopData[kind].items.filter(item => item.owned)
+            : [];
+        items.forEach((item) => list.appendChild(backgroundItemElement(kind, item)));
+    });
 }
 
 async function loadCardSkinShop(force = false) {
@@ -19768,6 +20607,7 @@ function renderCardSkinShop() {
                 const data = await response.json().catch(() => ({}));
                 if (!response.ok || !data.success) throw new Error(data.error || '购买失败');
                 cardSkinShopData = data.shop;
+                if (window.GtnRewardAnimation) window.GtnRewardAnimation.refresh();
                 if (typeof refreshTitleShopQuietly === 'function') void refreshTitleShopQuietly();
                 renderCardSkinShop();
             } catch (err) {
@@ -19848,10 +20688,10 @@ async function loadTitleShopAfdian() {
         }
         const plans = data.plans || [];
         plansEl.innerHTML = plans.length
-            ? plans.map((p) => `<div class="title-shop-afdian-plan"><span>${escapeHtml(p.name || p.plan_id)}${p.price ? '（¥' + escapeHtml(p.price) + '）' : ''}</span><b>${Number(p.dew_amount) || 0} 荆露</b></div>`).join('')
+            ? plans.map((p) => `<div class="title-shop-afdian-plan"><span>${escapeHtml(p.name || p.plan_id)}${p.price ? '（¥' + escapeHtml(p.price) + '）' : ''}</span></div>`).join('')
             : '';
         noteEl.textContent = plans.length
-            ? lt({ zh: '付款时在订单留言填上面的绑定码；稍等即自动到账。', en: 'Put the code in the order remark when sponsoring; dew arrives automatically.', fr: 'Mettez le code en remarque de la commande ; la rosée arrive automatiquement.', ja: '寄付時に注文メモへコードを記入すると、自動で反映されます。' })
+            ? lt({ zh: '累计赞助满1元获得灰色「赞助者」，满10元获得彩虹「大赞助者」；不再发放金露。', en: 'Earn Supporter at ¥1 and Major Supporter at ¥10 in total; no Golden Dew is granted.', fr: 'Obtenez Sponsorisé à 1 ¥ et Grand sponsor à 10 ¥ au total ; aucune Rosée dorée.', ja: '累計1元で灰色の「スポンサー」、10元で虹色の「大スポンサー」を獲得。ゴールデンデューは付きません。' })
             : '';
     } catch (_) {
         codeEl.textContent = '——';
@@ -20047,9 +20887,10 @@ function renderAccountInfoPanel(user) {
     const losses = Number(user.losses || 0) || 0;
     const draws = Number(user.draws || 0) || 0;
     const winRate = games > 0 ? `${(wins / games * 100).toFixed(1)}%` : '0.0%';
-    const thornDewFree = Math.max(0, Number(user.thorn_dew_free || 0) || 0);
-    const thornDewPaid = Math.max(0, Number(user.thorn_dew_paid || 0) || 0);
-    const thornDewTotal = Math.max(0, Number(user.thorn_dew_total ?? (thornDewFree + thornDewPaid)) || 0);
+    const thornDewFree = Number(user.thorn_dew_free || 0) || 0;
+    const thornDewPaid = Number(user.thorn_dew_paid || 0) || 0;
+    const thornDewTotal = Number(user.thorn_dew_total ?? (thornDewFree + thornDewPaid)) || 0;
+    const goldenDew = Number(user.golden_dew || 0) || 0;
     const items = [
         [currentLang === 'zh' ? '信誉' : 'Reputation', user.reputation_profile?.value ?? user.reputation ?? 85],
         // 2026-10-02：段位替代花阶分展示（花阶分只在后台运行）。
@@ -20060,11 +20901,12 @@ function renderAccountInfoPanel(user) {
         [currentLang === 'zh' ? '胜 / 负 / 平' : 'W / L / D', `${wins} / ${losses} / ${draws}`],
         [UI.account_online_time || '总对局时长', formatAccountPlayTime(user.play_seconds ?? 0)],
         [UI.thorn_dew || '荆露', thornDewTotal, true],
+        [currentLang === 'zh' ? '金露' : 'Golden Dew', goldenDew, true],
     ];
     grid.innerHTML = items.map(([label, value, kind]) => `
         <div class="account-info-item">
             <span class="account-info-label">${escapeHtml(label)}</span>
-            <span class="account-info-value">${kind === 'html' ? value : (kind === true ? thornDewAmountHtml(value) : escapeHtml(value))}</span>
+            <span class="account-info-value">${kind === 'html' ? value : (kind === true ? thornDewAmountHtml(value, 'dew-amount', undefined, true) : escapeHtml(value))}</span>
         </div>
     `).join('') + `
         <div class="account-info-item account-rank-progress-item">
@@ -20360,6 +21202,7 @@ function confirmRankCardPurchase(kind, onDone) {
                 if (Number.isFinite(newBal)) currentAccount.thorn_dew_total = newBal - price;
             }
             hideModal();
+            if (window.GtnRewardAnimation) window.GtnRewardAnimation.refresh();
             flashStatus(lt({ zh: '购买成功', en: 'Purchased', fr: 'Achetée', ja: '購入しました' }));
             if (onDone) await onDone();
         } else {
@@ -20425,6 +21268,9 @@ function normalizeSkinConfig(raw) {
     if (/^#[0-9a-fA-F]{6}$/.test(color)) skin.primary_color = color.toUpperCase();
     const eyeShape = String(data.eye_shape || data.eyeShape || '').trim().toLowerCase();
     if (SKIN_EYE_SHAPES.has(eyeShape)) skin.eye_shape = eyeShape;
+    const mouthShape = String(data.mouth_shape || data.mouthShape || '').trim().toLowerCase();
+    if (SKIN_MOUTH_SHAPES.has(mouthShape)) skin.mouth_shape = mouthShape;
+    skin.skin_id = window.GTNPlayerSkins?.normalize(data.skin_id || data.skinId) || 'classic';
     return skin;
 }
 
@@ -20451,7 +21297,9 @@ function saveLocalSkinConfig(skin) {
 
 function getCurrentSkinConfig() {
     if (currentAccount && currentAccount.skin) return normalizeSkinConfig(currentAccount.skin);
-    return loadLocalSkinConfig();
+    const local = loadLocalSkinConfig();
+    // 游客始终使用经典；付费款式必须登录并通过商店解锁。
+    return { ...local, skin_id: 'classic' };
 }
 
 function setSkinError(message = '') {
@@ -20460,9 +21308,12 @@ function setSkinError(message = '') {
 }
 
 function readSkinFormConfig() {
+    const selectedPreset = $('skin-preset-list')?.querySelector('[data-skin-preset][aria-checked="true"]');
     return normalizeSkinConfig({
         primary_color: $('skin-primary-color')?.value || DEFAULT_SKIN_CONFIG.primary_color,
         eye_shape: $('skin-eye-shape')?.value || DEFAULT_SKIN_CONFIG.eye_shape,
+        mouth_shape: $('skin-mouth-shape')?.value || DEFAULT_SKIN_CONFIG.mouth_shape,
+        skin_id: selectedPreset?.dataset.skinPreset || DEFAULT_SKIN_CONFIG.skin_id,
     });
 }
 
@@ -20512,7 +21363,9 @@ function normalizeSkinLook(raw) {
 function skinLookCssVars(rawLook, mirrorX = false) {
     const look = normalizeSkinLook(rawLook);
     const lookX = mirrorX ? -look.x : look.x;
-    return `--skin-look-x:${(lookX * SKIN_LOOK_OFFSET_X_PERCENT).toFixed(1)}%;--skin-look-y:${(look.y * SKIN_LOOK_OFFSET_Y_PERCENT).toFixed(1)}%`;
+    const rotation = window.GTNPlayerSkins?.lookRotation({ x: lookX, y: look.y }) || 0;
+    const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
+    return `--skin-look-x:${(lookX * SKIN_LOOK_OFFSET_X_PERCENT).toFixed(1)}%;--skin-look-y:${(look.y * SKIN_LOOK_OFFSET_Y_PERCENT).toFixed(1)}%;--skin-look-rotate:${rotation.toFixed(2)}deg;--skin-eye-art-x:${(lookX * eyeLook.x).toFixed(3)}%;--skin-eye-art-y:${(look.y * eyeLook.y).toFixed(3)}%`;
 }
 
 function isLocalSkinLookPlayerId(id) {
@@ -20555,6 +21408,11 @@ function applySkinLookVarsToAvatar(avatar, look) {
     const lookX = avatar.dataset && avatar.dataset.mirrorLookX === '1' ? -normalized.x : normalized.x;
     avatar.style.setProperty('--skin-look-x', `${(lookX * SKIN_LOOK_OFFSET_X_PERCENT).toFixed(1)}%`);
     avatar.style.setProperty('--skin-look-y', `${(normalized.y * SKIN_LOOK_OFFSET_Y_PERCENT).toFixed(1)}%`);
+    const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
+    avatar.style.setProperty('--skin-eye-art-x', `${(lookX * eyeLook.x).toFixed(3)}%`);
+    avatar.style.setProperty('--skin-eye-art-y', `${(normalized.y * eyeLook.y).toFixed(3)}%`);
+    const rotation = window.GTNPlayerSkins?.lookRotation({ x: lookX, y: normalized.y }) || 0;
+    avatar.style.setProperty('--skin-look-rotate', `${rotation.toFixed(2)}deg`);
 }
 
 function applySkinLookToRenderedAvatars(id, look) {
@@ -20731,6 +21589,11 @@ function renderSkinAvatar(skinInput, options = {}) {
     const invertedClass = inverted ? ' is-inverted' : '';
     const avatarKindClass = isPhelren ? ' phelren-avatar' : '';
     const eyeShape = isPhelren ? 'oval' : skin.eye_shape;
+    const skinLayers = isPhelren ? '' : (window.GTNPlayerSkins?.renderLayers(skin.skin_id, { mainColor, borderColor: border }) || '');
+    const eyeArt = isPhelren ? '' : (window.GTNEyeStyles?.render(eyeShape) || '');
+    const mouthShape = isPhelren ? 'original' : skin.mouth_shape;
+    const mouthArt = isPhelren ? '' : (window.GTNMouthStyles?.render(mouthShape) || '');
+    const skinLayerClass = isPhelren ? '' : (window.GTNPlayerSkins?.layerClass(skin.skin_id) || '');
     const pid = normalizePlayerId(options.playerId);
     const look = options.look || (pid != null ? getSkinLookForPlayerId(pid) : localSkinLook);
     const defeated = !!options.defeated;
@@ -20749,7 +21612,8 @@ function renderSkinAvatar(skinInput, options = {}) {
     const defeatedSeed = String(options.defeatedSeed || options.playerId || options.lookOwner || skin.primary_color || 'skin');
     const defeatedRotate = 10 + (hashStringToHue(defeatedSeed) % 341);
     const mirrorLookX = !!options.mirrorLookX;
-    const style = `--skin-main:${escapeHtml(mainColor)};--skin-border:${escapeHtml(border)};--skin-defeat-rotate:${defeatedRotate}deg;${skinLookCssVars(look, mirrorLookX)}`;
+    const faceStyle = isPhelren ? '' : (window.GTNPlayerSkins?.faceStyle(skin.skin_id) || '');
+    const style = `--skin-main:${escapeHtml(mainColor)};--skin-border:${escapeHtml(border)};--skin-defeat-rotate:${defeatedRotate}deg;${faceStyle}${skinLookCssVars(look, mirrorLookX)}`;
     const ownerAttr = pid != null
         ? ` data-player-id="${pid}"`
         : ` data-look-owner="${escapeHtml(options.lookOwner || 'local')}"`;
@@ -20758,15 +21622,184 @@ function renderSkinAvatar(skinInput, options = {}) {
         ? `<img class="phelren-avatar-frame" src="${corrupted ? PHELREN_AVATAR_CORRUPT_FRAME_URL : PHELREN_AVATAR_FRAME_URL}" alt="" aria-hidden="true">`
         : '';
     return `
-        <div class="skin-avatar skin-eye-shape-${escapeHtml(eyeShape)}${avatarKindClass}${invertedClass}${defeatedClass}${defeatEnterClass}${corrupted ? ' is-corrupted' : ''}${corruptAnimateClass}${damageMood ? ` ${damageMood}` : ''}"${ownerAttr}${mirrorAttr} style="${style}">
-            ${frame}
-            <div class="skin-eye skin-eye-left"><span class="skin-pupil"></span></div>
-            <div class="skin-eye skin-eye-right"><span class="skin-pupil"></span></div>
-            <svg class="skin-mouth" viewBox="0 0 100 56" aria-hidden="true" focusable="false">
-                <path class="skin-mouth-line" d="${skinMouthPathAt(mouthT)}"></path>
-            </svg>
+        <div class="skin-avatar skin-eye-shape-${escapeHtml(eyeShape)} skin-mouth-shape-${escapeHtml(mouthShape)}${avatarKindClass}${invertedClass}${defeatedClass}${defeatEnterClass}${corrupted ? ' is-corrupted' : ''}${corruptAnimateClass}${damageMood ? ` ${damageMood}` : ''}${skinLayerClass}"${ownerAttr}${mirrorAttr} style="${style}">
+            ${frame}${skinLayers}
+            <div class="skin-face">
+                ${eyeArt}
+                <div class="skin-eye skin-eye-left"><span class="skin-pupil"></span></div>
+                <div class="skin-eye skin-eye-right"><span class="skin-pupil"></span></div>
+                ${mouthArt}
+                <svg class="skin-mouth" viewBox="0 0 100 56" aria-hidden="true" focusable="false">
+                    <path class="skin-mouth-line" d="${skinMouthPathAt(mouthT)}"></path>
+                </svg>
+            </div>
         </div>
     `;
+}
+
+const BASE_EYE_SHAPES = Object.freeze(['oval', 'rectangle', 'diamond', 'hexagon']);
+let eyeStyleOwnedIds = null;
+let eyeStyleOwnershipUserId = null;
+let eyeStyleOwnershipBusy = false;
+
+function normalizedEyeStyleIds(ids) {
+    return [...new Set([...BASE_EYE_SHAPES, ...(Array.isArray(ids) ? ids : [])])];
+}
+function updateSkinEyeShapeOptions() {
+    const select = $('skin-eye-shape');
+    if (!select) return;
+    const owned = currentAccount ? eyeStyleOwnedIds : BASE_EYE_SHAPES;
+    [...select.options].forEach((option) => {
+        if (!window.GTNEyeStyles?.get(option.value)) return;
+        const allowed = Array.isArray(owned) && owned.includes(option.value);
+        option.disabled = !allowed;
+        option.title = allowed ? '' : '尚未拥有这款眼睛';
+    });
+    if (select.selectedIndex >= 0 && select.options[select.selectedIndex].disabled) select.value = 'oval';
+}
+async function loadEyeStyleOwnership(force = false) {
+    const uid = currentAccount?.id ?? null;
+    if (!uid) {
+        eyeStyleOwnedIds = [...BASE_EYE_SHAPES];
+        eyeStyleOwnershipUserId = null;
+        updateSkinEyeShapeOptions();
+        return;
+    }
+    if (eyeStyleOwnershipUserId !== uid) {
+        eyeStyleOwnedIds = null;
+        updateSkinEyeShapeOptions();
+    }
+    if (eyeStyleOwnershipBusy || (eyeStyleOwnedIds && !force)) return;
+    eyeStyleOwnershipBusy = true;
+    try {
+        const data = await authRequest('/api/eye-styles', undefined, { timeoutMs: 6000 });
+        if (currentAccount?.id !== uid) return;
+        eyeStyleOwnedIds = normalizedEyeStyleIds(data.shop?.owned_eye_shapes);
+        eyeStyleOwnershipUserId = uid;
+        updateSkinEyeShapeOptions();
+    } catch (_) {
+        if (currentAccount?.id !== uid) return;
+        if (!eyeStyleOwnedIds) eyeStyleOwnedIds = [...BASE_EYE_SHAPES];
+        updateSkinEyeShapeOptions();
+    } finally {
+        eyeStyleOwnershipBusy = false;
+    }
+}
+
+const BASE_MOUTH_SHAPES = Object.freeze(['original']);
+let mouthStyleOwnedIds = null;
+let mouthStyleOwnershipUserId = null;
+let mouthStyleOwnershipBusy = false;
+
+function normalizedMouthStyleIds(ids) {
+    return [...new Set([...BASE_MOUTH_SHAPES, ...(Array.isArray(ids) ? ids : [])])];
+}
+function updateSkinMouthShapeOptions() {
+    const select = $('skin-mouth-shape');
+    if (!select) return;
+    const owned = currentAccount ? mouthStyleOwnedIds : BASE_MOUTH_SHAPES;
+    [...select.options].forEach((option) => {
+        if (!window.GTNMouthStyles?.get(option.value)) return;
+        const allowed = Array.isArray(owned) && owned.includes(option.value);
+        option.disabled = !allowed;
+        option.title = allowed ? '' : '尚未拥有这款嘴型';
+    });
+    if (select.selectedIndex >= 0 && select.options[select.selectedIndex].disabled) select.value = 'original';
+}
+async function loadMouthStyleOwnership(force = false) {
+    const uid = currentAccount?.id ?? null;
+    if (!uid) {
+        mouthStyleOwnedIds = [...BASE_MOUTH_SHAPES];
+        mouthStyleOwnershipUserId = null;
+        updateSkinMouthShapeOptions();
+        return;
+    }
+    if (mouthStyleOwnershipUserId !== uid) {
+        mouthStyleOwnedIds = null;
+        updateSkinMouthShapeOptions();
+    }
+    if (mouthStyleOwnershipBusy || (mouthStyleOwnedIds && !force)) return;
+    mouthStyleOwnershipBusy = true;
+    try {
+        const data = await authRequest('/api/mouth-styles', undefined, { timeoutMs: 6000 });
+        if (currentAccount?.id !== uid) return;
+        mouthStyleOwnedIds = normalizedMouthStyleIds(data.shop?.owned_mouth_shapes);
+        mouthStyleOwnershipUserId = uid;
+        updateSkinMouthShapeOptions();
+    } catch (_) {
+        if (currentAccount?.id !== uid) return;
+        if (!mouthStyleOwnedIds) mouthStyleOwnedIds = [...BASE_MOUTH_SHAPES];
+        updateSkinMouthShapeOptions();
+    } finally {
+        mouthStyleOwnershipBusy = false;
+    }
+}
+
+let playerSkinOwnedIds = null;
+let playerSkinOwnershipUserId = null;
+let playerSkinOwnershipBusy = false;
+
+async function loadPlayerSkinOwnership(force = false) {
+    void loadEyeStyleOwnership(force);
+    void loadMouthStyleOwnership(force);
+    const uid = currentAccount?.id ?? null;
+    if (!uid) {
+        playerSkinOwnedIds = ['classic'];
+        playerSkinOwnershipUserId = null;
+        return;
+    }
+    if (playerSkinOwnershipUserId !== uid) {
+        playerSkinOwnedIds = null;
+        playerSkinOwnershipUserId = uid;
+    }
+    if (playerSkinOwnershipBusy || (playerSkinOwnedIds && !force)) return;
+    playerSkinOwnershipBusy = true;
+    try {
+        const data = await authRequest('/api/player-skins', undefined, { timeoutMs: 6000 });
+        if (currentAccount?.id !== uid) return;
+        const ids = Array.isArray(data.shop?.owned_skin_ids) ? data.shop.owned_skin_ids : ['classic'];
+        playerSkinOwnedIds = [...new Set(['classic', ...ids.map(id => window.GTNPlayerSkins.normalize(id))])];
+        if (activeViewId === 'view-skin') {
+            renderSkinPresetList(getCurrentSkinConfig().skin_id);
+            renderSkinEditorPreview();
+        }
+    } catch (_) {
+        if (currentAccount?.id === uid && !playerSkinOwnedIds) playerSkinOwnedIds = ['classic'];
+    } finally {
+        playerSkinOwnershipBusy = false;
+    }
+}
+
+function renderSkinPresetList(selectedId = getCurrentSkinConfig().skin_id) {
+    const list = $('skin-preset-list');
+    if (!list || !window.GTNPlayerSkins) return;
+    const label = $('skin-preset-label');
+    if (label) label.textContent = lt({ zh: '皮肤款式', en: 'Skin style', fr: 'Style de peau', ja: 'スキンスタイル' });
+    const ownedIds = currentAccount ? playerSkinOwnedIds : ['classic'];
+    const availableDefinitions = window.GTNPlayerSkins.definitions.filter((definition) => {
+        if (definition.id === 'classic') return true;
+        return !!ownedIds && ownedIds.includes(definition.id);
+    });
+    const requested = window.GTNPlayerSkins.normalize(selectedId);
+    const selected = availableDefinitions.some(definition => definition.id === requested) ? requested : 'classic';
+    const colorInput = $('skin-primary-color');
+    if (colorInput) {
+        const fixedColors = !!window.GTNPlayerSkins.get(selected).fixedColor;
+        colorInput.disabled = fixedColors;
+        colorInput.title = fixedColors ? lt({ zh: '该款式使用固定贴图配色', en: 'This skin uses fixed artwork colors', fr: 'Cette peau utilise les couleurs fixes de son illustration', ja: 'このスキンは固定配色です' }) : '';
+    }
+    const base = {
+        primary_color: $('skin-primary-color')?.value || DEFAULT_SKIN_CONFIG.primary_color,
+        eye_shape: $('skin-eye-shape')?.value || DEFAULT_SKIN_CONFIG.eye_shape,
+        mouth_shape: $('skin-mouth-shape')?.value || DEFAULT_SKIN_CONFIG.mouth_shape,
+    };
+    list.innerHTML = availableDefinitions.map((definition) => {
+        const id = window.GTNPlayerSkins.normalize(definition.id);
+        const name = lt(definition.names) || definition.id;
+        const active = id === selected;
+        const preview = renderSkinAvatar({ ...base, skin_id: id }, { look: DEFAULT_SKIN_LOOK, lookOwner: `preset-${id}` });
+        return `<button class="skin-preset-option" type="button" role="radio" aria-checked="${active ? 'true' : 'false'}" data-skin-preset="${id}" aria-label="${escapeHtml(name)}"><span class="skin-preset-avatar" aria-hidden="true">${preview}</span><span>${escapeHtml(name)}</span></button>`;
+    }).join('');
 }
 
 function renderSkinEditorPreview() {
@@ -20781,6 +21814,12 @@ function syncSkinFormFromCurrent() {
     if (colorInput) colorInput.value = skin.primary_color;
     const shapeSelect = $('skin-eye-shape');
     if (shapeSelect) shapeSelect.value = skin.eye_shape;
+    const mouthSelect = $('skin-mouth-shape');
+    if (mouthSelect) mouthSelect.value = skin.mouth_shape;
+    updateSkinEyeShapeOptions();
+    updateSkinMouthShapeOptions();
+    void loadPlayerSkinOwnership();
+    renderSkinPresetList(skin.skin_id);
     renderSkinEditorPreview();
 }
 
@@ -20788,6 +21827,10 @@ async function saveSkinFromEditor() {
     if (skinSaveInFlight) return;
     setSkinError('');
     const skin = readSkinFormConfig();
+    if (!currentAccount && skin.skin_id !== 'classic') {
+        setSkinError(lt({ zh: '请先登录，并在商店解锁该玩家皮肤', en: 'Log in and unlock this player skin in the shop first', fr: 'Connectez-vous et déverrouillez cette peau dans la boutique', ja: 'ログインしてショップでこのスキンを解放してください' }));
+        return;
+    }
     saveLocalSkinConfig(skin);
     if (currentAccount) {
         skinSaveInFlight = true;
@@ -20802,6 +21845,7 @@ async function saveSkinFromEditor() {
             skinSaveInFlight = false;
         }
     }
+    playerSkinShopData = null;
     renderSkinEditorPreview();
     flashStatus(UI.skin_saved || '皮肤已保存', 1600);
 }
@@ -20811,26 +21855,32 @@ function resetSkinEditor() {
     if (colorInput) colorInput.value = DEFAULT_SKIN_CONFIG.primary_color;
     const shapeSelect = $('skin-eye-shape');
     if (shapeSelect) shapeSelect.value = DEFAULT_SKIN_CONFIG.eye_shape;
+    const mouthSelect = $('skin-mouth-shape');
+    if (mouthSelect) mouthSelect.value = DEFAULT_SKIN_CONFIG.mouth_shape;
+    renderSkinPresetList(DEFAULT_SKIN_CONFIG.skin_id);
     renderSkinEditorPreview();
 }
 
-/* ---------- 外观页三 tab：形象 / 称号 / 卡牌皮肤 ---------- */
+/* ---------- 外观页：形象 / 背景 / 称号 / 卡牌皮肤 ---------- */
 
 let skinPageTab = 'look';
 let cardSkinInventory = null;
 let cardSkinInventoryBusy = false;
 
 function switchSkinPageTab(tab) {
-    skinPageTab = ['look', 'titles', 'card-skins'].includes(tab) ? tab : 'look';
+    skinPageTab = ['look', 'backgrounds', 'titles', 'card-skins'].includes(tab) ? tab : 'look';
     document.querySelectorAll('.skin-page-tabs [data-skin-tab]').forEach((btn) => {
         btn.classList.toggle('active', btn.dataset.skinTab === skinPageTab);
     });
     const lookBody = $('skin-look-body');
+    const backgroundsPanel = $('backgrounds-panel');
     const titlesPanel = $('skin-titles-panel');
     const cardPanel = $('card-skins-panel');
     if (lookBody) lookBody.classList.toggle('hidden', skinPageTab !== 'look');
+    if (backgroundsPanel) backgroundsPanel.classList.toggle('hidden', skinPageTab !== 'backgrounds');
     if (titlesPanel) titlesPanel.classList.toggle('hidden', skinPageTab !== 'titles');
     if (cardPanel) cardPanel.classList.toggle('hidden', skinPageTab !== 'card-skins');
+    if (skinPageTab === 'backgrounds') void loadBackgroundShops();
     if (skinPageTab === 'titles') void loadSkinPageTitles();
     if (skinPageTab === 'card-skins') void loadCardSkinInventory();
 }
@@ -22556,6 +23606,7 @@ async function refreshAuthMe() {
         loadFeedbackSummary();
         startSocialUnreadPolling(true);
         syncClientSettingsOnAuth();
+        if (window.GtnSeasonSettlement) window.GtnSeasonSettlement.refresh();
     } else {
         stopSocialUnreadPolling();
     }
@@ -22578,6 +23629,7 @@ async function onAccountLogin() {
         loadAccountReplays();
         startSocialUnreadPolling(true);
         syncClientSettingsOnAuth();
+        if (window.GtnSeasonSettlement) window.GtnSeasonSettlement.refresh();
     } catch (err) {
         setAccountError(err.message || UI.account_error);
     }
@@ -22603,6 +23655,7 @@ async function onAccountRegister() {
         loadAccountReplays();
         startSocialUnreadPolling(true);
         syncClientSettingsOnAuth();
+        if (window.GtnSeasonSettlement) window.GtnSeasonSettlement.refresh();
     } catch (err) {
         setAccountError(err.message || UI.account_error);
     }
@@ -25596,10 +26649,15 @@ function scheduleSoloOfflineFallback(kind, payload) {
     }, 5000);
 }
 
-// Solo training and the tutorial run on the server-side Python GameEngine
-// through the solo_* / tutorial_* socket events. Do not add a second
-// browser-side rules engine: card and rule changes must live in Python only.
+// 普通训练场在浏览器 Worker 内运行同一份 Python GameEngine；
+// 新手教程与 Phelren 仍走原服务器会话，不共用本地训练场状态。
 function emitSoloEvent(eventName, payload = {}) {
+    const localStart = eventName === 'solo_start' && !tutorialMode;
+    const localActive = window.GTNSoloLocal?.isActive() && !tutorialMode && !gameState?.ai_test;
+    if (window.GTNSoloLocal && (localStart || localActive)) {
+        void window.GTNSoloLocal.dispatch(eventName, payload);
+        return;
+    }
     if (socket && socket.connected) {
         socket.emit(eventName, payload);
         return;
@@ -27918,16 +28976,9 @@ async function startSoloTraining() {
     if (sub1 === false) return;
     saveSoloDecks();
     const payload = { deck0: soloDeckA, deck1: soloDeckB, event0, event1, sub0, sub1, ...getModLoginPayload() };
-    if (socket && socket.connected) {
-        clearPendingSoloFallback();
-        emitSoloStart(payload);
-        return;
-    }
-    nickname = (($('input-nickname') && $('input-nickname').value) || nickname || 'Solo').trim() || 'Solo';
+    clearPendingSoloFallback();
     pendingSoloStart = true;
-    window.__pendingSoloPayload = payload;
-    connectSocket(getServerAddress());
-    scheduleSoloOfflineFallback('solo', payload);
+    emitSoloStart(payload);
 }
 
 function shouldAnimateSkinCorruption(playerId, corrupted, scope = 'default') {
@@ -27950,6 +29001,7 @@ function playerHasCorruptionEquipment(playerData) {
 
 function emitSoloStart(payload = null) {
     soloMode = true;
+    if (!socket) connectSocket(getServerAddress(), { handlersOnly: true });
     const finalPayload = payload || window.__pendingSoloPayload || { deck0: soloDeckA, deck1: soloDeckB };
     window.__pendingSoloPayload = null;
     emitSoloEvent('solo_start', finalPayload);
@@ -28011,6 +29063,55 @@ function renderSeasonCountdown(season) {
     };
     tick();
     seasonCountdownTimer = window.setInterval(tick, 1000);
+}
+
+let rankedAvailabilityTimer = 0;
+let rankedAvailabilityNextChange = 0;
+let rankedAvailabilityCurrent = null;
+
+function updateRankedModeTabs(status = rankedAvailabilityCurrent) {
+    const open = !!(status && status.open);
+    document.querySelectorAll('#lobby-mode-tabs .mode-tab[data-mode^="ranked_"]').forEach(tab => {
+        tab.classList.toggle('is-disabled', !open);
+        tab.setAttribute('aria-disabled', open ? 'false' : 'true');
+        tab.title = open ? '天梯开放中' : '天梯当前未开放，请在开放时段进入';
+    });
+}
+
+function renderRankedAvailability(status) {
+    rankedAvailabilityCurrent = status && typeof status === 'object' ? status : null;
+    const element = $('ranked-availability');
+    if (rankedAvailabilityTimer) {
+        window.clearInterval(rankedAvailabilityTimer);
+        rankedAvailabilityTimer = 0;
+    }
+    if (!element) {
+        updateRankedModeTabs();
+        return;
+    }
+    if (!rankedAvailabilityCurrent || !rankedAvailabilityCurrent.next_change_at) {
+        element.classList.add('hidden');
+        updateRankedModeTabs();
+        return;
+    }
+    rankedAvailabilityNextChange = Date.parse(rankedAvailabilityCurrent.next_change_at);
+    if (!Number.isFinite(rankedAvailabilityNextChange)) {
+        element.classList.add('hidden');
+        updateRankedModeTabs();
+        return;
+    }
+    element.classList.remove('hidden');
+    const tick = () => {
+        const remaining = Math.max(0, Math.ceil((rankedAvailabilityNextChange - Date.now()) / 1000));
+        const open = !!(rankedAvailabilityCurrent && rankedAvailabilityCurrent.open);
+        element.classList.toggle('is-closed', !open);
+        element.textContent = open
+            ? `天梯开放中 · 距关闭 ${formatSeasonCountdown(remaining)}`
+            : `天梯未开放 · 距下次开放 ${formatSeasonCountdown(remaining)}`;
+    };
+    tick();
+    rankedAvailabilityTimer = window.setInterval(tick, 1000);
+    updateRankedModeTabs();
 }
 
 function modUnlockProgressText(state = modUnlockState) {
@@ -28307,6 +29408,7 @@ function renderModDrawState(data = {}) {
 function renderLobby(data) {
     showView('view-lobby');
     renderSeasonCountdown(data.season);
+    renderRankedAvailability(data.ranked_availability);
     const lobbyPlayers = data.players || [];
     const games = data.ongoing_games || [];
     const teamList = data.teams || [];
@@ -28348,6 +29450,10 @@ function renderLobby(data) {
             }
             tab.onclick = async () => {
                 const newMode = tab.getAttribute('data-mode');
+                if (newMode.startsWith('ranked_') && !(rankedAvailabilityCurrent && rankedAvailabilityCurrent.open)) {
+                    flashStatus(currentLang === 'zh' ? '天梯当前未开放，请在开放时段进入' : 'Ranked is currently closed');
+                    return;
+                }
                 if (newMode === currentMode) return;
                 if (myTeam && !isTwoVsTwoMatchMode(newMode)) {
                     const confirmed = await gameConfirm(UI.notice || '', UI.mode_switch_confirm);
@@ -38818,13 +39924,30 @@ function showInviteConfirmModal({ title, message, preview, confirmText, onConfir
     }
 }
 
-/* ---------- 花样百出卡组（2026-10-26）：管理 + 构建（类单人训练场） ---------- */
+/* ---------- 娱乐自组卡组：花样百出（15）与乱中有序（40） ---------- */
+const DECK_BUILDER_CONFIGS = Object.freeze({
+    fancy: { size: 15, api: '/api/fancy-decks', zhTitle: '花样百出', enTitle: 'Fancy Decks', events: true, equipmentLimit: 0 },
+    ordered: { size: 40, api: '/api/ordered-decks', zhTitle: '乱中有序', enTitle: 'Ordered Chaos', events: false, equipmentLimit: 5 },
+});
+let fancyBuilderMode = 'fancy';
 let fancyDecks = [];
+let orderedDecks = [];
 let fancyEditingSlot = 1;
 let fancyBuilderCards = [];
 let fancyBuilderName = '卡组1';
 let fancyBuilderEventId = 0;
 let fancySearchQuery = '';
+
+function deckBuilderConfig() { return DECK_BUILDER_CONFIGS[fancyBuilderMode] || DECK_BUILDER_CONFIGS.fancy; }
+function deckBuilderState() { return fancyBuilderMode === 'ordered' ? orderedDecks : fancyDecks; }
+function deckBuilderApi(suffix = '') { return `${deckBuilderConfig().api}${suffix}`; }
+function deckBuilderEquipmentCount() {
+    const defs = soloBrowserCardDefs() || {};
+    return fancyBuilderCards.filter(id => String((defs[id] || {}).card_type || '') === 'root').length;
+}
+function deckBuilderCopyCount(defId) {
+    return fancyBuilderCards.filter(id => id === defId).length;
+}
 
 function fancyOpeningEventOptions() {
     const events = getGalleryOpeningEvents();
@@ -38833,8 +39956,11 @@ function fancyOpeningEventOptions() {
 
 function renderFancyDeckManager() {
     const zh = currentLang === 'zh';
+    const config = deckBuilderConfig();
+    const decks = deckBuilderState();
+    const title = zh ? config.zhTitle : config.enTitle;
     const slots = [1, 2, 3].map(slot => {
-        const deck = fancyDecks.find(d => d.slot === slot);
+        const deck = decks.find(d => d.slot === slot);
         const cls = deck && deck.active ? ' fancy-deck-card active' : '';
         const cards = deck ? deck.cards.length : 0;
         return `
@@ -38843,7 +39969,7 @@ function renderFancyDeckManager() {
                     <strong>${escapeHtml(deck ? (deck.name || `卡组${slot}`) : zh ? `空卡组 ${slot}` : `Empty ${slot}`)}</strong>
                     ${deck && deck.active ? `<span class="fancy-deck-active-badge">${zh ? '启用中' : 'Active'}</span>` : ''}
                 </div>
-                <div class="fancy-deck-card-meta">${cards}/15 ${zh ? '张' : 'cards'}${deck && deck.opening_event_id ? ` · ${zh ? '配装' : 'Event'} #${deck.opening_event_id}` : ''}</div>
+                <div class="fancy-deck-card-meta">${cards}/${config.size} ${zh ? '张' : 'cards'}${config.events && deck && deck.opening_event_id ? ` · ${zh ? '配装' : 'Event'} #${deck.opening_event_id}` : ''}</div>
                 <div class="fancy-deck-card-actions">
                     <button type="button" class="btn btn-small btn-primary" data-fancy-edit="${slot}">${zh ? '编辑' : 'Edit'}</button>
                     ${deck && !deck.active ? `<button type="button" class="btn btn-small btn-bloom" data-fancy-activate="${slot}">${zh ? '启用' : 'Enable'}</button>` : ''}
@@ -38853,12 +39979,15 @@ function renderFancyDeckManager() {
             </div>
         `;
     }).join('');
+    const description = fancyBuilderMode === 'ordered'
+        ? (zh ? '组一副40张卡组，不含零权重牌，每种卡最多3张（污水除外），装备最多5张；无天赋无选卡，所有卡获得放逐（最多保存3副）' : 'Build a 40-card deck with no zero-weight cards, at most 3 copies per card (Sewage excluded), and at most 5 equipment cards. No events or draft; every card gains Exile (max 3 decks)')
+        : (zh ? '从所有模组的卡中组一副15张卡组并选配装，启用后用于花样百出对局（最多保存3副）' : 'Build a 15-card deck from all mods, pick an opening event, enable it for fancy matches (max 3 decks)');
     showModal(`
-        <h3>${escapeHtml(zh ? '🛠 花样百出卡组' : '🛠 Fancy Decks')}</h3>
-        <p>${escapeHtml(zh ? '从所有模组的卡中组一副15张卡组并选配装，启用后用于花样百出对局（最多保存3副）' : 'Build a 15-card deck from all mods, pick an opening event, enable it for fancy matches (max 3 decks)')}</p>
+        <h3>${escapeHtml(`🛠 ${title}卡组`)}</h3>
+        <p>${escapeHtml(description)}</p>
         <div class="fancy-deck-grid">${slots}</div>
         <div class="fancy-import-row">
-            <input type="text" id="fancy-import-input" placeholder="${zh ? '粘贴卡组代码导入（替换当前编辑的卡组）' : 'Paste deck code to import'}" maxlength="2000">
+            <input type="text" id="fancy-import-input" placeholder="${zh ? '粘贴卡组代码导入（替换当前编辑的卡组）' : 'Paste deck code to import'}" maxlength="4000">
             <button type="button" class="btn btn-secondary" id="fancy-import-btn">${zh ? '导入' : 'Import'}</button>
         </div>
         <div class="modal-buttons">
@@ -38872,9 +40001,9 @@ function renderFancyDeckManager() {
     document.querySelectorAll('[data-fancy-activate]').forEach(btn => {
         btn.onclick = async () => {
             const slot = Number(btn.dataset.fancyActivate);
-            const deck = fancyDecks.find(d => d.slot === slot);
+            const deck = deckBuilderState().find(d => d.slot === slot);
             if (!deck) return;
-            await fetch('/api/fancy-decks', {
+            await fetch(deckBuilderApi(), {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slot, name: deck.name, cards: deck.cards, opening_event_id: deck.opening_event_id, active: true }),
@@ -38886,9 +40015,9 @@ function renderFancyDeckManager() {
     document.querySelectorAll('[data-fancy-export]').forEach(btn => {
         btn.onclick = async () => {
             const slot = Number(btn.dataset.fancyExport);
-            const deck = fancyDecks.find(d => d.slot === slot);
+            const deck = deckBuilderState().find(d => d.slot === slot);
             if (!deck) return;
-            const resp = await fetch('/api/fancy-decks/code', {
+            const resp = await fetch(deckBuilderApi('/code'), {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'encode', name: deck.name, cards: deck.cards, opening_event_id: deck.opening_event_id }),
@@ -38905,7 +40034,7 @@ function renderFancyDeckManager() {
         btn.onclick = async () => {
             const slot = Number(btn.dataset.fancyDelete);
             if (!window.confirm(currentLang === 'zh' ? '删除该卡组？' : 'Delete this deck?')) return;
-            await fetch('/api/fancy-decks/delete', {
+            await fetch(deckBuilderApi('/delete'), {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ slot }),
@@ -38918,7 +40047,7 @@ function renderFancyDeckManager() {
     if (importBtn) {
         importBtn.onclick = async () => {
             const code = ($('fancy-import-input') || {}).value || '';
-            const resp = await fetch('/api/fancy-decks/code', {
+            const resp = await fetch(deckBuilderApi('/code'), {
                 method: 'POST', credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'decode', code }),
@@ -38932,20 +40061,27 @@ function renderFancyDeckManager() {
 
 async function loadFancyDecks() {
     try {
-        const resp = await fetch('/api/fancy-decks', { credentials: 'same-origin' });
+        const resp = await fetch(deckBuilderApi(), { credentials: 'same-origin' });
         const data = await resp.json();
-        fancyDecks = Array.isArray(data.decks) ? data.decks : [];
-    } catch (_) { fancyDecks = []; }
+        const decks = Array.isArray(data.decks) ? data.decks : [];
+        if (fancyBuilderMode === 'ordered') orderedDecks = decks;
+        else fancyDecks = decks;
+    } catch (_) {
+        if (fancyBuilderMode === 'ordered') orderedDecks = [];
+        else fancyDecks = [];
+    }
 }
 
-function openFancyDeckManager() {
+function openFancyDeckManager(mode = 'fancy') {
+    fancyBuilderMode = mode === 'ordered' ? 'ordered' : 'fancy';
     loadFancyDecks().then(renderFancyDeckManager);
 }
 
+function openOrderedDeckManager() { openFancyDeckManager('ordered'); }
+
 function openFancyDeckBuilder(slot, imported) {
-    const zh = currentLang === 'zh';
     fancyEditingSlot = slot || 1;
-    const deck = imported || fancyDecks.find(d => d.slot === fancyEditingSlot);
+    const deck = imported || deckBuilderState().find(d => d.slot === fancyEditingSlot);
     fancyBuilderCards = deck ? [...deck.cards] : [];
     fancyBuilderName = deck ? (deck.name || `卡组${slot}`) : `卡组${slot}`;
     fancyBuilderEventId = deck ? (deck.opening_event_id || 0) : 0;
@@ -38955,15 +40091,18 @@ function openFancyDeckBuilder(slot, imported) {
 
 function renderFancyDeckBuilder() {
     const zh = currentLang === 'zh';
+    const config = deckBuilderConfig();
     const events = fancyOpeningEventOptions();
-    const eventOptions = `<option value="0">${zh ? '不选配装' : 'No event'}</option>` + events.map(ev =>
-        `<option value="${ev.id}" ${Number(fancyBuilderEventId) === ev.id ? 'selected' : ''}>${escapeHtml(ev.name)}</option>`).join('');
+    const eventOptions = config.events
+        ? `<select id="fancy-event-select"><option value="0">${zh ? '不选配装' : 'No event'}</option>` + events.map(ev =>
+            `<option value="${ev.id}" ${Number(fancyBuilderEventId) === ev.id ? 'selected' : ''}>${escapeHtml(ev.name)}</option>`).join('') + '</select>'
+        : '';
     showModal(`
-        <h3>${escapeHtml(zh ? `🛠 组卡组 · 槽位${fancyEditingSlot}` : `🛠 Deck build · Slot ${fancyEditingSlot}`)}</h3>
+        <h3>${escapeHtml(zh ? `🛠 ${config.zhTitle} · 槽位${fancyEditingSlot}` : `🛠 ${config.enTitle} · Slot ${fancyEditingSlot}`)}</h3>
         <div class="fancy-builder-top">
             <input type="text" id="fancy-name-input" value="${escapeHtml(fancyBuilderName)}" maxlength="24" placeholder="${zh ? '卡组名' : 'Deck name'}">
-            <select id="fancy-event-select">${eventOptions}</select>
-            <span id="fancy-deck-count" class="fancy-deck-count">${fancyBuilderCards.length}/15</span>
+            ${eventOptions}
+            <span id="fancy-deck-count" class="fancy-deck-count">${fancyBuilderCards.length}/${config.size}</span>
         </div>
         <div class="fancy-builder-body">
             <aside class="fancy-card-browser">
@@ -39000,10 +40139,12 @@ function renderFancyDeckBuilder() {
 function renderFancyCardList() {
     const list = $('fancy-card-list');
     if (!list) return;
+    const config = deckBuilderConfig();
     const q = fancySearchQuery.trim().toLowerCase();
     const defs = soloBrowserCardDefs();
     const entries = Object.entries(defs)
         .filter(([id, cd]) => {
+            if (fancyBuilderMode === 'ordered' && Number(cd.count || 0) <= 0) return false;
             if (!q) return true;
             const name = getCardName(cd) || id;
             return String(name).toLowerCase().includes(q) || id.toLowerCase().includes(q);
@@ -39021,8 +40162,16 @@ function renderFancyCardList() {
         row.innerHTML = `<span>${escapeHtml(getCardName(cd) || id)}</span><small>${escapeHtml(getCardTypeLabel(cd.card_type))} ${escapeHtml(costE)}E/${escapeHtml(cd.cost_m)}M</small>`;
         row.title = currentLang === 'zh' ? '点击加入卡组' : 'Click to add';
         row.onclick = () => {
-            if (fancyBuilderCards.length >= 15) {
-                flashStatus(currentLang === 'zh' ? '卡组已满15张' : 'Deck is full (15)');
+            if (fancyBuilderCards.length >= config.size) {
+                flashStatus(currentLang === 'zh' ? `卡组已满${config.size}张` : `Deck is full (${config.size})`);
+                return;
+            }
+            if (config.equipmentLimit && cd.card_type === 'root' && deckBuilderEquipmentCount() >= config.equipmentLimit) {
+                flashStatus(currentLang === 'zh' ? `装备牌最多${config.equipmentLimit}张` : `At most ${config.equipmentLimit} equipment cards`);
+                return;
+            }
+            if (fancyBuilderMode === 'ordered' && id !== 'Sewage' && deckBuilderCopyCount(id) >= 3) {
+                flashStatus(currentLang === 'zh' ? '除污水外，每种卡最多3张' : 'At most 3 copies per card, except Sewage');
                 return;
             }
             fancyBuilderCards.push(id);
@@ -39035,8 +40184,12 @@ function renderFancyCardList() {
 
 function renderFancyDeckList() {
     const list = $('fancy-deck-list');
+    const config = deckBuilderConfig();
     const count = $('fancy-deck-count');
-    if (count) count.textContent = `${fancyBuilderCards.length}/15`;
+    if (count) {
+        const equipment = config.equipmentLimit ? ` · ${currentLang === 'zh' ? '装备' : 'Equipment'}${deckBuilderEquipmentCount()}/${config.equipmentLimit}` : '';
+        count.textContent = `${fancyBuilderCards.length}/${config.size}${equipment}`;
+    }
     if (!list) return;
     list.innerHTML = '';
     fancyBuilderCards.forEach((id, index) => {
@@ -39055,11 +40208,20 @@ function renderFancyDeckList() {
 
 async function saveFancyDeck() {
     const zh = currentLang === 'zh';
-    if (fancyBuilderCards.length !== 15) {
-        flashStatus(zh ? `卡组必须恰好15张（当前${fancyBuilderCards.length}张）` : `Deck must be exactly 15 cards (${fancyBuilderCards.length})`);
+    const config = deckBuilderConfig();
+    if (fancyBuilderCards.length !== config.size) {
+        flashStatus(zh ? `卡组必须恰好${config.size}张（当前${fancyBuilderCards.length}张）` : `Deck must be exactly ${config.size} cards (${fancyBuilderCards.length})`);
         return;
     }
-    const resp = await fetch('/api/fancy-decks', {
+    if (config.equipmentLimit && deckBuilderEquipmentCount() > config.equipmentLimit) {
+        flashStatus(zh ? `装备牌最多${config.equipmentLimit}张` : `At most ${config.equipmentLimit} equipment cards`);
+        return;
+    }
+    if (fancyBuilderMode === 'ordered' && fancyBuilderCards.some(id => id !== 'Sewage' && deckBuilderCopyCount(id) > 3)) {
+        flashStatus(zh ? '除污水外，每种卡最多3张' : 'At most 3 copies per card, except Sewage');
+        return;
+    }
+    const resp = await fetch(deckBuilderApi(), {
         method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -39080,7 +40242,7 @@ async function saveFancyDeck() {
 function renderShowInviteSpecialModesModal(targetSid, targetName) { return showInviteSpecialModesModal(targetSid, targetName); }
 
 function showInviteSpecialModesModal(targetSid, targetName) {
-    // 娱乐1v1邀请的特殊模式清单（2026-10-25）：勾选后随邀请携带。
+    // 娱乐1v1邀请的特殊模式清单：勾选后随邀请携带。
     const zh = currentLang === 'zh';
     showModal(`
         <h3>${escapeHtml(zh ? '特殊模式' : 'Special Modes')}</h3>
@@ -39099,7 +40261,15 @@ function showInviteSpecialModesModal(targetSid, targetName) {
                 <small>${escapeHtml(zh ? '双方使用自己组的15张卡组直接开始（需先组卡组并启用）' : 'Both players start directly with their own 15-card deck (build & enable first)')}</small>
             </span>
         </label>
+        <label class="invite-special-mode-row" for="invite-special-ordered">
+            <input type="checkbox" id="invite-special-ordered">
+            <span>
+                <strong>${escapeHtml(zh ? '乱中有序' : 'Ordered Chaos')}</strong>
+                <small>${escapeHtml(zh ? '双方使用40张自组卡组，每种卡最多3张（污水除外），装备最多5张；无天赋无选卡，所有卡获得放逐' : 'Both players use a 40-card deck, at most 3 copies per card (Sewage excluded) and 5 equipment cards. No events or draft; every card gains Exile')}</small>
+            </span>
+        </label>
         <button type="button" class="btn btn-secondary fancy-deck-open-btn" id="invite-fancy-deck-open">${escapeHtml(zh ? '🛠 花样百出卡组' : '🛠 Fancy Decks')}</button>
+        <button type="button" class="btn btn-secondary fancy-deck-open-btn" id="invite-ordered-deck-open">${escapeHtml(zh ? '🛠 乱中有序卡组' : '🛠 Ordered Chaos Decks')}</button>
         <div class="modal-buttons">
             <button class="btn btn-danger" id="invite-special-cancel">${escapeHtml(UI.cancel || (zh ? '取消' : 'Cancel'))}</button>
             <button class="btn btn-primary" id="invite-special-ok">${escapeHtml(UI.invite || (zh ? '邀请' : 'Invite'))}</button>
@@ -39110,19 +40280,23 @@ function showInviteSpecialModesModal(targetSid, targetName) {
     if (cancelBtn) cancelBtn.onclick = hideModal;
     const deckBtn = $('invite-fancy-deck-open');
     if (deckBtn) deckBtn.onclick = () => openFancyDeckManager();
+    const orderedDeckBtn = $('invite-ordered-deck-open');
+    if (orderedDeckBtn) orderedDeckBtn.onclick = () => openOrderedDeckManager();
     if (okBtn) {
         okBtn.onclick = () => {
             const reality = !!$('invite-special-reality')?.checked;
             const fancy = !!$('invite-special-fancy')?.checked;
-            if (fancy) {
-                const active = fancyDecks.find(d => d.active);
-                if (!active) {
-                    flashStatus(currentLang === 'zh' ? '花样百出需要先组卡组并启用一个卡组' : 'Build & enable a fancy deck first');
-                    return;
-                }
+            const ordered = !!$('invite-special-ordered')?.checked;
+            if (fancy && !fancyDecks.find(d => d.active)) {
+                flashStatus(currentLang === 'zh' ? '花样百出需要先组卡组并启用一个卡组' : 'Build & enable a fancy deck first');
+                return;
+            }
+            if (ordered && !orderedDecks.find(d => d.active)) {
+                flashStatus(currentLang === 'zh' ? '乱中有序需要先组40张卡组并启用一个卡组' : 'Build & enable a 40-card ordered deck first');
+                return;
             }
             hideModal();
-            socket.emit('invite', { target_sid: targetSid, reality, fancy });
+            socket.emit('invite', { target_sid: targetSid, reality, fancy, ordered });
             updateStatus(UI.invite_sent);
         };
     }
@@ -39181,8 +40355,17 @@ function renderGameOverGr(gs = {}) {
     const repeatText = repeat < 0.999
         ? `<div class="gameover-gr-muted">${escapeHtml(currentLang === 'zh' ? `重复对局衰减：×${repeat.toFixed(2)}` : `Repeat match factor: ×${repeat.toFixed(2)}`)}</div>`
         : '';
-    box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(title)}</div>${rows.join('')}${repeatText}`;
-    box.classList.toggle('hidden', rows.length === 0);
+    const hasNewcomerProtection = Array.isArray(gr.non_newcomer_protected_user_ids) && gr.non_newcomer_protected_user_ids.length > 0;
+    const protectionText = hasNewcomerProtection
+        ? `<div class="gameover-gr-muted">${escapeHtml(lt({
+            zh: '与新人对战：非新人段位分不变',
+            en: 'Newcomer match: non-newcomer rank points unchanged',
+            fr: 'Match contre un nouveau : rang des non-nouveaux inchangé',
+            ja: '新人戦：非新人のランクポイントは変動しません',
+        }))}</div>`
+        : '';
+    box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(title)}</div>${rows.join('')}${repeatText}${protectionText}`;
+    box.classList.toggle('hidden', rows.length === 0 && !protectionText);
 }
 
 function renderGameOverDew(gs = {}) {
@@ -39221,6 +40404,25 @@ function renderGameOverDew(gs = {}) {
         + `<b class="${amount > 0 ? 'positive' : ''}">${escapeHtml(amountText)}</b>`
         + '</div>';
     box.classList.remove('hidden');
+}
+
+const animatedMatchRewardKeys = new Set();
+
+function showMatchLongTermRewards(gs = {}) {
+    if (!window.GtnRewardAnimation || !currentAccount || currentAccount.id == null) return;
+    if (gs.solo || gs.tutorial || gs.ai_test || gs.spectating || isSpectating || gs.your_id === -1) return;
+    const summary = gs.match_summary || gs.summary || {};
+    const result = summary.thorn_dew_result;
+    if (!result || typeof result !== 'object' || result.duplicate) return;
+    const rewardKey = String(summary.match_id || gs.match_key || '');
+    if (rewardKey && animatedMatchRewardKeys.has(rewardKey)) return;
+    const myId = String(currentAccount.id);
+    // 对局荆露不播动画；仅天梯门票仍按长期奖励处理。
+    const hasTicket = (Array.isArray(result.leisure_ticket_awarded) ? result.leisure_ticket_awarded : [])
+        .some(item => item && String(item.user_id) === myId && Number(item.amount) > 0);
+    if (!hasTicket) return;
+    if (rewardKey) animatedMatchRewardKeys.add(rewardKey);
+    window.GtnRewardAnimation.refresh();
 }
 
 function renderGameOver(data) {
@@ -39265,6 +40467,7 @@ function renderGameOver(data) {
     }
     renderGameOverGr(gs);
     renderGameOverDew(gs);
+    showMatchLongTermRewards(gs);
     updateGameoverRankCardsStrip(gs);
     const replayBox = $('gameover-replay');
     const replayCopy = $('btn-copy-gameover-replay');
@@ -39467,7 +40670,7 @@ function onEndTurn() {
         flashStatus(UI.not_your_turn, 2000, 'error');
         return;
     }
-    if (socket) {
+    if (socket || window.GTNSoloLocal?.isActive()) {
         beginPendingServerAction('end_turn', { timeoutMs: SERVER_ACTION_TIMEOUT_MS });
         emitModeEvent('solo_end_turn', 'end_turn', {});
     } else {
@@ -39476,7 +40679,7 @@ function onEndTurn() {
 }
 
 async function onSoloNextDraw() {
-    if (!soloMode || !socket) return;
+    if (!soloMode || (!socket && !window.GTNSoloLocal?.isActive())) return;
     const deck = (gameState.you || {}).deck || [];
     if (!deck.length) {
         gameAlert(UI.notice, UI.deck_empty);
@@ -39505,7 +40708,7 @@ function onSurrender() {
     const message = gameState && gameState.mode === '2v2' ? UI.confirm_team_surrender : UI.confirm_surrender;
     gameAlert(message, '', [
         { text: UI.ok, cls: 'btn-danger', action: () => {
-            if (socket) {
+            if (socket || window.GTNSoloLocal?.isActive()) {
                 if (gameState?.ai_test) socket.emit('surrender', currentMatchActionContext());
                 else emitModeEvent('solo_pause', 'surrender', {});
             }
@@ -41644,8 +42847,15 @@ async function init() {
     if ($('btn-skin-back')) $('btn-skin-back').addEventListener('click', () => showView('view-login'));
     if ($('btn-skin-save')) $('btn-skin-save').addEventListener('click', saveSkinFromEditor);
     if ($('btn-skin-reset')) $('btn-skin-reset').addEventListener('click', resetSkinEditor);
+    if ($('skin-preset-list')) $('skin-preset-list').addEventListener('click', (event) => {
+        const button = event.target.closest('[data-skin-preset]');
+        if (!button) return;
+        renderSkinPresetList(button.dataset.skinPreset);
+        renderSkinEditorPreview();
+    });
     if ($('skin-primary-color')) $('skin-primary-color').addEventListener('input', renderSkinEditorPreview);
     if ($('skin-eye-shape')) $('skin-eye-shape').addEventListener('change', renderSkinEditorPreview);
+    if ($('skin-mouth-shape')) $('skin-mouth-shape').addEventListener('change', renderSkinEditorPreview);
     document.addEventListener('pointermove', updateSkinEyeTracking, { passive: true });
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
@@ -41956,10 +43166,21 @@ async function init() {
         landscapeModeToggle.checked = landscapeModeEnabled;
         landscapeModeToggle.addEventListener('change', (e) => applyLandscapeMode(e.target.checked));
     }
+    const aspectRatioLockToggle = $('settings-lock-aspect-ratio');
+    if (aspectRatioLockToggle) {
+        aspectRatioLockToggle.checked = aspectRatioLocked;
+        aspectRatioLockToggle.addEventListener('change', (e) => applyAspectRatioLock(e.target.checked));
+    }
     const fullscreenButton = $('btn-settings-fullscreen');
     if (fullscreenButton) fullscreenButton.addEventListener('click', togglePageFullscreen);
-    document.addEventListener('fullscreenchange', updateFullscreenSettingButton);
-    document.addEventListener('webkitfullscreenchange', updateFullscreenSettingButton);
+    const handleFullscreenChange = () => {
+        updateFullscreenSettingButton();
+        updateAspectRatioLayout();
+        battleMobileStableViewport = null;
+        updateClassicMobileCanvas();
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
     updateFullscreenSettingButton();
     const storyCardBordersToggle = $('settings-story-hide-card-borders');
     if (storyCardBordersToggle) {
@@ -41967,6 +43188,7 @@ async function init() {
         storyCardBordersToggle.addEventListener('change', (e) => applyStoryCardBordersHidden(e.target.checked));
     }
     $('btn-lobby-back').addEventListener('click', () => {
+        cancelLobbyEntryHandoff();
         phase = 'login';
         manualDisconnect = true;
         try { sessionStorage.removeItem('gtn_enter_lobby_consumed'); } catch (_) {}
@@ -42016,7 +43238,7 @@ async function init() {
             setBattlePanelTab(button.dataset.battlePanelTab);
         });
     });
-    const handleSoloPauseEdit = () => { if (socket) emitSoloEvent('solo_pause', {}); else showSoloTraining(); };
+    const handleSoloPauseEdit = () => { if (socket || window.GTNSoloLocal?.isActive()) emitSoloEvent('solo_pause', {}); else showSoloTraining(); };
     $('btn-view-deck').addEventListener('click', onViewDeck);
     if ($('btn-view-discard')) $('btn-view-discard').addEventListener('click', onViewDiscard);
     if ($('btn-view-exile')) $('btn-view-exile').addEventListener('click', onViewExile);
@@ -42210,37 +43432,27 @@ if (window.__GTN_CARD_EXPORTER_RENDERER__) {
        - 从休闲花园接受邀请跳过来（要真的进大厅，服务端才会把重连邀请发过来）；
        - 从休闲花园点"返回"回到大厅（?enter_lobby=1）。 */
     if (minigameInviteHandoff || enterLobbyHandoff) {
-        const startedAt = Date.now();
-        let lastClickAt = 0;
-        const autoEnterLobby = () => {
-            const now = Date.now();
-            // 先续命再判断：登录视图在加载/自动登录过渡时可能短暂隐藏，
-            // 以前这里直接 return 掉整个轮询，返回就停在主页（用户反馈）。
-            if (now - startedAt < 20000) window.setTimeout(autoEnterLobby, 400);
-            const loginView = $('view-login');
-            if (!loginView || loginView.classList.contains('hidden')) return;
-            const connectBtn = $('btn-connect');
-            if (connectBtn && !connectBtn.disabled && now - lastClickAt > 2500) {
-                lastClickAt = now;
-                connectBtn.click();
-            }
-        };
-        window.setTimeout(autoEnterLobby, 400);
+        scheduleLobbyEntryHandoff();
     }
 
+    const handleBattleViewportResize = () => {
+        updateAspectRatioLayout();
+        battleMobileStableViewport = null;
+        updateClassicMobileCanvas();
+    };
     window.addEventListener('resize', () => {
         const gc = document.querySelector('.game-container');
         if (gc) gc.style.removeProperty('--card-w');
         scheduleAdjust();
-        updateClassicMobileCanvas();
+        handleBattleViewportResize();
         updateMinimalHandLayout();
         if (tutorialMode) setTimeout(updateTutorialOverlay, 80);
     });
     if (window.visualViewport) {
-        window.visualViewport.addEventListener('resize', updateClassicMobileCanvas);
+        window.visualViewport.addEventListener('resize', handleBattleViewportResize);
         window.visualViewport.addEventListener('scroll', updateClassicMobileCanvas);
     }
-    window.addEventListener('orientationchange', () => setTimeout(updateClassicMobileCanvas, 80));
+    window.addEventListener('orientationchange', () => setTimeout(handleBattleViewportResize, 80));
     document.addEventListener('focusin', onBattleMobileInputFocusIn, true);
     document.addEventListener('focusout', onBattleMobileInputFocusOut, true);
     debugLog('[LOAD] game.js loaded, onEndTurn=', typeof onEndTurn);

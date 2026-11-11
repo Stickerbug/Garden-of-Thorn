@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>双人爬塔 · 引擎演示</title>
-<style>
+<style nonce="{{ csp_nonce }}">
   body { font-family: system-ui, sans-serif; background: #1e241c; color: #e8e4d8; margin: 0; padding: 18px; }
   h1 { font-size: 18px; } h1 span { font-size: 12px; opacity: .6; font-weight: 400; }
   .board { display: flex; gap: 14px; flex-wrap: wrap; align-items: stretch; }
@@ -35,10 +35,10 @@
 <body>
 <h1>双人爬塔 · 引擎演示 <span>真实主引擎驱动 · 单人操控双席（点"切换席位"换边）</span></h1>
 <div class="actions">
-  <button class="act gold" onclick="start()">新的战斗（机械螃蟹）</button>
-  <button class="act" onclick="switchSeat()">切换操控席位</button>
-  <button class="act" onclick="endTurn()">结束回合（就绪）</button>
-  <button class="act" onclick="cancelReady()" id="cancel-btn">撤回就绪</button>
+  <button class="act gold" id="coop-start" type="button">新的战斗（机械螃蟹）</button>
+  <button class="act" id="coop-switch-seat" type="button">切换操控席位</button>
+  <button class="act" id="coop-end-turn" type="button">结束回合（就绪）</button>
+  <button class="act" id="cancel-btn" type="button">撤回就绪</button>
 </div>
 <div class="board" id="board"></div>
 <div class="hand" id="hand"></div>

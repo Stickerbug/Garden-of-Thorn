@@ -6,7 +6,10 @@
   <meta name="robots" content="noindex">
   <title>赞助兑换 · 荆棘花园</title>
   <link rel="icon" href="/static/assets/icons/favicon.ico" sizes="any">
-  <style>
+  <link rel="stylesheet" href="/static/css/reward-animation.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/dew-hud.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
+  <style nonce="{{ csp_nonce }}">
     :root {
       --bg: #f4f5f7; --surface: #fff; --line: #dfe1e6; --text: #172b4d;
       --soft: #5e6c84; --accent: #9466d2; --accent-deep: #7a4cc0;
@@ -45,6 +48,15 @@
     .ok { color: var(--ok); font-weight: 600; }
     .warn { color: var(--warn); font-weight: 600; }
     .note { font-size: 12.5px; color: var(--soft); margin-top: 10px; }
+    #sponsor-total { margin: 4px 0 12px; font-size: 17px; }
+    #sponsor-total strong { color: var(--accent-deep); font-size: 22px; }
+    .sponsor-tier { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      padding: 9px 0; border-bottom: 1px solid #f0f1f4; font-size: 13px; }
+    .sponsor-tier:last-child { border-bottom: 0; }
+    .sponsor-title { font-size: 15px; font-weight: 750; }
+    .sponsor-title-basic { color: #777; }
+    .sponsor-title-major { color: transparent; background: linear-gradient(90deg, #ff3b30, #ff9500, #ffcc00, #34c759, #00b7c7, #3478f6, #7857d8, #ff2d96);
+      -webkit-background-clip: text; background-clip: text; }
     #msg { min-height: 1.4em; margin: 8px 0 0; font-size: 13px; color: var(--warn); }
     a { color: var(--accent-deep); text-decoration: none; }
     .empty { color: var(--soft); text-align: center; padding: 18px 0; }
@@ -57,7 +69,7 @@
 <div class="wrap">
   <div class="card">
     <h1>赞助兑换</h1>
-    <p class="sub">通过爱发电赞助荆棘花园，按方案兑换<b>荆露（Thorn Dew）</b>。感谢支持！</p>
+    <p class="sub">通过爱发电赞助荆棘花园，累计赞助可解锁专属称号。感谢支持！</p>
     <p style="margin:0 0 10px"><a id="afdian-go" class="afdian-go" href="#" target="_blank" rel="noopener" hidden>前往爱发电赞助 ↗</a></p>
     <h2>使用步骤</h2>
     <ol>
@@ -85,13 +97,20 @@
   </div>
 
   <div class="card">
-    <h2>当前可兑换档位</h2>
+    <h2>赞助档位</h2>
     <div id="plans" class="muted">加载中…</div>
-    <p class="note" id="plans-note" hidden>档位尚未配置——作者还没定好兑换比例，稍后再来看看。</p>
+    <p class="note" id="plans-note" hidden>赞助档位暂时不可用，请稍后再来看看。</p>
   </div>
 
   <div class="card">
-    <h2>最近到账记录</h2>
+    <h2>累计赞助</h2>
+    <div id="sponsor-total" class="muted">加载中…</div>
+    <div id="sponsor-titles"></div>
+    <p class="note">累计满 1 元获得灰色称号「赞助者」，满 10 元获得彩虹称号「大赞助者」；历史赞助会自动补发。</p>
+  </div>
+
+  <div class="card">
+    <h2>最近赞助记录</h2>
     <div id="orders" class="muted">加载中…</div>
     <div style="margin-top:12px">
       <button type="button" class="primary" id="requery">我已赞助，查询补单</button>
@@ -103,14 +122,17 @@
   <div class="card">
     <h2>说明</h2>
     <p class="muted" style="margin:0">
-      荆露到账后可在游戏内查看流水（来源：爱发电赞助）。如对订单有疑问，请通过反馈中心联系，
-      附上爱发电订单号。赞助属自愿支持行为，兑换的荆露仅为感谢回馈。
+      累计赞助满 1 元获得灰色称号「赞助者」，满 10 元获得彩虹称号「大赞助者」；历史订单会自动核对并补发。
+      如对订单有疑问，请通过反馈中心联系，附上爱发电订单号。赞助属自愿支持行为，称号仅为感谢回馈。
       <a href="/feedback-center/bug" target="_blank" rel="noopener">反馈中心</a> ·
       <a href="/" target="_blank" rel="noopener">返回游戏</a>
     </p>
   </div>
 </div>
 
+<script src="/static/js/reward-animation.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/dew-hud.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/backgrounds.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script nonce="{{ csp_nonce }}" src="/static/js/afdian.js?v={{ static_version|default('dev')|urlencode }}"></script>
 </body>
 </html>

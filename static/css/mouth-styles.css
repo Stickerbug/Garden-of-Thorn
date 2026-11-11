@@ -1,0 +1,25 @@
+/* 嘴型贴图：与原嘴同位同尺寸，受伤、战败和无嘴皮肤回退到原逻辑。 */
+.skin-mouth-art {
+  position: absolute;
+  left: 50%;
+  top: 63%;
+  z-index: 2;
+  display: block;
+  width: 38%;
+  height: 20%;
+  object-fit: contain;
+  transform: translateX(-50%);
+  pointer-events: none;
+  user-select: none;
+}
+.skin-avatar.skin-mouth-shape-cat:not(.skin-mouth-hurt):not(.is-defeated) .skin-mouth,
+.skin-avatar.skin-mouth-shape-smirk:not(.skin-mouth-hurt):not(.is-defeated) .skin-mouth,
+.skin-avatar.skin-mouth-shape-open:not(.skin-mouth-hurt):not(.is-defeated) .skin-mouth,
+.skin-avatar.skin-mouth-shape-angry:not(.skin-mouth-hurt):not(.is-defeated) .skin-mouth {
+  visibility: hidden;
+}
+.skin-avatar.skin-mouth-hurt .skin-mouth-art,
+.skin-avatar.is-defeated .skin-mouth-art,
+.skin-avatar.skin-hide-mouth .skin-mouth-art,
+.skin-avatar.phelren-avatar .skin-mouth-art { display: none; }
+.player-skin-shop-item[data-player-skin-item="open"] .player-skin-shop-meta strong { color: #000; }

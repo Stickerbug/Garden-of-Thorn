@@ -28,8 +28,15 @@ import platform
 import subprocess
 import sqlite3
 import traceback
+import mimetypes
+
+mimetypes.add_type('text/javascript', '.mjs')
+mimetypes.add_type('application/wasm', '.wasm')
+
 import rank_system
+import ranked_availability
 import fancy_decks
+import ordered_decks
 import db as db_module
 from functools import wraps
 from contextlib import closing
@@ -58,6 +65,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 import leisure_ticket
 import leisure_ticket_settlement
 import card_skins
+import player_skins
+import eye_styles
+import mouth_styles
+import solo_local_bundle
+import backgrounds
 import feedback_attachments
 import minigame_2048
 import minigame_2048_service
@@ -183,6 +195,8 @@ from db import (
     admin_restore_deleted_user,
     admin_snapshot_user_gr,
     adjust_user_thorn_dew,
+    adjust_user_golden_dew,
+    get_user_golden_dew,
     award_match_thorn_dew,
     add_friend_request,
     apply_gr_match_result,
@@ -797,6 +811,7 @@ GTN_STATIC_VERSION += '-community-announcement-icon-2'
 GTN_STATIC_VERSION += '-community-announcement-unread-1-community-ops-no-changelog-1'
 GTN_STATIC_VERSION += '-community-poll-unread-1'
 GTN_STATIC_VERSION += '-community-ops-refresh-button-1'
+GTN_STATIC_VERSION += '-community-poll-voter-toggle-1'
 GTN_STATIC_VERSION += '-community-server-reads-1'
 GTN_STATIC_VERSION += '-story-prediction-fit-isolation-1'
 GTN_STATIC_VERSION += '-story-card-i18n-tokens-1'
@@ -903,10 +918,13 @@ def _refresh_static_version_from_file():
     _gtn_static_version_file_state['mtime'] = mtime
     if not live or live == _gtn_static_version_file_state['live']:
         return
-    GTN_STATIC_VERSION = _GTN_STATIC_VERSION_BOOT + live
+    full_version = _GTN_STATIC_VERSION_BOOT + live
+    # 缓存标识只需唯一，不公开历史功能名、修复编号或内部实现标记。
+    public_version = hashlib.sha256(full_version.encode('utf-8')).hexdigest()[:20]
+    GTN_STATIC_VERSION = f'{_GTN_STATIC_VERSION_BOOT}-b{public_version}'
     _gtn_static_version_file_state['live'] = live
     try:
-        app.logger.info('static version refreshed from file: %s', live)
+        app.logger.info('static version refreshed: %s', GTN_STATIC_VERSION)
     except Exception:
         pass
 
@@ -1132,6 +1150,12 @@ except Exception as exc:
     print(f'[startup] database init failed: {type(exc).__name__}: {exc}')
 
 if DB_AVAILABLE:
+    try:
+        _sponsor_title_sync = afdian_service.sync_all_sponsor_titles()
+        if _sponsor_title_sync.get('granted_titles'):
+            print(f'[startup] sponsor titles backfilled: {_sponsor_title_sync}', flush=True)
+    except Exception as exc:
+        print(f'[startup] sponsor title sync failed: {type(exc).__name__}: {exc}', flush=True)
     try:
         # 保持一条空闲连接，避免每次命中后关闭连接时触发 WAL checkpoint
         # （实测写操作单次能省 6-10ms，全局写路径受益）。
@@ -1373,6 +1397,12 @@ _LEADERBOARD_CACHE_SECONDS = 300
 _LEADERBOARD_CACHE = {}
 _LEADERBOARD_SELF_RANK_CACHE = {}
 _LEADERBOARD_CACHE_LOCK = threading.Lock()
+# 段位差规则的例外白名单：总榜前 N 名之间互相对战不受「升段局/0分局」限制。
+# 匹配路径上会频繁判断，所以缓存一小会儿，不每次查库。
+RANK_GUARDIAN_LIMIT = _env_int('GTN_RANK_GUARDIAN_LIMIT', 10)
+_RANK_GUARDIAN_CACHE_SECONDS = _env_float('GTN_RANK_GUARDIAN_CACHE_SECONDS', 60)
+_RANK_GUARDIAN_CACHE = {'ts': 0.0, 'ids': frozenset()}
+_RANK_GUARDIAN_CACHE_LOCK = threading.Lock()
 
 
 def clear_leaderboard_cache():
@@ -1380,6 +1410,9 @@ def clear_leaderboard_cache():
         with _LEADERBOARD_CACHE_LOCK:
             _LEADERBOARD_CACHE.clear()
             _LEADERBOARD_SELF_RANK_CACHE.clear()
+        with _RANK_GUARDIAN_CACHE_LOCK:
+            _RANK_GUARDIAN_CACHE['ts'] = 0.0
+            _RANK_GUARDIAN_CACHE['ids'] = frozenset()
     except Exception as exc:
         print(f"[leaderboard] clear cache failed: {exc}", flush=True)
 _ADMIN_API_SLOW_MS = _env_float('GTN_ADMIN_API_SLOW_MS', 1000)
@@ -2138,6 +2171,7 @@ def admin_match_record(room, result='finished'):
             'room_id': room.room_id,
             'mode': room.mode,
             **room_match_payload(room),
+            'special_modes': [mode for mode in ('reality', 'fancy', 'ordered') if bool(getattr(room, f'{mode}_mode', False))],
             'players': names,
             'winner': winner_label,
             'round': getattr(e, 'round_num', 0),
@@ -2159,6 +2193,7 @@ def admin_match_record(room, result='finished'):
             'match_key': room_match_key(room),
             'mode': room.mode,
             **room_match_payload(room),
+            'special_modes': [mode for mode in ('reality', 'fancy', 'ordered') if bool(getattr(room, f'{mode}_mode', False))],
             'players': names,
             'player_card_skins': [player_card_skin_for_sid(psid, room) for psid in room.player_sids],
             'player_ids': player_user_ids,
@@ -2246,6 +2281,8 @@ def admin_match_record(room, result='finished'):
             for event_id in (getattr(e, 'opening_event_picks', []) or [])[:len(names)]
         ]
         summary['winner_player_indices'] = stats_winner_player_indices
+        # 保存对局时段位快照，历史统计重建可保持与实时写入相同的段位维度。
+        summary['player_rank_tiers'] = _room_player_rank_tiers(room)
         summary['achievement_flags_by_user'] = build_match_achievement_flags(room, player_user_ids, stats_winner_player_indices)
         if getattr(e, 'game_over', False):
             replay_actions = getattr(room, '_replay_actions', []) or []
@@ -2322,14 +2359,14 @@ def admin_match_record(room, result='finished'):
                     add_user_play_seconds(registered_user_ids, duration_seconds)
                 if result == 'finished' and getattr(e, 'game_over', False) and room.mode in ('1v1', '2v2'):
                     record_card_draft_win_result(
-                        room.mode,
+                        room_card_draft_stats_mode(room),
                         player_draft_cards,
                         stats_winner_player_indices,
                         'draw' if stats_result == 'draw' else 'finished',
                         player_rank_tiers=_room_player_rank_tiers(room),
                     )
                     record_opening_event_win_result(
-                        room.mode,
+                        room_card_draft_stats_mode(room),
                         summary.get('opening_event_ids_by_player') or [],
                         stats_winner_player_indices,
                         'draw' if stats_result == 'draw' else 'finished',
@@ -3305,23 +3342,23 @@ def log_slow_admin_api(response):
                     )
     except Exception:
         pass
-    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
-    response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
-    response.headers.setdefault('Referrer-Policy', 'same-origin')
-    response.headers.setdefault(
-        'Permissions-Policy',
-        'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
-    )
-    response.headers.setdefault(
-        'Content-Security-Policy',
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=(), usb=()'
+    response.headers['Content-Security-Policy'] = (
         f"default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; "
-        f"form-action 'self'; script-src 'self' 'nonce-{_request_csp_nonce()}'; script-src-attr 'none'; "
-        "style-src 'self' 'unsafe-inline'; "
+        f"form-action 'self'; script-src 'self' 'wasm-unsafe-eval' 'nonce-{_request_csp_nonce()}'; script-src-attr 'none'; "
+        f"style-src-elem 'self' 'nonce-{_request_csp_nonce()}'; style-src-attr 'unsafe-inline'; "
         "img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; "
-        "frame-src 'self'; media-src 'self' data: blob:; worker-src 'self' blob:",
+        "frame-src 'self'; media-src 'self' data: blob:; worker-src 'self' blob:"
     )
+    # BREACH 缓解：动态 HTML / JSON 不压缩；独立静态资源可在 nginx 开启 gzip。
+    dynamic_response = request.path.startswith('/api/') or not request.path.startswith(('/static/', '/fonts/', '/mods/'))
+    if dynamic_response and not response.headers.get('Content-Encoding'):
+        response.headers['Content-Encoding'] = 'identity'
     if request.is_secure or str(request.headers.get('X-Forwarded-Proto') or '').lower() == 'https':
-        response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
     return response
 
 
@@ -5195,15 +5232,27 @@ def refresh_online_user_titles(user_id):
             admin_event('error', f'failed to refresh title display room={getattr(room, "room_id", None)}: {exc}')
 
 
+def _online_reputation_profiles(online_user_ids, recompute_user_ids=None):
+    """纯数据库阶段放到真实线程，避免账号关联计算冻结所有 Socket.IO 对局。"""
+    for uid in set(recompute_user_ids or []):
+        account_integrity.recompute_account_links(uid)
+    return {
+        uid: account_integrity.get_reputation_profile(uid)
+        for uid in set(online_user_ids or [])
+    }
+
+
 def refresh_online_reputation(recompute_user_ids=None):
     if not DB_AVAILABLE:
         return
     try:
-        for uid in set(recompute_user_ids or []):
-            account_integrity.recompute_account_links(uid)
         with _lock:
             online = {p.get('user_id') for p in players.values() if p.get('is_registered_user') and p.get('user_id')}
-        profiles = {uid:account_integrity.get_reputation_profile(uid) for uid in online}
+        profiles = run_off_event_loop(
+            _online_reputation_profiles,
+            online,
+            recompute_user_ids,
+        )
         changed = []
         with _lock:
             for sid, player in players.items():
@@ -5479,19 +5528,19 @@ def auth_user_payload(user):
     if not user:
         return None
     payload = dict(user)
-    # 2026-10-02：花阶分只在后台运行，不再进入任何玩家可见载荷；
-    # 玩家侧的进度展示统一用段位（payload['rank']）。
-    for hidden_field in ('season_gr', 'total_gr', 'highest_gr', 'gr_season_id'):
+    # 认证响应只保留玩家端所需字段。旧 GR、审核/封禁/删除与登录元数据
+    # 由各自专用接口管理，不随注册、登录、会话或资料响应重复暴露。
+    for hidden_field in (
+        'season_gr', 'total_gr', 'highest_gr', 'gr_season_id', 'gr_history', 'team_reports',
+        'false_report_count', 'banned', 'ban_reason', 'banned_at', 'ban_until',
+        'deleted_at', 'deleted', 'created_at', 'last_login_at',
+        'online_seconds', 'online_session_started_at', 'online_seconds_total', 'password_changed_at', 'password_hash',
+    ):
         payload.pop(hidden_field, None)
     if DB_AVAILABLE and user.get('id'):
         account_integrity.recover_reputation_daily(user_id=user['id'])
         payload['reputation_profile'] = account_integrity.get_reputation_profile(user['id'])
         payload['reputation'] = payload['reputation_profile']['value']
-        payload['team_reports'] = account_integrity.list_team_reports(user['id'])
-    payload.pop('online_seconds', None)
-    payload.pop('online_session_started_at', None)
-    payload.pop('online_seconds_total', None)
-    payload.pop('password_changed_at', None)
     profile = get_special_account_profile(payload.get('username', ''))
     if profile:
         payload['display_name'] = profile['display_name']
@@ -5504,11 +5553,6 @@ def auth_user_payload(user):
     except Exception as exc:
         admin_event('error', f'failed to load user warnings: {exc}')
         payload['warnings'] = []
-    try:
-        payload['gr_history'] = list_user_gr_snapshots(payload.get('id'), limit=60) if DB_AVAILABLE and payload.get('id') else []
-    except Exception as exc:
-        admin_event('error', f'failed to load GR history: {exc}')
-        payload['gr_history'] = []
     return payload
 
 
@@ -5567,22 +5611,29 @@ def player_avatar_kind_for_sid(sid, room=None):
     return kind if kind == 'phelren' else ''
 
 
-def inject_player_skins(state, room, perspective):
+def build_player_skin_payload(room):
+    """构建一次房间共享皮肤数组；卡牌皮肤可能带数据库读取，不能按接收者重复做。"""
+    player_sids = getattr(room, 'player_sids', []) or []
+    return {
+        'player_skins': [player_skin_for_sid(psid, room) for psid in player_sids],
+        'player_skin_looks': [player_skin_look_for_sid(psid, room) for psid in player_sids],
+        'player_avatar_kinds': [player_avatar_kind_for_sid(psid, room) for psid in player_sids],
+        'player_card_skins': [player_card_skin_for_sid(psid, room) for psid in player_sids],
+    }
+
+
+def inject_player_skins(state, room, perspective, shared_payload=None):
     if not isinstance(state, dict) or room is None:
         return state
-    player_skins = []
-    player_skin_looks = []
-    player_avatar_kinds = []
-    for psid in getattr(room, 'player_sids', []) or []:
-        player_skins.append(player_skin_for_sid(psid, room))
-        player_skin_looks.append(player_skin_look_for_sid(psid, room))
-        player_avatar_kinds.append(player_avatar_kind_for_sid(psid, room))
+    payload = shared_payload or build_player_skin_payload(room)
+    # 每个状态保留独立列表，避免后续按座位修改时影响其他接收者。
+    player_skins = list(payload['player_skins'])
+    player_skin_looks = list(payload['player_skin_looks'])
+    player_avatar_kinds = list(payload['player_avatar_kinds'])
     state['player_skins'] = player_skins
     state['player_skin_looks'] = player_skin_looks
     state['player_avatar_kinds'] = player_avatar_kinds
-    state['player_card_skins'] = [
-        player_card_skin_for_sid(psid, room) for psid in getattr(room, 'player_sids', []) or []
-    ]
+    state['player_card_skins'] = list(payload['player_card_skins'])
     try:
         pidx = int(perspective)
     except (TypeError, ValueError):
@@ -5699,7 +5750,7 @@ def public_player_info(sid, player=None):
     pending_special_modes = invite_special_modes.get(sid) or {}
     special_modes = [
         mode
-        for mode in ('reality', 'fancy')
+        for mode in ('reality', 'fancy', 'ordered')
         if bool(pending_special_modes.get(mode))
     ]
     info = {
@@ -6578,7 +6629,7 @@ def _auto_complete_draft_locked(room, pidx):
             and getattr(room, 'record_pregame_stats', True)
         ):
             try:
-                enqueue_card_draft_pick(room.mode, options_before, def_id, rank_tier=_room_rank_tier_for(room, pidx))
+                enqueue_card_draft_pick(room_card_draft_stats_mode(room), options_before, def_id, rank_tier=_room_rank_tier_for(room, pidx))
             except Exception as exc:
                 admin_event('error', f'auto draft stats enqueue failed: {exc}', room_id=room.room_id)
         record_room_replay_action(room, 'draft_pick', pidx, {'def_id': def_id, 'auto': True})
@@ -6603,7 +6654,7 @@ def _auto_select_opening_event_locked(room, pidx):
         return False
     if getattr(room, 'record_pregame_stats', True):
         try:
-            enqueue_opening_event_pick(room.mode, [str(ev.get('id')) for ev in options if ev and ev.get('id') is not None], event_id)
+            enqueue_opening_event_pick(room_card_draft_stats_mode(room), [str(ev.get('id')) for ev in options if ev and ev.get('id') is not None], event_id)
         except Exception as exc:
             admin_event('error', f'auto opening event stats enqueue failed: {exc}', room_id=room.room_id)
     record_room_replay_action(room, 'select_opening_event', pidx, {
@@ -7892,7 +7943,9 @@ def record_player_timeout_reputation(room, player_index):
     socketio.start_background_task(refresh_online_reputation)
 
 
-def ranked_match_eligibility(participants, check_reputation=True):
+def ranked_match_eligibility(participants, check_reputation=True, check_availability=True):
+    if check_availability and not ranked_availability.ranked_is_open():
+        return False, 'ranked_closed'
     participant_meta = list(participants or [])
     if not participant_meta:
         return False, 'missing_participants'
@@ -7928,7 +7981,9 @@ def is_room_valid_for_ranking(room, result='finished'):
     if not getattr(getattr(room, 'engine', None), 'game_over', False):
         return False, 'not_game_over'
     participant_meta = [room_player_profile(room, psid) for psid in getattr(room, 'player_sids', [])]
-    eligible, reason = ranked_match_eligibility(participant_meta, check_reputation=False)
+    eligible, reason = ranked_match_eligibility(
+        participant_meta, check_reputation=False, check_availability=False,
+    )
     if not eligible:
         return False, reason
     if not bool(getattr(room, '_ended_by_surrender', False)):
@@ -9052,6 +9107,47 @@ def _rank_state_of_player(player):
     return tier, 0
 
 
+def _rank_player_user_id(player):
+    try:
+        return int((player or {}).get('user_id') or (player or {}).get('id') or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def rank_guardian_ids():
+    """总榜前 N 名的 user_id 集合（段位差规则的例外白名单）。
+
+    榜单口径与 /api/leaderboard?scope=total 完全一致（同一个 list_leaderboard）。
+    查库失败时返回空集合——例外失效、退回原来的限制，不会放开规则。
+    """
+    now = time.time()
+    with _RANK_GUARDIAN_CACHE_LOCK:
+        if _RANK_GUARDIAN_CACHE['ids'] and now - float(_RANK_GUARDIAN_CACHE['ts'] or 0.0) < _RANK_GUARDIAN_CACHE_SECONDS:
+            return _RANK_GUARDIAN_CACHE['ids']
+    try:
+        ids = frozenset(db_module.list_leaderboard_ids(limit=RANK_GUARDIAN_LIMIT, scope='total'))
+    except Exception as exc:
+        print(f"[rank] guardian list failed: {exc}", flush=True)
+        return frozenset()
+    with _RANK_GUARDIAN_CACHE_LOCK:
+        _RANK_GUARDIAN_CACHE['ts'] = now
+        _RANK_GUARDIAN_CACHE['ids'] = ids
+    return ids
+
+
+def _rank_guardian_pair_exempt(player_a, player_b):
+    """总榜前十之间互相对战：升段局/0分局的段位差限制不生效。
+
+    只放行「双方都在前十」的情况；任一方掉出前十就恢复原限制。
+    """
+    uid_a = _rank_player_user_id(player_a)
+    uid_b = _rank_player_user_id(player_b)
+    if not uid_a or not uid_b or uid_a == uid_b:
+        return False
+    guardians = rank_guardian_ids()
+    return bool(guardians) and uid_a in guardians and uid_b in guardians
+
+
 def _rank_match_block_reason(player_a, player_b):
     """排位段位差拦截原因：None=允许。
 
@@ -9059,8 +9155,12 @@ def _rank_match_block_reason(player_a, player_b):
       对战限制已移除——任何段位都可以互相邀战。
     - rank_risk_gap（2026-10-18，10-19 调整为 3 小段）：升段局（段位分打满）或
       0分局（段位分为0）不得与低于自己超过 3 小段的对战——低段方主动邀请同样拦截。
+      例外（2026-11-11）：总榜前十之间互相对战不受此限（前十本来就互相打，
+      段位差再大也允许），任一方掉出前十即恢复限制。
     1v1 直比；2v2 由调用方取「双方最高与最低」两侧各比一次。"""
     import rank_system as _rs
+    if _rank_guardian_pair_exempt(player_a, player_b):
+        return None
     sa, sb = _rank_state_of_player(player_a), _rank_state_of_player(player_b)
     for (my_tier, my_points), (opp_tier, _opp_points) in ((sa, sb), (sb, sa)):
         at_risk = my_points >= _rs.rank_cap(my_tier) or my_points <= 0
@@ -9657,7 +9757,7 @@ def _complete_mod_draw_locked(room):
             'protected_mods': sorted(protected),
         })
     # 操纵现实：模组抽取完成后先进入全局事件 ban 阶段（未开启则直接配装）。
-    if getattr(room, 'reality_mode', False):
+    if room_match_mode(room) == 'casual_1v1' and getattr(room, 'reality_mode', False):
         _begin_reality_ban_locked(room)
         return True
     _casual_room_begin_event_select(room)
@@ -9667,7 +9767,7 @@ def _complete_mod_draw_locked(room):
 def start_casual_room_or_event_select(room, shared_profile=None, *, rematch=False):
     """Start the official draw phase for casual 1v1/2v2 rooms."""
     if room_match_mode(room) not in MOD_DRAW_MATCH_MODES:
-        if getattr(room, 'reality_mode', False):
+        if room_match_mode(room) == 'casual_1v1' and getattr(room, 'reality_mode', False):
             _begin_reality_ban_locked(room)
             return
         _casual_room_begin_event_select(room)
@@ -10546,12 +10646,28 @@ def _room_rank_tier_for(room, pidx):
     return tiers[pidx] if 0 <= pidx < len(tiers) else 0
 
 
+def room_card_draft_stats_mode(room):
+    """把房间的天梯/娱乐及特殊模式映射到统计模式键。"""
+    base = str(getattr(room, 'mode', '') or '').strip().lower()
+    if base not in ('1v1', '2v2'):
+        return ''
+    canonical = room_match_mode(room)
+    if canonical.startswith('ranked_'):
+        suffix = 'ranked'
+    else:
+        active = []
+        if canonical == 'casual_1v1':
+            active = [mode for mode in ('reality', 'fancy', 'ordered') if bool(getattr(room, f'{mode}_mode', False))]
+        suffix = '+'.join(active) if active else 'original'
+    return db_module.card_draft_stats_mode_key(f'{base}:{suffix}')
+
+
 def enqueue_card_draft_pick(mode, option_ids, picked_id, rank_tier=0):
     global _DRAFT_STATS_PENDING_EVENTS
     if not DB_AVAILABLE:
         return False
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2'):
+    mode_key = db_module.card_draft_stats_mode_key(mode)
+    if not mode_key:
         return False
     picked = str(picked_id or '').strip()
     if not picked:
@@ -10588,8 +10704,8 @@ def enqueue_opening_event_pick(mode, option_ids, picked_id):
     global _DRAFT_STATS_PENDING_EVENTS
     if not DB_AVAILABLE:
         return False
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2'):
+    mode_key = db_module.card_draft_stats_mode_key(mode)
+    if not mode_key:
         return False
     picked = str(picked_id or '').strip()
     if not picked:
@@ -10661,7 +10777,7 @@ def flush_draft_stats_once():
 
 def flush_draft_stats_async():
     try:
-        socketio.start_background_task(flush_draft_stats_once)
+        socketio.start_background_task(run_off_event_loop, flush_draft_stats_once)
     except Exception:
         threading.Thread(target=flush_draft_stats_once, name='draft-stats-flush', daemon=True).start()
 
@@ -10673,7 +10789,7 @@ def _draft_stats_worker():
                 socketio.sleep(max(1, DRAFT_STATS_FLUSH_SECONDS))
             except Exception:
                 time.sleep(max(1, DRAFT_STATS_FLUSH_SECONDS))
-            flush_draft_stats_once()
+            run_off_event_loop(flush_draft_stats_once)
         except Exception as exc:
             admin_event('error', f'draft stats worker error: {exc}')
 
@@ -10733,7 +10849,7 @@ def flush_last_seen_once():
 
 def flush_last_seen_async():
     try:
-        socketio.start_background_task(flush_last_seen_once)
+        socketio.start_background_task(run_off_event_loop, flush_last_seen_once)
     except Exception:
         threading.Thread(target=flush_last_seen_once, name='last-seen-flush', daemon=True).start()
 
@@ -10745,7 +10861,7 @@ def _last_seen_worker():
                 socketio.sleep(max(1, LAST_SEEN_FLUSH_SECONDS))
             except Exception:
                 time.sleep(max(1, LAST_SEEN_FLUSH_SECONDS))
-            flush_last_seen_once()
+            run_off_event_loop(flush_last_seen_once)
         except Exception as exc:
             admin_event('error', f'last seen worker error: {exc}')
 
@@ -11454,14 +11570,17 @@ ADMIN_COMMAND_TREE = {
                 },
             },
             'dew': {
-                'summary': '管理荆露',
-                'usage': 'account dew <get|add|addpaid|spend|tx> ...',
+                'summary': '管理荆露与金露',
+                'usage': 'account dew <get|getgolden|add|addgolden|addpaid|spend|tx|txgolden> ...',
                 'children': {
-                    'get': {'summary': '查看余额', 'usage': 'account dew get <账号>'},
+                    'get': {'summary': '查看荆露余额', 'usage': 'account dew get <账号>'},
+                    'getgolden': {'summary': '查看金露余额', 'usage': 'account dew getgolden <账号>'},
                     'add': {'summary': '增减普通荆露', 'usage': 'account dew add <账号> <数量> [原因]'},
-                    'addpaid': {'summary': '增减充值荆露', 'usage': 'account dew addpaid <账号> <数量> [原因]'},
+                    'addgolden': {'summary': '调整金露（正数发放、负数扣除）', 'usage': 'account dew addgolden <账号> <数量> [原因]'},
+                    'addpaid': {'summary': '', 'usage': 'account dew addpaid <账号> <数量> [原因]', 'hidden': True},
                     'spend': {'summary': '扣除荆露', 'usage': 'account dew spend <账号> <数量> [原因]'},
-                    'tx': {'summary': '查看最近流水', 'usage': 'account dew tx <账号>'},
+                    'tx': {'summary': '查看最近荆露流水', 'usage': 'account dew tx <账号>'},
+                    'txgolden': {'summary': '查看最近金露流水', 'usage': 'account dew txgolden <账号>'},
                 },
             },
             'rating': {
@@ -11796,26 +11915,26 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'afdian': {
-        'summary': '爱发电赞助兑换（付费荆露）',
+        'summary': '爱发电赞助（累计金额称号，不发放金露）',
         'usage': 'afdian <plans|plan|orders|credit|reconcile> ...',
         'children': {
-            'plans': {'summary': '查看方案兑换配置', 'usage': 'afdian plans'},
+            'plans': {'summary': '查看固定赞助档位', 'usage': 'afdian plans'},
             'plan': {
-                'summary': '配置方案兑换荆露数',
-                'usage': 'afdian plan set <plan_id> <荆露/月> [名称]',
+                'summary': '旧金露映射（仅兼容，不再用于发款）',
+                'usage': 'afdian plan set <plan_id> <数值> [名称]',
                 'children': {
-                    'set': {'summary': '设置方案兑换', 'usage': 'afdian plan set <plan_id> <荆露/月> [名称]'},
+                    'set': {'summary': '旧金露映射（不再用于发款）', 'usage': 'afdian plan set <plan_id> <数值> [名称]'},
                 },
             },
             'sku': {
-                'summary': '配置价格方案（SKU）兑换——售卖项里每个价格一条',
-                'usage': 'afdian sku set <荆露/份> <价格方案名称...>',
+                'summary': '旧金露映射（仅兼容，不再用于发款）',
+                'usage': 'afdian sku set <数值> <价格方案名称...>',
                 'children': {
-                    'set': {'summary': '按名称设置 SKU 兑换', 'usage': 'afdian sku set <荆露/份> <价格方案名称...>'},
+                    'set': {'summary': '旧金露映射（不再用于发款）', 'usage': 'afdian sku set <数值> <价格方案名称...>'},
                 },
             },
             'orders': {'summary': '查看最近订单账本', 'usage': 'afdian orders [数量]'},
-            'credit': {'summary': '手动入账（兜底）', 'usage': 'afdian credit <订单号> <账号ID> <荆露> [原因]'},
+            'credit': {'summary': '人工确认赞助（不发金露）', 'usage': 'afdian credit <订单号> <账号ID> [原因]'},
             'reconcile': {'summary': '拉取爱发电订单对账补单', 'usage': 'afdian reconcile [页数]'},
             'pageurl': {'summary': '设置/查看爱发电主页链接（兑换页展示）', 'usage': 'afdian pageurl [https://afdian.com/a/…] （空=清除）'},
         },
@@ -12137,10 +12256,13 @@ ADMIN_COMMAND_DIRECT_TRANSLATIONS = {
     ('account', 'achievement', 'list'): 'achievementlist',
     ('account', 'achievement', 'grant'): 'achievementgrant',
     ('account', 'dew', 'get'): ('dew', 'get'),
+    ('account', 'dew', 'getgolden'): ('dew', 'getgolden'),
     ('account', 'dew', 'add'): ('dew', 'add'),
+    ('account', 'dew', 'addgolden'): ('dew', 'addgolden'),
     ('account', 'dew', 'addpaid'): ('dew', 'addpaid'),
     ('account', 'dew', 'spend'): ('dew', 'spend'),
     ('account', 'dew', 'tx'): ('dew', 'tx'),
+    ('account', 'dew', 'txgolden'): ('dew', 'txgolden'),
     ('account', 'rating', 'info'): 'rating-info',
     ('account', 'rating', 'set'): 'rating-set',
     ('account', 'rating', 'add'): 'rating-add',
@@ -12154,6 +12276,7 @@ ADMIN_COMMAND_DIRECT_TRANSLATIONS = {
     ('account', 'rank', 'history'): 'rank-history',
     ('account', 'rank', 'settle'): 'rank-settle',
     ('account', 'rank', 'next'): 'rank-next',
+    ('account', 'rank', 'recalc'): 'rank-recalc',
     ('account', 'rankmod', 'global'): ('rankmod', 'global'),
     ('account', 'rankmod', 'player'): ('rankmod', 'player'),
     ('account', 'rankmod', 'view'): ('rankmod', 'view'),
@@ -12909,7 +13032,16 @@ def format_thorn_dew_user(user):
     total = free + paid
     return (
         f"{user.get('username')} (ID:{user.get('player_id') or '-'} 注册顺序：{user.get('id')})\n"
-        f"荆露：{total}（普通 {free} / 充值 {paid}）"
+        f"荆露：{total}"
+    )
+
+
+def format_golden_dew_user(user):
+    if not user:
+        return '账号不存在'
+    return (
+        f"{user.get('username')} (ID:{user.get('player_id') or '-'} 注册顺序：{user.get('id')})\n"
+        f"金露：{int(user.get('golden_dew') or 0)}"
     )
 
 
@@ -13751,7 +13883,7 @@ def admin_player_get_output(identifier):
                     f"有效对局={user.get('games_played', 0)} 胜/负/平={user.get('wins', 0)}/{user.get('losses', 0)}/{user.get('draws', 0)}",
                     f"花阶分：赛季 {format_rating_value(user.get('season_gr'))}（{int(user.get('season_ranked_games') or 0)}局）/ 总榜 {format_rating_value(user.get('total_gr'))}（{int(user.get('total_ranked_games') or 0)}局）",
                     f"总对局时长={format_duration_zh(user.get('play_seconds') or 0)}",
-                    f"荆露={user.get('thorn_dew_total', 0)}（普通 {user.get('thorn_dew_free', 0)} / 充值 {user.get('thorn_dew_paid', 0)}）",
+                    f"荆露={user.get('thorn_dew_total', 0)}（普通 {user.get('thorn_dew_free', 0)}） 金露={user.get('golden_dew', 0)}",
                     f"创建={admin_display_time(user.get('created_at'))} 上次下线={admin_display_time(user.get('last_login_at'))}",
                 ])
             )
@@ -14675,24 +14807,15 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
         if cmd.startswith('afdian-'):
             try:
                 if cmd == 'afdian-plans':
-                    plans = afdian_service.admin_list_plans()
-                    skus = afdian_service.admin_list_skus()
-                    if not plans and not skus:
-                        return {'success': True,
-                                'output': '还没有配置兑换。售卖项用 afdian sku set <荆露/份> <价格方案名称>；'
-                                          '订阅方案用 afdian plan set <plan_id> <荆露/月> [名称]'}
-                    lines = []
-                    if skus:
-                        lines.append('价格方案（SKU，售卖项）：')
-                        lines += [f"  「{s['name']}」 = {s['dew_amount']} 荆露/份"
-                                  f"{'、¥' + s['price'] if s.get('price') else ''}"
-                                  f"{'（plan ' + s['plan_id'][:8] + '…）' if s['plan_id'] else ''}"
-                                  f"{'（停用）' if not s['active'] else ''}" for s in skus]
-                    if plans:
-                        lines.append('订阅方案：')
-                        lines += [f"  {p['plan_id']}  {p['dew_amount']} 荆露/月  {p['name']}  "
-                                  f"{'启用' if p['active'] else '停用'}" for p in plans]
-                    return {'success': True, 'output': '兑换配置：\n' + '\n'.join(lines)}
+                    plans = afdian_service.public_plans()
+                    lines = [
+                        f"  {plan['name']}：{('¥' + plan['price']) if plan['price'] else '自定金额'}"
+                        for plan in plans
+                    ]
+                    return {
+                        'success': True,
+                        'output': '赞助档位（累计金额称号，不发放金露）：\n' + '\n'.join(lines),
+                    }
                 if cmd == 'afdian-plan-set':
                     if len(parts) < 5 or parts[2] != 'set':
                         return {'success': False, 'output': '用法：afdian plan set <plan_id> <荆露/月> [名称]'}
@@ -14730,23 +14853,24 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
                     orders = afdian_service.admin_list_orders(limit)
                     if not orders:
                         return {'success': True, 'output': '订单账本为空。'}
-                    status_names = {'credited': '已到账', 'unmatched': '无绑定码', 'unmapped': '未配方案',
-                                    'manual': '人工入账', 'pending': '处理中'}
+                    status_names = {'credited': '已确认', 'unmatched': '无绑定码', 'unmapped': '金额无效',
+                                    'manual': '人工确认', 'pending': '处理中'}
                     lines = [
                         f"{o['out_trade_no']}  {o['status']}({status_names.get(o['status'], o['status'])})  "
-                        f"{o['plan_name'] or o['plan_id']}×{o['month']}  {o['dew_amount']}荆露  "
+                        f"{o['plan_name'] or o['plan_id']}×{o['month']}  ¥{o['total_amount']}  "
                         f"码={o['bind_code'] or '-'}  user={o['game_user_id'] or '-'}  {o['received_at'][:16]}"
                         for o in orders]
                     return {'success': True, 'output': f'最近 {len(orders)} 条订单：\n' + '\n'.join(lines)}
                 if cmd == 'afdian-credit':
-                    if len(parts) < 5:
-                        return {'success': False, 'output': '用法：afdian credit <订单号> <账号ID> <荆露> [原因]'}
-                    result = afdian_service.admin_credit(parts[2], int(parts[4]), int(parts[3]),
-                                                         reason=' '.join(parts[5:])[:120])
+                    if len(parts) < 4:
+                        return {'success': False, 'output': '用法：afdian credit <订单号> <账号ID> [原因]'}
+                    result = afdian_service.admin_credit(
+                        parts[2], int(parts[3]), reason=' '.join(parts[4:])[:120],
+                    )
                     if not result.get('ok'):
-                        return {'success': False, 'output': str(result.get('error') or '入账失败')}
+                        return {'success': False, 'output': str(result.get('error') or '确认失败')}
                     return {'success': True,
-                            'output': f"已手动入账 {result['out_trade_no']}：+{result['dew']} 付费荆露"}
+                            'output': f"已人工确认赞助 {result['out_trade_no']}：¥{result['total_amount']}（未发放金露）"}
                 if cmd == 'afdian-pageurl':
                     current = afdian_service.get_page_url()
                     if len(parts) < 3 or not parts[2].strip():
@@ -16061,7 +16185,7 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
             f'  当前倍率：{mult}\n'
             f'  最近更新：{mods["updated_at"] or "-"}\n'
             f'  生效范围：对局奖励 / 每日签到 / 成就 / 赛季活跃 / 故事通关 / 休闲花园与小游戏 / 段位结算\n'
-            f'  不影响：管理员直发、充值荆露、消费扣减\n'
+            f'  不影响：管理员直发、消费扣减\n'
             f'  效果示例：100 → {max(0, int(round(100 * mult)))}，60 → {max(0, int(round(60 * mult)))}\n'
             '调整：data dewmod set <倍率> | 重置：data dewmod reset'
         )}
@@ -16631,18 +16755,34 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
             return {'success': True, 'output': format_user_titles(removed_user, center)}
         return {'success': False, 'output': command_error(raw, len(raw), 'account title <list|grant|remove|equip|namecolor|catalog|preview> ...')}
     if cmd in ('dew', 'thorndew', 'jinglu', '荆露'):
-        if len(parts) < 3 or parts[1].lower() not in ('get', 'add', 'addpaid', 'paid', 'spend', 'tx', 'history'):
-            return {'success': False, 'output': command_error(raw, len(raw), 'account dew <get|add|addpaid|spend|tx> <账号> [数量] [原因]')}
+        if len(parts) < 3 or parts[1].lower() not in ('get', 'getgolden', 'add', 'addgolden', 'addpaid', 'paid', 'spend', 'tx', 'txgolden', 'history'):
+            return {'success': False, 'output': command_error(raw, len(raw), 'account dew <get|getgolden|add|addgolden|addpaid|spend|tx|txgolden> <账号> [数量] [原因]')}
         sub = parts[1].lower()
         user = find_user_for_admin(parts[2])
         if not user:
             return {'success': False, 'output': '账号不存在'}
+        if sub == 'getgolden':
+            user = dict(user)
+            user['golden_dew'] = get_user_golden_dew(user['id'])
+            return {'success': True, 'output': format_golden_dew_user(user)}
         if sub == 'get':
             balance = get_user_thorn_dew(user['id'])
             user = dict(user)
             user['thorn_dew_free'] = balance['free']
             user['thorn_dew_paid'] = balance['paid']
             return {'success': True, 'output': format_thorn_dew_user(user)}
+        if sub == 'txgolden':
+            rows = list_user_thorn_dew_transactions(user['id'], limit=20, currency='golden_dew')
+            lines = [format_golden_dew_user(user), '', '最近金露流水：']
+            if not rows:
+                lines.append('暂无流水。')
+            for row in rows:
+                delta = int(row.get('free_delta') or 0)
+                lines.append(
+                    f"{admin_display_time(row.get('created_at'))} 金露{delta:+d} "
+                    f"余额={row.get('balance_total_after')} 原因={row.get('reason') or '-'}"
+                )
+            return {'success': True, 'output': '\n'.join(lines)}
         if sub in ('tx', 'history'):
             rows = list_user_thorn_dew_transactions(user['id'], limit=20)
             lines = [format_thorn_dew_user(user), '', '最近流水：']
@@ -16654,8 +16794,6 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
                 delta_text = []
                 if free_delta:
                     delta_text.append(f"普通{free_delta:+d}")
-                if paid_delta:
-                    delta_text.append(f"充值{paid_delta:+d}")
                 lines.append(
                     f"{admin_display_time(row.get('created_at'))} {'/'.join(delta_text) or '0'} "
                     f"余额={row.get('balance_total_after')} 原因={row.get('reason') or '-'}"
@@ -16667,18 +16805,25 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
             amount = int(parts[3])
         except (TypeError, ValueError):
             return {'success': False, 'output': '数量必须是整数'}
+        if sub == 'addgolden' and amount == 0:
+            return {'success': False, 'output': '调整数量不能为0'}
         reason = ' '.join(parts[4:]).strip() or 'admin command'
         admin_name = 'console'
-        if sub == 'add':
-            updated, error = adjust_user_thorn_dew(user['id'], free_delta=amount, reason=reason, source_type='admin_command', admin_username=admin_name)
+        if sub == 'addgolden':
+            updated, error = adjust_user_golden_dew(user['id'], amount, reason=reason, source_type='admin_command', admin_username=admin_name, allow_negative=True)
+        elif sub == 'add':
+            updated, error = adjust_user_thorn_dew(user['id'], free_delta=amount, reason=reason, source_type='admin_command', admin_username=admin_name, allow_negative=True)
         elif sub in ('addpaid', 'paid'):
-            updated, error = adjust_user_thorn_dew(user['id'], paid_delta=amount, reason=reason, source_type='admin_command', admin_username=admin_name)
+            updated, error = adjust_user_thorn_dew(user['id'], paid_delta=amount, reason=reason, source_type='admin_command', admin_username=admin_name, allow_negative=True)
         else:
-            updated, error = spend_user_thorn_dew(user['id'], amount, reason=reason, source_type='admin_command', admin_username=admin_name)
+            updated, error = spend_user_thorn_dew(user['id'], amount, reason=reason, source_type='admin_command', admin_username=admin_name, allow_negative=True)
         if error:
             return {'success': False, 'output': error}
         admin_event('admin', f"thorn dew {sub} user={user['username']}#{user['id']} amount={amount} reason={reason}")
-        return {'success': True, 'output': format_thorn_dew_user(updated)}
+        output = format_thorn_dew_user(updated)
+        if sub == 'addgolden':
+            output += f"\n金露：{int(updated.get('golden_dew') or 0)}"
+        return {'success': True, 'output': output}
     if cmd in ('userpass', 'passwd', 'setpass'):
         if len(parts) != 3:
             return {'success': False, 'output': command_error(raw, len(raw), '<ID|注册顺序|用户名> <新密码>')}
@@ -17551,7 +17696,7 @@ def admin_completions(line):
                 return filtered(['preview', 'confirm'])
         if sub == 'dew':
             if position == 2:
-                return filtered(['get', 'add', 'addpaid', 'spend', 'tx'])
+                return filtered(['get', 'getgolden', 'add', 'addgolden', 'addpaid', 'spend', 'tx', 'txgolden'])
             if position == 3:
                 return filtered(account_values())
         if sub == 'identity':
@@ -18144,7 +18289,35 @@ def add_room_player_attr(room_id, pidx, key, delta):
     return set_room_player_attr(room_id, pidx, key, current + int(delta))
 
 
+def enforce_ranked_availability_locked():
+    """关闭时仅把大厅中的天梯玩家切到娱乐，不触碰已创建的对局。"""
+    availability = ranked_availability.ranked_status()
+    if availability['open']:
+        return availability
+    for sid, player in list(players.items()):
+        if player.get('status') != 'lobby' or player.get('match_type') != 'ranked':
+            continue
+        player['match_type'] = 'casual'
+        player['match_mode'] = normalize_pvp_match_mode(f"casual_{player.get('mode', '1v1')}")
+        try:
+            apply_casual_mode_loadout_to_player(
+                player,
+                disabled_mods=player.get('preferred_disabled_mods', player.get('disabled_mods', [])),
+                match_mode=player['match_mode'],
+            )
+        except Exception as exc:
+            admin_event('error', f'ranked closed casual loadout failed sid={sid}: {exc}')
+        socketio.emit('lobby_mode_confirmed', {
+            'mode': player.get('mode'),
+            'match_type': 'casual',
+            'match_mode': player['match_mode'],
+            'reason': 'ranked_closed',
+        }, room=sid)
+    return availability
+
+
 def _build_lobby_update_payloads_locked():
+    availability = enforce_ranked_availability_locked()
     scope_payload_cache = {}
 
     def mode_counts_for_scope(beta_mode):
@@ -18221,6 +18394,7 @@ def _build_lobby_update_payloads_locked():
                 'your_match_type': p.get('match_type', 'casual'),
                 'your_match_mode': player_match_mode(p),
                 'season': current_gr_season(),
+                'ranked_availability': availability,
                 'beta_mode': bool(p.get('beta_mode', False)),
                 'chat_history': base['chat_history'],
             }))
@@ -18607,21 +18781,45 @@ def _broadcast_game_state_now(room, *, action_lock_held=False):
         admin_event('game', f'room {room.room_id} finished')
     elif not room.engine.game_over:
         check_live_achievements(room)
-    for pidx, sid in enumerate(room.player_sids):
-        if not room_player_session_is_current(room, sid):
-            continue
+    recipients = [
+        (pidx, sid)
+        for pidx, sid in enumerate(room.player_sids)
+        if room_player_session_is_current(room, sid)
+    ]
+    if recipients:
+        # 这些字段在同一轮广播里对所有座位完全相同。此前 1v1 构建两遍、
+        # 2v2 构建四遍；观战者列表还会重复排序并复制公开资料。
+        shared_match_key = room_match_key(room)
+        shared_spectator_count = room_spectator_count(room)
+        shared_spectator_players = room_spectator_players(room)
+        shared_instance = instance_payload()
+        shared_timer = _room_timer_payload(room)
+        shared_mod = room_mod_payload(room)
+        shared_skin_payload = build_player_skin_payload(room)
+        # 昵称和特殊资料也按座位复用，避免同一玩家的资料在一轮广播里
+        # 因“自己／队友／对手／管理员标记”被重复展开十余次。
+        shared_player_names = {}
+        shared_player_specials = {}
+        shared_player_admins = {}
+        for player_sid in room.player_sids:
+            profile = room_player_profile(room, player_sid)
+            special = special_public_fields(profile)
+            shared_player_names[player_sid] = profile.get('nickname') or '?'
+            shared_player_specials[player_sid] = special
+            shared_player_admins[player_sid] = bool(special.get('is_admin_player'))
+    for pidx, sid in recipients:
         state = room.engine.get_public_state(pidx)
         state['your_id'] = pidx
         state['mode'] = room.mode
         state['room_id'] = room.room_id
-        state['match_key'] = room_match_key(room)
+        state['match_key'] = shared_match_key
         _slice_state_log_for_recipient(state, room.engine, f'p:{sid}')
-        state['spectator_count'] = room_spectator_count(room)
-        state['spectator_players'] = room_spectator_players(room)
+        state['spectator_count'] = shared_spectator_count
+        state['spectator_players'] = shared_spectator_players
         state['room_chat_history'] = room_chat_history_for_sid(room, sid)
-        state.update(instance_payload())
-        state.update(_room_timer_payload(room))
-        state.update(room_mod_payload(room))
+        state.update(shared_instance)
+        state.update(shared_timer)
+        state.update(shared_mod)
         if room.engine.phase == 'game_over' or room.engine.game_over:
             state['match_summary'] = getattr(room, '_match_summary', None)
         if room.engine.phase == 'game_over':
@@ -18631,37 +18829,37 @@ def _broadcast_game_state_now(room, *, action_lock_held=False):
             engine = room.engine
             teammate_id = engine.get_teammate(pidx)
             enemy_ids = engine.get_all_enemies(pidx)
-            state['your_name'] = room_player_nickname(room, sid)
-            state['your_is_admin_player'] = player_is_admin(sid, room)
-            state['your_special'] = player_special_fields(sid, room)
+            state['your_name'] = shared_player_names[sid]
+            state['your_is_admin_player'] = shared_player_admins[sid]
+            state['your_special'] = shared_player_specials[sid]
             if teammate_id >= 0 and teammate_id < len(room.player_sids):
                 tm_sid = room.player_sids[teammate_id]
-                state['teammate_name'] = room_player_nickname(room, tm_sid)
-                state['teammate_is_admin_player'] = player_is_admin(tm_sid, room)
-                state['teammate_special'] = player_special_fields(tm_sid, room)
+                state['teammate_name'] = shared_player_names[tm_sid]
+                state['teammate_is_admin_player'] = shared_player_admins[tm_sid]
+                state['teammate_special'] = shared_player_specials[tm_sid]
             state['opponent_names'] = []
             state['opponent_admin_flags'] = []
             state['opponent_specials'] = []
             for eid in enemy_ids:
                 if eid < len(room.player_sids):
                     e_sid = room.player_sids[eid]
-                    state['opponent_names'].append(room_player_nickname(room, e_sid))
-                    state['opponent_admin_flags'].append(player_is_admin(e_sid, room))
-                    state['opponent_specials'].append(player_special_fields(e_sid, room))
+                    state['opponent_names'].append(shared_player_names[e_sid])
+                    state['opponent_admin_flags'].append(shared_player_admins[e_sid])
+                    state['opponent_specials'].append(shared_player_specials[e_sid])
         else:
             opp_pidx = 1 - pidx
             opp_sid = room.player_sids[opp_pidx]
             state['enemy_ids'] = [opp_pidx]
-            state['opponent_name'] = room_player_nickname(room, opp_sid)
-            state['opponent_is_admin_player'] = player_is_admin(opp_sid, room)
-            state['opponent_special'] = player_special_fields(opp_sid, room)
+            state['opponent_name'] = shared_player_names[opp_sid]
+            state['opponent_is_admin_player'] = shared_player_admins[opp_sid]
+            state['opponent_special'] = shared_player_specials[opp_sid]
             state['opponent_names'] = [state['opponent_name']]
             state['opponent_admin_flags'] = [state['opponent_is_admin_player']]
             state['opponent_specials'] = [state['opponent_special']]
-            state['your_name'] = room_player_nickname(room, sid)
-            state['your_is_admin_player'] = player_is_admin(sid, room)
-            state['your_special'] = player_special_fields(sid, room)
-        inject_player_skins(state, room, pidx)
+            state['your_name'] = shared_player_names[sid]
+            state['your_is_admin_player'] = shared_player_admins[sid]
+            state['your_special'] = shared_player_specials[sid]
+        inject_player_skins(state, room, pidx, shared_payload=shared_skin_payload)
         socketio.emit('state_update', state, room=sid)
         _broadcast_recipients += 1
     emit_pending_choice_request(room)
@@ -19148,7 +19346,10 @@ def emit_initial_pending_interaction(room):
 
 def start_game(room):
     try:
-        if getattr(room, 'fancy_mode', False):
+        if (
+            room_match_mode(room) == 'casual_1v1'
+            and (getattr(room, 'fancy_mode', False) or getattr(room, 'ordered_mode', False))
+        ):
             _fancy_start_game(room)
             return
         if getattr(room.engine, 'phase', None) not in ('event_select', 'event_reveal', 'draft'):
@@ -22237,14 +22438,8 @@ def _story_dev_tools_allowed(user_id):
 
 
 def _story_coop_allowed(user_id):
-    if not STORY_COOP_ENABLED or not user_id:
-        return False
-    try:
-        # 测试人员（tester）也可进入合作爬塔演示（2026-10-13）。
-        return user_role_type(user_id) in {'admin', 'staff', 'tester'}
-    except Exception as exc:
-        app.logger.warning('failed to resolve cooperative story permission for user %s: %s', user_id, exc)
-        return False
+    # “协作故事实验”已移除；多人爬塔的 /api/coop-demo/* 权限独立，不受影响。
+    return False
 
 
 def _require_story_coop_account_json():
@@ -22253,9 +22448,9 @@ def _require_story_coop_account_json():
         return None, None, error
     if not _story_coop_allowed(user_id):
         return None, None, _json_error(
-            '未找到此功能',
-            404,
-            code='COOP_STORY_DISABLED',
+            '协作故事实验已移除',
+            410,
+            code='COOP_STORY_REMOVED',
         )
     return user_id, username, None
 
@@ -23313,6 +23508,9 @@ def _sync_story_discoveries(user_id, run):
         or not isinstance(run.get('state'), dict)
     ):
         return []
+    # 开发人员模式的旅程不写图鉴/发现记录（永久数据）。
+    if run['state'].get('dev_mode'):
+        return []
     # 记录图鉴是 SQLite 写：留在主循环会在写锁竞争时 C 层阻塞整个 hub，
     # 挪进 tpool（纯函数，返回值不受影响）。
     try:
@@ -23457,10 +23655,15 @@ def api_story_run_create():
                 progress=progress,
             )
         seed = secrets.token_hex(16)
+        # 开发人员模式按“旅程”开启：只有拥有开发权限的账号才能勾选；
+        # 普通账号即使伪造 dev_mode 也会被忽略。
+        dev_mode = bool(data.get('dev_mode')) and _story_dev_tools_allowed(user_id)
         state = build_initial_story_state(seed, character_id=character_id)
-        state['event_bank'] = get_story_bank(user_id)
+        state['dev_mode'] = dev_mode
+        # 开发模式的旅程不读取/写入账号级事件银行，避免污染永久数据。
+        state['event_bank'] = 0 if dev_mode else get_story_bank(user_id)
         run, created = create_story_run(user_id, seed, STORY_CONTENT_VERSION, state)
-        if created:
+        if created and not dev_mode:
             # 玩过一局即解锁下一名角色（平衡 2026-10-07）：创建对局就计数。
             try:
                 record_story_play(user_id, character_id)
@@ -23612,20 +23815,29 @@ def api_story_run_action():
                 )
 
         run_state = run.get('state') or {}
+        # 开发工具只对“以开发人员模式开始的旅程”开放；普通旅程即使账号有权限
+        # 也不接受 dev_* 动作（前端也不会显示入口）。
+        if action_type.startswith('dev_') and not run_state.get('dev_mode'):
+            return _json_error('未找到此功能', 404, code='DEV_TOOLS_DISABLED')
 
         def _apply_and_commit():
             """引擎结算 + 写库整段放到线程池：DB 写锁等待（busy_timeout 1.5s）不再卡事件循环。"""
             state = dict(run_state)
-            state['event_bank'] = get_story_bank(user_id)
+            if not run_state.get('dev_mode'):
+                state['event_bank'] = get_story_bank(user_id)
             next_state, events = apply_story_action(
                 state,
                 action_type,
                 payload,
                 run.get('seed') or '',
             )
-            next_state['event_bank'] = int(
-                next_state.get('event_bank') or get_story_bank(user_id)
-            )
+            if not next_state.get('dev_mode'):
+                # 取款后引擎会把 event_bank 置为 0；这里不能用 `or` 回退到
+                # 数据库旧余额，否则 0 被当作“没值”，旧存款会被写回去。
+                bank_value = next_state.get('event_bank')
+                if bank_value is None:
+                    bank_value = get_story_bank(user_id)
+                next_state['event_bank'] = max(0, int(bank_value or 0))
             updated, outcome = commit_story_run_action(
                 user_id,
                 run_id,
@@ -23656,7 +23868,7 @@ def api_story_run_action():
                 code='INVALID_STORY_STATE',
                 run=_story_run_with_compatibility(updated),
             )
-        if outcome == 'committed':
+        if outcome == 'committed' and not next_state.get('dev_mode'):
             # SQLite 写同样不能留在主循环：写锁竞争下 busy 等待是 C 层阻塞，
             # eventlet 不会让出协程（这正是 lag 6137ms 的形状）。挪进 tpool。
             try:
@@ -23764,11 +23976,33 @@ def api_story_runs_history_detail(run_id):
     return jsonify({'success': True, **detail})
 
 
+@app.route('/api/story/runs/clear-settlement/seen', methods=['POST'])
+def api_story_clear_settlement_seen():
+    """在自动播放前原子认领，避免同一通关记录重复播放结算动画。"""
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    run_id = str(data.get('run_id') or '').strip()
+    if not run_id or len(run_id) > 64:
+        return _json_error('故事旅程编号无效', 400, code='INVALID_RUN_ID')
+    try:
+        with closing(get_db_connection()) as conn:
+            from story_score import claim_story_clear_settlement_animation
+            claimed = claim_story_clear_settlement_animation(conn, user_id, run_id)
+    except sqlite3.OperationalError as exc:
+        if 'locked' in str(exc).lower():
+            return _json_error('故事记录暂时不可用，请稍后重试', 503)
+        raise
+    return jsonify({'success': True, 'claimed': claimed})
+
+
 @app.route('/api/story/run/saves', methods=['GET'])
 def api_story_run_saves():
     user_id, _, error = _require_account_json()
     if error:
         return error
+    return _json_error('手动存读档功能已移除', 410, code='STORY_MANUAL_SAVES_REMOVED')
     run_id = str(request.args.get('run_id') or '').strip()
     if not run_id or len(run_id) > 64:
         return _json_error('故事旅程编号无效', 400, code='INVALID_RUN_ID')
@@ -23792,6 +24026,7 @@ def api_story_run_save():
     user_id, _, error = _require_account_json()
     if error:
         return error
+    return _json_error('手动存读档功能已移除', 410, code='STORY_MANUAL_SAVES_REMOVED')
     data = request.get_json(silent=True) or {}
     run_id = str(data.get('run_id') or '').strip()
     try:
@@ -23845,6 +24080,7 @@ def api_story_run_save_delete():
     user_id, _, error = _require_account_json()
     if error:
         return error
+    return _json_error('手动存读档功能已移除', 410, code='STORY_MANUAL_SAVES_REMOVED')
     data = request.get_json(silent=True) or {}
     run_id = str(data.get('run_id') or '').strip()
     try:
@@ -23873,6 +24109,7 @@ def api_story_run_load():
     user_id, _, error = _require_account_json()
     if error:
         return error
+    return _json_error('手动存读档功能已移除', 410, code='STORY_MANUAL_SAVES_REMOVED')
     data = request.get_json(silent=True) or {}
     run_id = str(data.get('run_id') or '').strip()
     try:
@@ -23936,6 +24173,9 @@ def api_story_run_reset_map():
         return error
     if not _story_dev_tools_allowed(user_id):
         return _json_error('未找到此功能', 404)
+    current = _current_story_run(user_id)
+    if not current or not (current.get('state') or {}).get('dev_mode'):
+        return _json_error('未找到此功能', 404, code='DEV_TOOLS_DISABLED')
     data = request.get_json(silent=True) or {}
     try:
         abandoned = abandon_story_run(user_id, data.get('run_id'))
@@ -24371,6 +24611,7 @@ def api_afdian_status():
                         'plans': afdian_service.public_plans(),
                         'page_url': afdian_service.get_page_url(),
                         'api_configured': bool(afdian_service.config()['token']),
+                        'sponsor': afdian_service.sponsor_progress(user_id),
                         'orders': _afdian_orders_payload(user_id)})
     except sqlite3.OperationalError as exc:
         return _db_busy_response(exc)
@@ -24403,6 +24644,7 @@ def api_afdian_requery():
     if not result.get('ok'):
         return _json_error(str(result.get('error') or '查询失败'), 502)
     return jsonify({'success': True, 'counted': result.get('counted') or {},
+                    'sponsor': afdian_service.sponsor_progress(user_id),
                     'orders': _afdian_orders_payload(user_id)})
 
 
@@ -25220,10 +25462,17 @@ def health_full():
 @app.route('/api/changelog')
 def api_changelog():
     version = changelog_version()
+    user = _current_account_user() if DB_AVAILABLE else None
+    feed = get_community_feed(user.get('id') if user else None) if DB_AVAILABLE else {
+        'announcements': [], 'viewer': {'authenticated': False, 'read': {}},
+    }
     response = jsonify({
         'success': True,
         'version': version,
         'items': read_changelog_items(request.args.get('limit', 20)),
+        'announcements': feed.get('announcements') or [],
+        'viewer': feed.get('viewer') or {},
+        'csrf_token': community_csrf_token() if user else '',
     })
     # The browser keeps the changelog in localStorage under its content hash.
     # Do not let an HTTP cache from an older deployment replace that copy.
@@ -26429,6 +26678,39 @@ def api_auth_logout():
     return _clear_remember_cookie(jsonify({'success': True}))
 
 
+@app.route('/api/rank/season-settlement', methods=['GET'])
+def api_rank_season_settlement():
+    """当前账号最近一次赛季结算的三页动画数据，只读。"""
+    if not DB_AVAILABLE:
+        return db_unavailable_response()
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    return jsonify({
+        'success': True,
+        'user_id': int(user['id']),
+        'settlement': db_module.get_rank_season_settlement(user['id']),
+    })
+
+
+@app.route('/api/rank/season-settlement/seen', methods=['POST'])
+def api_rank_season_settlement_seen():
+    """在展示前原子认领，防止刷新、并发登录和多设备重复播放。"""
+    if not DB_AVAILABLE:
+        return db_unavailable_response()
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        data = {}
+    month_key = str(data.get('month_key') or '')
+    if not re.fullmatch(r'\d{4}-\d{2}', month_key):
+        return jsonify({'success': False, 'error': '赛季月份无效'}), 400
+    claimed = db_module.claim_rank_season_settlement_animation(user['id'], month_key)
+    return jsonify({'success': True, 'claimed': claimed})
+
+
 @app.route('/api/rank/cards', methods=['GET'])
 def api_rank_cards_status():
     if not DB_AVAILABLE:
@@ -26544,6 +26826,77 @@ def api_client_settings_put():
     return jsonify({'success': True, 'updated_at': stored['updated_at']})
 
 
+@app.route('/api/rewards/status')
+def api_rewards_status():
+    """长期奖励统一增量接口：荆露正向流水游标、门票与段位卡库存。"""
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    after_raw = request.args.get('after')
+    try:
+        after_id = None if after_raw is None else max(0, int(after_raw))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': '奖励游标无效'}), 400
+    try:
+        updates = db_module.get_thorn_dew_reward_updates(user['id'], after_id)
+        golden_updates = db_module.get_thorn_dew_reward_updates(
+            user['id'], after_id, currency='golden_dew',
+        )
+        with get_db_connection() as conn:
+            ticket_balance = leisure_ticket.get_ticket_balance(conn, user['id'])
+            owned_skins = card_skins.card_skin_payload(conn, user['id']).get('items') or []
+        title_items = (get_user_title_center(user['id']) or {}).get('items') or []
+        unlocked_mods = (mod_unlocks.load_state(user['id']) or {}).get('unlocked_official') or []
+        story_characters = (get_story_progress(user['id']) or {}).get('characters') or {}
+        inventory = {
+            'titles': [
+                {
+                    'id': str(item.get('id') or item.get('title_id') or ''),
+                    'name': str(item.get('name') or item.get('name_cn') or item.get('name_en') or ''),
+                }
+                for item in title_items
+                if isinstance(item, dict) and (item.get('id') or item.get('title_id'))
+            ],
+            'skins': [
+                {
+                    'id': str(item.get('skin_id') or ''),
+                    'name': str(item.get('name') or item.get('skin_id') or ''),
+                    'image_url': str(item.get('front_url') or ''),
+                }
+                for item in owned_skins
+                if isinstance(item, dict) and item.get('owned') and item.get('skin_id')
+            ],
+            'mods': [
+                {'id': str(filename), 'name': str(filename)}
+                for filename in unlocked_mods
+                if str(filename or '').strip()
+            ],
+            'characters': [
+                {
+                    'id': str(character_id),
+                    'name': str((STORY_CHARACTERS.get(character_id) or {}).get('name', {}).get('zh') or character_id),
+                }
+                for character_id, info in story_characters.items()
+                if isinstance(info, dict) and info.get('unlocked')
+            ],
+        }
+        return jsonify({
+            'success': True,
+            'user_id': int(user['id']),
+            'dew_cursor': max(int(updates.get('cursor') or 0), int(golden_updates.get('cursor') or 0)),
+            'dew_rewards': updates.get('items') or [],
+            'golden_dew_rewards': golden_updates.get('items') or [],
+            'leisure_tickets': int(ticket_balance),
+            'rank_cards': db_module.rank_cards_payload(user['id']),
+            'inventory': inventory,
+        })
+    except Exception as exc:
+        admin_event('error', f'reward status failed: {exc}')
+        return jsonify({'success': False, 'error': '奖励信息加载失败'}), 500
+
+
 @app.route('/api/thorn-dew')
 def api_thorn_dew():
     if not DB_AVAILABLE:
@@ -26560,6 +26913,39 @@ def api_thorn_dew():
     except Exception as exc:
         admin_event('error', f'thorn dew center failed: {exc}')
         return jsonify({'success': False, 'error': '荆露信息加载失败'}), 500
+
+
+@app.route('/api/thorn-dew/convert', methods=['POST'])
+def api_thorn_dew_convert():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    direction = str(data.get('direction') or '')
+    amount = data.get('amount')
+    if not isinstance(amount, int) or isinstance(amount, bool):
+        return jsonify({'success': False, 'error': '数量必须是正整数'}), 400
+    try:
+        conversion, error = db_module.convert_user_dew(user.get('id'), direction, amount)
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        center = get_user_thorn_dew_center(user.get('id'))
+        return jsonify({
+            'success': True,
+            'conversion': conversion,
+            'user': auth_user_payload(fresh),
+            **center,
+        })
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'thorn dew conversion failed: {exc}')
+        return jsonify({'success': False, 'error': '后台暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'thorn dew conversion failed: {exc}')
+        return jsonify({'success': False, 'error': '兑换失败，请稍后再试'}), 500
 
 
 @app.route('/api/thorn-dew/checkin', methods=['POST'])
@@ -26902,7 +27288,14 @@ def api_community_read():
             'code': 'RATE_LIMITED',
         }, 429)
     try:
-        feed = mark_community_feed_read(user_id)
+        data = _community_request_object()
+        content_types = data.get('types')
+        if content_types is not None:
+            if not isinstance(content_types, list) or any(
+                str(value) not in {'announcement', 'poll', 'chain'} for value in content_types
+            ):
+                raise CommunityOpsError('INVALID_REQUEST', '已读内容类型无效')
+        feed = mark_community_feed_read(user_id, content_types=content_types)
         return _community_json({
             'success': True,
             'viewer': feed.get('viewer') or {},
@@ -27344,6 +27737,399 @@ def api_card_skins_equip():
         return jsonify({'success': False, 'error': '暂时不可用，请稍后再试'}), 503
     except Exception as exc:
         admin_event('error', f'card skin equip failed: {exc}')
+        return jsonify({'success': False, 'error': '装备失败'}), 500
+
+
+@app.route('/api/player-skins')
+def api_player_skins_inventory():
+    """玩家皮肤商店：当前三槽商品组、拥有记录与装备。"""
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        payload, error = player_skins.get_player_skin_shop(user.get('id'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        return jsonify({'success': True, 'shop': payload})
+    except Exception as exc:
+        admin_event('error', f'player skins inventory failed: {exc}')
+        return jsonify({'success': False, 'error': '读取失败'}), 500
+
+
+@app.route('/api/player-skins/refresh', methods=['POST'])
+def api_player_skins_refresh():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        payload, error = player_skins.refresh_player_skin_shop(user.get('id'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'player skin refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'player skin refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '刷新失败'}), 500
+
+
+@app.route('/api/player-skins/purchase', methods=['POST'])
+def api_player_skins_purchase():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        payload, error = player_skins.purchase_player_skin_offer(
+            user.get('id'), data.get('set_id'), data.get('slot')
+        )
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'player skin purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'player skin purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '购买失败'}), 500
+
+
+@app.route('/api/player-skins/equip', methods=['POST'])
+def api_player_skins_equip():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            error = player_skins.equip_player_skin(conn, user.get('id'), data.get('skin_id'))
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error}), 400
+            conn.commit()
+        payload, shop_error = player_skins.get_player_skin_shop(user.get('id'))
+        if shop_error:
+            return jsonify({'success': False, 'error': shop_error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        normalized_skin = public_skin_config(fresh.get('skin'))
+        with _lock:
+            for sid, player in players.items():
+                if player.get('user_id') == user.get('id'):
+                    player['skin'] = normalized_skin
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'player skin equip failed: {exc}')
+        return jsonify({'success': False, 'error': '暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'player skin equip failed: {exc}')
+        return jsonify({'success': False, 'error': '装备失败'}), 500
+
+
+@app.route('/api/eye-styles')
+def api_eye_styles_inventory():
+    """眼睛商店：三槽商品组、永久拥有记录与当前装备。"""
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        payload, error = eye_styles.get_eye_style_shop(user.get('id'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        return jsonify({'success': True, 'shop': payload})
+    except Exception as exc:
+        admin_event('error', f'eye styles inventory failed: {exc}')
+        return jsonify({'success': False, 'error': '读取失败'}), 500
+
+
+@app.route('/api/eye-styles/refresh', methods=['POST'])
+def api_eye_styles_refresh():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        payload, error = eye_styles.refresh_eye_style_shop(user.get('id'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'eye style refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'eye style refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '刷新失败'}), 500
+
+
+@app.route('/api/eye-styles/purchase', methods=['POST'])
+def api_eye_styles_purchase():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        payload, error = eye_styles.purchase_eye_style_offer(
+            user.get('id'), data.get('set_id'), data.get('slot')
+        )
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'eye style purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'eye style purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '购买失败'}), 500
+
+
+@app.route('/api/eye-styles/equip', methods=['POST'])
+def api_eye_styles_equip():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            error = eye_styles.equip_eye_style(conn, user.get('id'), data.get('eye_shape'))
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error}), 400
+            conn.commit()
+        payload, shop_error = eye_styles.get_eye_style_shop(user.get('id'))
+        if shop_error:
+            return jsonify({'success': False, 'error': shop_error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        normalized_skin = public_skin_config(fresh.get('skin'))
+        with _lock:
+            for sid, player in players.items():
+                if player.get('user_id') == user.get('id'):
+                    player['skin'] = normalized_skin
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'eye style equip failed: {exc}')
+        return jsonify({'success': False, 'error': '暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'eye style equip failed: {exc}')
+        return jsonify({'success': False, 'error': '装备失败'}), 500
+
+
+@app.route('/api/mouth-styles')
+def api_mouth_styles_inventory():
+    """嘴型商店：三槽商品组、永久拥有记录与当前装备。"""
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        payload, error = mouth_styles.get_mouth_style_shop(user.get('id'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        return jsonify({'success': True, 'shop': payload})
+    except Exception as exc:
+        admin_event('error', f'mouth styles inventory failed: {exc}')
+        return jsonify({'success': False, 'error': '读取失败'}), 500
+
+
+@app.route('/api/mouth-styles/refresh', methods=['POST'])
+def api_mouth_styles_refresh():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    try:
+        payload, error = mouth_styles.refresh_mouth_style_shop(user.get('id'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'mouth style refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'mouth style refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '刷新失败'}), 500
+
+
+@app.route('/api/mouth-styles/purchase', methods=['POST'])
+def api_mouth_styles_purchase():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        payload, error = mouth_styles.purchase_mouth_style_offer(
+            user.get('id'), data.get('set_id'), data.get('slot')
+        )
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'mouth style purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'mouth style purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '购买失败'}), 500
+
+
+@app.route('/api/mouth-styles/equip', methods=['POST'])
+def api_mouth_styles_equip():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            error = mouth_styles.equip_mouth_style(conn, user.get('id'), data.get('mouth_shape'))
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error}), 400
+            conn.commit()
+        payload, shop_error = mouth_styles.get_mouth_style_shop(user.get('id'))
+        if shop_error:
+            return jsonify({'success': False, 'error': shop_error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        normalized_skin = public_skin_config(fresh.get('skin'))
+        with _lock:
+            for sid, player in players.items():
+                if player.get('user_id') == user.get('id'):
+                    player['skin'] = normalized_skin
+        return jsonify({'success': True, 'shop': payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'mouth style equip failed: {exc}')
+        return jsonify({'success': False, 'error': '暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'mouth style equip failed: {exc}')
+        return jsonify({'success': False, 'error': '装备失败'}), 500
+
+
+@app.route('/api/backgrounds')
+def api_backgrounds():
+    """主题与战斗背景目录、拥有记录和当前装备；游客返回默认目录。"""
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    try:
+        with get_db_connection() as conn:
+            payload = backgrounds.get_background_payload(conn, user.get('id') if user else None)
+        return jsonify({'success': True, **payload})
+    except Exception as exc:
+        admin_event('error', f'background inventory failed: {exc}')
+        return jsonify({'success': False, 'error': '读取失败'}), 500
+
+
+@app.route('/api/backgrounds/purchase', methods=['POST'])
+def api_backgrounds_purchase():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        payload, error = backgrounds.purchase_background(
+            user.get('id'), data.get('kind'), data.get('set_id'), data.get('slot'),
+        )
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, **payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'background purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'background purchase failed: {exc}')
+        return jsonify({'success': False, 'error': '购买失败'}), 500
+
+
+@app.route('/api/backgrounds/refresh', methods=['POST'])
+def api_backgrounds_refresh():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        payload, error = backgrounds.refresh_background_shop(user.get('id'), data.get('kind'))
+        if error:
+            return jsonify({'success': False, 'error': error}), 400
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, **payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'background refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '商店暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'background refresh failed: {exc}')
+        return jsonify({'success': False, 'error': '刷新失败'}), 500
+
+
+@app.route('/api/backgrounds/equip', methods=['POST'])
+def api_backgrounds_equip():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    data = request.get_json(silent=True) or {}
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            error = backgrounds.equip_background(
+                conn, user.get('id'), data.get('kind'), data.get('background_id'),
+            )
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error}), 400
+            conn.commit()
+            payload = backgrounds.get_background_payload(conn, user.get('id'))
+        fresh = get_user_by_id(user.get('id')) or user
+        _set_account_session(fresh)
+        return jsonify({'success': True, **payload, 'user': auth_user_payload(fresh)})
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'background equip failed: {exc}')
+        return jsonify({'success': False, 'error': '暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'background equip failed: {exc}')
         return jsonify({'success': False, 'error': '装备失败'}), 500
 
 
@@ -30238,6 +31024,7 @@ def on_set_mode(data):
             eligible, reason = ranked_match_eligibility([candidate_player])
             if not eligible:
                 messages = {
+                    'ranked_closed': '天梯当前未开放，请在开放时段进入',
                     'guest_participant': '游客不能进入天梯模式，请先登录账号',
                     'community_mod': '天梯模式仅允许官方模组配置',
                     'low_reputation': '信誉低于40，暂时不能参加天梯',
@@ -30249,6 +31036,9 @@ def on_set_mode(data):
                 })
                 return
         previous_match_mode = player_match_mode(players[sid])
+        if previous_match_mode != match_mode:
+            # 特殊模式仅属于娱乐 1v1；切换后不再展示或携带旧邀请标记。
+            invite_special_modes.pop(sid, None)
         apply_mod_loadout_to_player(
             players[sid],
             mode_loadout,
@@ -31095,7 +31885,7 @@ def on_accept_team_match(data):
                 broadcast_lobby()
                 return
             room.casual_shared_mod_profile = shared_profile
-            room.reality_mode = bool((data or {}).get('reality'))
+            room.reality_mode = bool((data or {}).get('reality')) and match_type == 'casual'
             start_casual_room_or_event_select(room, shared_profile)
         else:
             room.engine.start_event_select_first()
@@ -31826,6 +32616,7 @@ def on_invite(data):
             invite_special_modes[sid] = {
                 'reality': bool(data.get('reality')) and inviter_match_mode == 'casual_1v1',
                 'fancy': bool(data.get('fancy')) and inviter_match_mode == 'casual_1v1',
+                'ordered': bool(data.get('ordered')) and inviter_match_mode == 'casual_1v1',
             }
 
         if inviter_match_mode in RANKED_MATCH_MODES:
@@ -31948,6 +32739,7 @@ def on_invite(data):
         'match_mode': inviter_match_mode,
         'reality': bool((invite_special_modes.get(sid) or {}).get('reality')),
         'fancy': bool((invite_special_modes.get(sid) or {}).get('fancy')),
+        'ordered': bool((invite_special_modes.get(sid) or {}).get('ordered')),
     }, room=target_sid)
 
     def _invite_timeout(inviter_sid):
@@ -32073,8 +32865,9 @@ def on_accept_invite(data):
                 return
         # 操纵现实：必须在 clear_pending 之前读取旗标（清理会顺带删除旗标）。
         invite_flags = dict(invite_special_modes.get(inviter_sid) or {})
-        room_reality_mode = bool(invite_flags.get('reality'))
-        room_fancy_mode = bool(invite_flags.get('fancy'))
+        room_reality_mode = bool(invite_flags.get('reality')) and canonical_match_mode == 'casual_1v1'
+        room_fancy_mode = bool(invite_flags.get('fancy')) and canonical_match_mode == 'casual_1v1'
+        room_ordered_mode = bool(invite_flags.get('ordered')) and canonical_match_mode == 'casual_1v1'
         clear_pending_match_invites_for_sids_locked([inviter_sid, sid])
         room = GameRoom(
             room_id,
@@ -32099,6 +32892,7 @@ def on_accept_invite(data):
         # 娱乐1v1走 elif 分支时属性从未被设置）。
         room.reality_mode = room_reality_mode
         room.fancy_mode = room_fancy_mode
+        room.ordered_mode = room_ordered_mode
         room.store_player_profile(inviter_sid, 0, inviter)
         room.store_player_profile(sid, 1, accepter)
         if casual_mod_draw:
@@ -32111,14 +32905,20 @@ def on_accept_invite(data):
             except Exception as exc:
                 _abort_casual_room_to_lobby_locked(room, str(exc), reason='mod_mismatch')
                 return
-        elif getattr(room, 'fancy_mode', False):
+        elif room_match_mode(room) == 'casual_1v1' and getattr(room, 'ordered_mode', False):
+            if not _ordered_start_match(room):
+                _abort_casual_room_to_lobby_locked(
+                    room, '乱中有序卡组无效，无法开始对局', reason='ordered_deck_invalid',
+                )
+                return
+        elif room_match_mode(room) == 'casual_1v1' and getattr(room, 'fancy_mode', False):
             # 花样百出：使用双方启用卡组，仍保留配装处理子选择。
             if not _fancy_start_match(room):
                 _abort_casual_room_to_lobby_locked(
                     room, '花样百出卡组无效，无法开始对局', reason='fancy_deck_invalid',
                 )
                 return
-        elif getattr(room, 'reality_mode', False):
+        elif room_match_mode(room) == 'casual_1v1' and getattr(room, 'reality_mode', False):
             # 操纵现实（修复 2026-10-25）：娱乐1v1不经过模组抽取链，
             # 此前 reality ban 从未被触发——在这里直接进入 ban 阶段。
             _begin_reality_ban_locked(room)
@@ -33395,7 +34195,7 @@ def on_draft_pick(data):
             _add_draft_pick_time_bonus(room, pidx)
             if DB_AVAILABLE and room.mode in ('1v1', '2v2'):
                 try:
-                    enqueue_card_draft_pick(room.mode, draft_options_before, def_id, rank_tier=_room_rank_tier_for(room, pidx))
+                    enqueue_card_draft_pick(room_card_draft_stats_mode(room), draft_options_before, def_id, rank_tier=_room_rank_tier_for(room, pidx))
                 except Exception as exc:
                     admin_event('error', f'draft stats enqueue failed: {exc}')
             record_room_replay_action(
@@ -33467,7 +34267,7 @@ def on_select_opening_event(data):
         )
         success = engine.select_opening_event(pidx, event_id)
         if success:
-            enqueue_opening_event_pick(room.mode, option_ids, event_id)
+            enqueue_opening_event_pick(room_card_draft_stats_mode(room), option_ids, event_id)
             _reset_pregame_deadline(room, pidx, 'event_select')
             record_room_replay_action(room, 'select_opening_event', pidx, {
                 'event_id': event_id,
@@ -35918,6 +36718,78 @@ def on_ai_1v1_mark_decision(data=None):
         emit('server_error', {'message': f'标记失败：{exc}'})
 
 
+@app.route('/api/solo-local-runtime')
+def api_solo_local_runtime():
+    """一次性下载训练场引擎；后续对局运算全部在浏览器 Worker 内。"""
+    try:
+        disabled = runtime_disabled_content('solo')
+        payload, etag = solo_local_bundle.runtime_bundle(disabled['cards'], disabled['mods'])
+        response = send_file(
+            io.BytesIO(payload), mimetype='application/zip',
+            download_name='solo-local-runtime.zip', max_age=300,
+        )
+        response.set_etag(etag)
+        response.headers['Cache-Control'] = 'private, max-age=300'
+        return response
+    except Exception as exc:
+        admin_event('error', f'solo local runtime bundle failed: {exc}')
+        return jsonify({'success': False, 'error': '本地引擎下载失败，请稍后重试'}), 500
+
+
+@app.route('/api/solo-local-community', methods=['POST'])
+def api_solo_local_community():
+    """读取并校验社区模组数据，不在服务器执行任何训练场规则。"""
+    try:
+        fields, mods = resolve_community_loadout(request.get_json(silent=True) or {})
+        if fields.get('mod_source') != 'community':
+            return jsonify({'success': True, 'mods': []})
+        return jsonify({
+            'success': True,
+            'mods': [
+                {
+                    'sha256': str(getattr(mod, 'community_sha256', '') or ''),
+                    'public_url': str(getattr(mod, 'community_url', '') or ''),
+                    'data': getattr(mod, 'community_data', None) or {},
+                }
+                for mod in mods
+            ],
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 400
+
+
+@app.route('/api/solo-local-achievement', methods=['POST'])
+def api_solo_local_achievement():
+    """本地已算出状态类型数后，仅复用原成就发放入口。"""
+    user_id, _, auth_error = _require_account_json()
+    if auth_error:
+        return auth_error
+    data = request.get_json(silent=True) or {}
+    try:
+        total = int(data.get('status_type_count'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': '状态类型数无效'}), 400
+    if total < SOLO_STATUS_ACHIEVEMENT_REQUIRED_TYPES:
+        return jsonify({'success': False, 'error': '尚未达到成就条件'}), 400
+    if str(data.get('flag') or '') != 'flag_solo_status_25':
+        return jsonify({'success': False, 'error': '未知训练场成就'}), 400
+    try:
+        result = process_live_achievement_flags({str(user_id): ['flag_solo_status_25']})
+        items = _format_achievement_unlocked_items((result or {}).get('unlocked') or [])
+        if items:
+            with _lock:
+                target_sids = [
+                    sid for sid, player in players.items()
+                    if str(player.get('user_id') or '') == str(user_id)
+                ]
+            for sid in target_sids:
+                socketio.emit('achievement_unlocked', {'items': items}, room=sid)
+        return jsonify({'success': True, 'items': items})
+    except Exception as exc:
+        admin_event('error', f'solo local achievement failed: {exc}')
+        return jsonify({'success': False, 'error': '成就记录失败'}), 500
+
+
 @socketio.on('solo_start')
 def on_solo_start(data):
     sid = request.sid
@@ -38041,6 +38913,89 @@ def api_fancy_decks_code():
     return jsonify({'success': True, 'deck': decoded})
 
 
+def _ordered_deck_error(message, status=400):
+    return jsonify({'success': False, 'error': message, 'code': 'ORDERED_DECK_ERROR'}), status
+
+
+@app.route('/api/ordered-decks', methods=['GET'])
+def api_ordered_decks_list():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    try:
+        with closing(get_db_connection()) as conn:
+            decks = ordered_decks.list_ordered_decks_conn(conn, user_id)
+    except sqlite3.OperationalError as exc:
+        return _db_busy_response(exc)
+    return jsonify({'success': True, 'decks': decks})
+
+
+@app.route('/api/ordered-decks', methods=['POST'])
+def api_ordered_decks_save():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    try:
+        slot = int(data.get('slot'))
+    except (TypeError, ValueError):
+        return _ordered_deck_error('槽位无效')
+    cards = [str(card_id) for card_id in (data.get('cards') or [])]
+    try:
+        with closing(get_db_connection()) as conn:
+            result, err = ordered_decks.save_ordered_deck_conn(
+                conn, user_id, slot, data.get('name'), cards, bool(data.get('active')),
+            )
+            if err:
+                conn.rollback()
+                return _ordered_deck_error(err)
+            conn.commit()
+    except sqlite3.OperationalError as exc:
+        return _db_busy_response(exc)
+    return jsonify({'success': True, **(result or {})})
+
+
+@app.route('/api/ordered-decks/delete', methods=['POST'])
+def api_ordered_decks_delete():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    try:
+        slot = int(data.get('slot'))
+    except (TypeError, ValueError):
+        return _ordered_deck_error('槽位无效')
+    try:
+        with closing(get_db_connection()) as conn:
+            ordered_decks.delete_ordered_deck_conn(conn, user_id, slot)
+            conn.commit()
+    except sqlite3.OperationalError as exc:
+        return _db_busy_response(exc)
+    return jsonify({'success': True})
+
+
+@app.route('/api/ordered-decks/code', methods=['POST'])
+def api_ordered_decks_code():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    action = str(data.get('action') or 'decode').strip().lower()
+    if action == 'encode':
+        cards = [str(card_id) for card_id in (data.get('cards') or [])]
+        validation_error = ordered_decks.validate_ordered_cards(cards)
+        if validation_error:
+            return _ordered_deck_error(validation_error)
+        return jsonify({
+            'success': True,
+            'code': ordered_decks.encode_ordered_deck(data.get('name') or '', cards),
+        })
+    decoded, err = ordered_decks.decode_ordered_deck(data.get('code'))
+    if err:
+        return _ordered_deck_error(err)
+    return jsonify({'success': True, 'deck': decoded})
+
+
 def _fancy_start_game(room):
     """Start a prepared fancy match after event setup choices are complete."""
     engine = room.engine
@@ -38063,7 +39018,8 @@ def _fancy_start_game(room):
         room._mulligan_deadline = time.time() + 60.0
     room.started_at = time.time()
     record_room_replay_keyframe(room, 'game_start')
-    admin_event('game', f'room {room.room_id} started mode=fancy')
+    mode_name = 'ordered' if room_match_mode(room) == 'casual_1v1' and getattr(room, 'ordered_mode', False) else 'fancy'
+    admin_event('game', f'room {room.room_id} started mode={mode_name}')
     for psid in room.player_sids:
         emit_room_game_phase(room, psid, 'playing')
     _broadcast_game_state_now(room)
@@ -38131,6 +39087,45 @@ def _fancy_start_match(room):
         _fancy_start_game(room)
     return True
 
+
+def _ordered_start_match(room):
+    """乱中有序：40 张自组卡组，无天赋、无选卡，直接开局。"""
+    engine = room.engine
+    engine._ordered_all_exile = True
+    engine._ordered_skip_opening_events = True
+    engine.draft_picks = [[], []]
+    engine.draft_pool = []
+    engine.opening_event_options = [[], []]
+    engine.opening_event_picks = [None, None]
+    engine.opening_event_sub_choices = [{}, {}]
+    for pidx, psid in enumerate(room.player_sids):
+        player = players.get(psid) or {}
+        uid = player.get('user_id')
+        deck = None
+        if uid:
+            with closing(get_db_connection()) as conn:
+                deck = ordered_decks.get_active_ordered_deck_conn(conn, uid)
+        if not deck:
+            emit_match_start_failed(
+                [psid], '你没有启用中的乱中有序卡组，请先组40张卡组并启用',
+                reason='ordered_deck_missing',
+            )
+            return False
+        validation_error = ordered_decks.validate_ordered_cards(deck['cards'])
+        if validation_error:
+            emit_match_start_failed(
+                [psid], f'你的乱中有序卡组无效：{validation_error}',
+                reason='ordered_deck_invalid',
+            )
+            return False
+        engine.draft_picks[pidx] = list(deck['cards'])
+        engine.player_draft_started[pidx] = True
+        engine.player_ready[pidx] = True
+    engine.phase = 'draft'
+    record_room_replay_keyframe(room, 'ordered_setup_start')
+    return _fancy_start_game(room)
+
+
 @socketio.on('rematch')
 @measure_socket_action('rematch')
 def on_rematch(data=None):
@@ -38158,6 +39153,14 @@ def on_rematch(data=None):
                 return
             if getattr(room, '_returned_lobby_sids', set()):
                 socketio.emit('server_error', {'message': '有玩家已返回大厅'}, room=sid)
+                emit_rematch_state(room)
+                return
+            if room_match_mode(room) in RANKED_MATCH_MODES and not ranked_availability.ranked_is_open():
+                room._rematch_votes = set()
+                socketio.emit('server_error', {
+                    'message': '天梯当前未开放，请在开放时段进入',
+                    'reason': 'ranked_closed',
+                }, room=sid)
                 emit_rematch_state(room)
                 return
             already_voted = sid in room._rematch_votes
@@ -38274,13 +39277,18 @@ def on_rematch(data=None):
                         for psid in room.player_sids:
                             if psid in players:
                                 socketio.emit('server_error', {'message': f'随机卡组生成失败：{exc}'}, room=psid)
-                elif getattr(room, 'fancy_mode', False):
+                elif room_match_mode(room) == 'casual_1v1' and getattr(room, 'ordered_mode', False):
+                    if not _ordered_start_match(room):
+                        room._rematch_votes = set()
+                        emit_rematch_state(room)
+                        return
+                elif room_match_mode(room) == 'casual_1v1' and getattr(room, 'fancy_mode', False):
                     # 花样百出：再来一次同样保留配装处理子选择。
                     if not _fancy_start_match(room):
                         room._rematch_votes = set()
                         emit_rematch_state(room)
                         return
-                elif getattr(room, 'reality_mode', False):
+                elif room_match_mode(room) == 'casual_1v1' and getattr(room, 'reality_mode', False):
                     # 操纵现实（2026-10-26）：再来一次同样进入特殊模式对局。
                     room.engine.reality_events = set()
                     _begin_reality_ban_locked(room)
@@ -38879,7 +39887,9 @@ def _leisure_session_worker():
     import leisure_sessions
     while True:
         try:
-            for outcome in leisure_sessions.sweep():
+            # 到期结算包含同步 SQLite 写入；没有到期会话时也只产生一次极小的
+            # 线程池调度，避免每 5 秒扫描在锁竞争时卡住所有房间。
+            for outcome in run_off_event_loop(leisure_sessions.sweep):
                 if outcome.get('settled'):
                     print(f"[leisure] force settled reason={outcome.get('reason_code')} "
                           f"service={outcome.get('service')}", flush=True)
@@ -38900,28 +39910,35 @@ def ensure_leisure_session_worker():
                          name='leisure-session-guard', daemon=True).start()
 
 
+def _minigame_2048_settlement_once():
+    """在真实线程里执行同步 SQLite 结算，避免阻塞 eventlet 的所有对局。"""
+    if not DB_AVAILABLE:
+        return [], []
+    with get_db_connection() as conn:
+        minigame_2048_service.ensure_schema(conn)
+        results = minigame_2048_service.settle_due(conn)
+        # 休闲花园里的小游戏共用同一套奖期表（靠 `suika-` 前缀分账）：
+        # 同一个 worker 里顺带把合成大花花的奖期也结掉。
+        try:
+            suika_results = minigame_suika_service.settle_due(conn)
+        except Exception as exc:
+            suika_results = []
+            admin_event('error', f'suika settlement failed: {exc}')
+    return results, suika_results
+
+
 def _minigame_2048_settlement_worker():
     while True:
         try:
-            if DB_AVAILABLE:
-                with get_db_connection() as conn:
-                    minigame_2048_service.ensure_schema(conn)
-                    results = minigame_2048_service.settle_due(conn)
-                    # 休闲花园里的小游戏共用同一套奖期表（靠 `suika-` 前缀分账）：
-                    # 同一个 worker 里顺带把合成大花花的奖期也结掉。
-                    try:
-                        suika_results = minigame_suika_service.settle_due(conn)
-                    except Exception as exc:
-                        suika_results = []
-                        admin_event('error', f'suika settlement failed: {exc}')
-                for item in results:
-                    if item.get("status") == "paid":
-                        print(f"[minigame2048] settled {item['period_key']} "
-                              f"participants={item.get('participants')}", flush=True)
-                for item in suika_results:
-                    if item.get("status") == "paid":
-                        print(f"[minigamesuika] settled {item['period_key']} "
-                              f"participants={item.get('participants')}", flush=True)
+            results, suika_results = run_off_event_loop(_minigame_2048_settlement_once)
+            for item in results:
+                if item.get("status") == "paid":
+                    print(f"[minigame2048] settled {item['period_key']} "
+                          f"participants={item.get('participants')}", flush=True)
+            for item in suika_results:
+                if item.get("status") == "paid":
+                    print(f"[minigamesuika] settled {item['period_key']} "
+                          f"participants={item.get('participants')}", flush=True)
         except Exception as exc:
             admin_event('error', f'2048 settlement worker error: {exc}')
         time.sleep(max(60, _MINIGAME_2048_SETTLE_INTERVAL))
@@ -38957,9 +39974,9 @@ def _rank_monthly_next_run_utc(now=None):
 def _rank_monthly_settlement_worker():
     """段位月度结算（设计 2026-10-02）：北京月末 23:59 锁定。
 
-    到点结算上一个月（发荆露、段位分清零、按规则掉段）；幂等由
-    rank_settled_month + rank_monthly_settlements 唯一键保证，重启/多实例
-    重复执行不会重复发奖。
+    到点结算上一赛季（按 30/100 局发奖、段内分置 10、按 ultra 分界掉段）；
+    幂等由 rank_settled_month + rank_monthly_settlements 唯一键保证，
+    重启/多实例重复执行不会重复发奖。
     """
     while True:
         try:
@@ -38975,7 +39992,7 @@ def _rank_monthly_settlement_worker():
             month_key = rank_system.beijing_month_key(
                 datetime.now(timezone.utc) - _td(days=1),
             )
-            result = db_module.settle_ranks_monthly(month_key)
+            result = run_off_event_loop(db_module.settle_ranks_monthly, month_key)
             admin_event(
                 'admin',
                 f'rank monthly settlement month={month_key} users={result["users"]} '
@@ -38999,6 +40016,37 @@ def ensure_rank_monthly_settlement_worker():
     except Exception:
         threading.Thread(target=_rank_monthly_settlement_worker,
                          name='rank-monthly-settlement', daemon=True).start()
+
+
+_RANKED_AVAILABILITY_WORKER_STARTED = False
+
+
+def _ranked_availability_worker():
+    previous_open = None
+    while True:
+        try:
+            current_open = ranked_availability.ranked_is_open()
+            if previous_open is None or current_open != previous_open:
+                broadcast_lobby()
+            previous_open = current_open
+        except Exception as exc:
+            admin_event('error', f'ranked availability worker failed: {exc}')
+        try:
+            socketio.sleep(2)
+        except Exception:
+            time.sleep(2)
+
+
+def ensure_ranked_availability_worker():
+    global _RANKED_AVAILABILITY_WORKER_STARTED
+    if _RANKED_AVAILABILITY_WORKER_STARTED:
+        return
+    _RANKED_AVAILABILITY_WORKER_STARTED = True
+    try:
+        socketio.start_background_task(_ranked_availability_worker)
+    except Exception:
+        threading.Thread(target=_ranked_availability_worker,
+                         name='ranked-availability', daemon=True).start()
 
 
 # ---------------------------------------------------------------- 双人爬塔引擎演示
@@ -40175,6 +41223,7 @@ if __name__ == '__main__':
     ensure_leisure_session_worker()
     # 段位月度结算（2026-10-02）：北京月末 23:59 锁定，错点补做、幂等。
     ensure_rank_monthly_settlement_worker()
+    ensure_ranked_availability_worker()
     threading.Thread(
         target=_prewarm_public_card_cache_worker,
         name='public-cache-prewarm',

@@ -51,6 +51,11 @@ class CardSkinTests(unittest.TestCase):
         self.assertEqual(prices['蠕虫'], (25000, 5))
         self.assertEqual(prices['阴阳'], (10000, 10))
         self.assertEqual(prices['阴阳玉'], (30000, 3))
+        for skin_id in (
+            'tower_curse_ironclad', 'tower_curse_silent', 'tower_curse_defect',
+            'tower_curse_necrobinder', 'tower_curse_regent',
+        ):
+            self.assertEqual(prices[skin_id], (0, 0))
 
     def test_equip_requires_ownership(self):
         with db.get_db_connection() as conn:

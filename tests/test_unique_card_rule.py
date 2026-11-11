@@ -188,7 +188,7 @@ class UniqueCardRuleTests(unittest.TestCase):
         self.assertNotIn(generated, player.hand)
         self.assertIn(original, player.discard)
         self.assertIn(generated, player.exile)
-        self.assertTrue(any(card.def_id == VOID_ID for card in player.hand))
+        self.assertTrue(any(card.def_id == engine._void_resolve_card_def_id('void:void') for card in player.hand))
 
     def test_normal_hand_generation_rejects_duplicate_before_enter_hand_event(self):
         engine = self.prepare_engine()
@@ -291,19 +291,49 @@ class UniqueCardRuleTests(unittest.TestCase):
         self.assertEqual(2, sum(card.def_id == UNIQUE_ID for card in player.exile))
         self.assertEqual(2, sum(card.def_id == expected_void_id for card in player.hand))
 
-    def test_legacy_or_forced_duplicates_are_not_removed_by_global_enforcement(self):
+    def test_global_enforcement_exiles_duplicates_in_active_zones_for_both_engines(self):
+        for engine_class in (GameEngine, GameEngine2v2):
+            with self.subTest(engine=engine_class.__name__):
+                engine = self.prepare_engine(engine_class)
+                player = engine.players[0]
+                keep = CardInstance(UNIQUE_ID)
+                player.hand = [keep, CardInstance(UNIQUE_ID), CardInstance(NORMAL_ID), CardInstance(NORMAL_ID)]
+                player.deck = [CardInstance(UNIQUE_ID)]
+                player.discard = [CardInstance(UNIQUE_ID)]
+                player.equipment = [EquipmentInstance(CardInstance(UNIQUE_ID), 0)]
+
+                engine._enforce_unique_cards_for_all()
+
+                active_cards = [
+                    *player.hand,
+                    *player.deck,
+                    *player.discard,
+                    *(eq.card_instance for eq in player.equipment),
+                ]
+                self.assertEqual([keep], [card for card in active_cards if card.def_id == UNIQUE_ID])
+                self.assertEqual(4, sum(card.def_id == UNIQUE_ID for card in player.exile))
+                self.assertEqual(4, sum(card.def_id == engine._void_resolve_card_def_id('void:void') for card in player.hand))
+                self.assertEqual(2, sum(card.def_id == NORMAL_ID for card in player.hand))
+
+                # 已放逐的副本是处理结果，不应在下次全局检查时再次触发补偿。
+                engine._enforce_unique_cards_for_all()
+                self.assertEqual(4, sum(card.def_id == UNIQUE_ID for card in player.exile))
+                self.assertEqual(4, sum(card.def_id == engine._void_resolve_card_def_id('void:void') for card in player.hand))
+
+    def test_snapshot_duplicate_with_same_instance_id_exiles_the_actual_copy(self):
         engine = self.prepare_engine()
         player = engine.players[0]
-        first = CardInstance(UNIQUE_ID)
-        second = first.copy()
-        player.hand.append(first)
-        player.discard.append(second)
+        original = CardInstance(UNIQUE_ID)
+        snapshot_copy = CardInstance.from_dict(original.to_dict())
+        self.assertEqual(original.instance_id, snapshot_copy.instance_id)
+        player.hand = [original, snapshot_copy]
 
         engine._enforce_unique_cards_for_all()
 
-        self.assertIn(first, player.hand)
-        self.assertIn(second, player.discard)
-        self.assertEqual([], player.exile)
+        self.assertEqual([original], [card for card in player.hand if card.def_id == UNIQUE_ID])
+        self.assertTrue(any(card is snapshot_copy for card in player.exile))
+        self.assertFalse(any(card is original for card in player.exile))
+        self.assertEqual(1, sum(card.def_id == engine._void_resolve_card_def_id('void:void') for card in player.hand))
 
     def test_random_deck_generation_never_repeats_a_unique_card(self):
         for _ in range(30):

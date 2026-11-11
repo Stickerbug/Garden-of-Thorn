@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-theme="light" data-ui-style="minimal">
+<html lang="zh-CN" data-theme="light" data-ui-style="classic">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=0.7, viewport-fit=cover, interactive-widget=overlays-content">
@@ -14,10 +14,17 @@
     <link rel="stylesheet" href="/static/css/shared-afk.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/shared-lobby-chat.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/community.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/reward-animation.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/dew-hud.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/season-settlement.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/player-skins.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/eye-styles.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/mouth-styles.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
 <script nonce="{{ csp_nonce }}">
 (() => {
   window.__GTN_BETA_MODE__ = {{ beta_mode|default(false)|tojson }};
-  const betaExactKeys = new Set(['gtn_theme', 'gtn_lang', 'gtn_ui_style', 'gtn_ui_style_v2_migrated', 'gtn_hidden_features_enabled', 'gtn_home_ui', 'gtn_landscape_mode', 'gtn_story_hide_card_borders']);
+  const betaExactKeys = new Set(['gtn_theme', 'gtn_lang', 'gtn_ui_style', 'gtn_ui_style_v2_migrated', 'gtn_hidden_features_enabled', 'gtn_home_ui', 'gtn_landscape_mode', 'gtn_lock_aspect_ratio', 'gtn_story_hide_card_borders']);
   const betaKey = (key) => window.__GTN_BETA_MODE__ && betaExactKeys.has(key) ? `gtn_beta_${key.slice(4)}` : key;
   const readCookie = (key) => {
     try {
@@ -62,16 +69,10 @@
     lang = 'zh';
     storage.setItem(betaKey('gtn_lang'), lang);
   }
-  const migrationKey = betaKey('gtn_ui_style_v2_migrated');
   const uiStyleKey = betaKey('gtn_ui_style');
-  // 2026-10-25：新人（无存储）默认经典UI；已保存偏好的老玩家不受影响。
-  let uiStyle = storage.getItem(uiStyleKey) || 'classic';
-  if (!storage.getItem(migrationKey) && uiStyle === 'classic') {
-    uiStyle = 'minimal';
-    storage.setItem(uiStyleKey, 'minimal');
-    storage.setItem(migrationKey, '1');
-  }
-  if (uiStyle !== 'classic') uiStyle = 'minimal';
+  // 未保存偏好的玩家默认经典UI；已明确选择简约的玩家不受影响。
+  const savedUiStyle = storage.getItem(uiStyleKey);
+  const uiStyle = savedUiStyle === 'minimal' ? 'minimal' : 'classic';
   const theme = storage.getItem(betaKey('gtn_theme')) === 'dark' ? 'dark' : 'light';
   document.documentElement.setAttribute('lang', lang);
   document.documentElement.setAttribute('data-theme', theme);
@@ -80,7 +81,7 @@
   window.__bootLang = lang;
 })();
 </script>
-<style>
+<style nonce="{{ csp_nonce }}">
 #app { visibility: hidden; }
 </style>
 </head>
@@ -99,9 +100,9 @@
 <div class="top-action-buttons">
 <button id="btn-open-settings" class="top-icon-btn top-settings-btn" type="button" aria-label="设置"><img src="/static/assets/ui-icons/settings.svg" alt="" aria-hidden="true"><span class="top-icon-label">设置</span></button>
 <button id="btn-account-top" class="top-icon-btn account-top-btn" type="button" aria-label="账号"><img src="/static/assets/ui-icons/account.svg" alt="" aria-hidden="true"><span class="top-icon-label">账号</span></button>
-<button id="btn-community-top" class="top-icon-btn community-top-btn" type="button" aria-label="公告与投票"><img src="/static/assets/ui-icons/announcement.svg" alt="" aria-hidden="true"><span class="top-icon-label">公告</span></button>
+<button id="btn-community-top" class="top-icon-btn community-top-btn" type="button" aria-label="投票"><img src="/static/assets/ui-icons/announcement.svg" alt="" aria-hidden="true"><span class="top-icon-label">投票</span></button>
 <button id="btn-qq-top" class="top-icon-btn qq-top-btn" type="button" aria-label="QQ交流群"><img src="/static/assets/ui-icons/qq.svg" alt="" aria-hidden="true"><span class="top-icon-label">QQ群</span></button>
-<button id="btn-changelog-top" class="top-icon-btn changelog-top-btn" type="button" aria-label="更新日志"><img src="/static/assets/ui-icons/log.svg" alt="" aria-hidden="true"><span class="top-icon-label">更新日志</span></button>
+<button id="btn-changelog-top" class="top-icon-btn changelog-top-btn" type="button" aria-label="公告"><img src="/static/assets/ui-icons/log.svg" alt="" aria-hidden="true"><span class="top-icon-label">公告</span></button>
 <button id="btn-skin-top" class="top-icon-btn skin-top-btn" type="button" aria-label="皮肤"><img src="/static/assets/ui-icons/skins.svg" alt="" aria-hidden="true"><span class="top-icon-label">皮肤</span></button>
 <button id="btn-achievements-top" class="top-icon-btn achievements-top-btn" type="button" aria-label="成就"><img src="/static/assets/ui-icons/achievements.svg" alt="" aria-hidden="true"><span class="top-icon-label">成就</span></button>
 <button id="btn-title-shop-top" class="top-icon-btn title-shop-top-btn" type="button" aria-label="商店"><img src="/static/assets/ui-icons/shop.svg" alt="" aria-hidden="true"><span class="top-icon-label">商店</span></button>
@@ -112,7 +113,7 @@
 </div>
 <section id="community-popover" class="community-popover account-popover hidden" aria-labelledby="community-popover-title">
   <div class="account-popover-head">
-    <div id="community-popover-title" class="account-popover-title">公告与投票</div>
+    <div id="community-popover-title" class="account-popover-title">投票</div>
     <div class="community-head-actions">
       <a id="community-manage-link" class="community-manage-link hidden" href="/community-ops" target="_blank" rel="noopener">运营后台</a>
       <button id="btn-community-refresh" class="account-close-btn" type="button" aria-label="刷新公告">↻</button>
@@ -124,11 +125,11 @@
 </section>
 <div id="changelog-popover" class="changelog-popover account-popover hidden">
   <div class="account-popover-head">
-    <div id="changelog-popover-title" class="account-popover-title">更新日志</div>
+    <div id="changelog-popover-title" class="account-popover-title">公告</div>
     <button id="btn-changelog-popover-close" class="account-close-btn" type="button">×</button>
   </div>
   <div id="changelog-popover-body" class="changelog-popover-body">
-    <p class="muted">暂无更新日志。</p>
+    <p class="muted">暂无公告。</p>
   </div>
 </div>
 <div id="account-popover" class="account-popover hidden">
@@ -254,12 +255,12 @@
 </div>
 <div id="achievements-popover" class="account-popover achievements-popover hidden">
   <div class="account-popover-head">
-    <div id="achievements-popover-title" class="account-popover-title">成就与荆露</div>
+    <div id="achievements-popover-title" class="account-popover-title">成就与货币</div>
     <button id="btn-achievements-popover-close" class="account-close-btn" type="button">×</button>
   </div>
   <div id="achievements-summary" class="account-replay-sub">登录后查看成就。</div>
   <div class="achievement-tabs account-mode-tabs">
-    <button class="account-mode-tab active" type="button" data-achievement-tab="dew">荆露</button>
+    <button class="account-mode-tab active" type="button" data-achievement-tab="dew">货币</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="daily">签到</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="achievements">成就</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="tasks">每日任务</button>
@@ -278,8 +279,33 @@
   </div>
   <div class="account-mode-tabs title-shop-tabs">
     <button id="title-shop-tab-titles" class="account-mode-tab active" type="button" data-shop-tab="titles">称号</button>
+    <button id="title-shop-tab-player-skins" class="account-mode-tab" type="button" data-shop-tab="player-skins">玩家皮肤</button>
+    <button id="title-shop-tab-eye-styles" class="account-mode-tab" type="button" data-shop-tab="eye-styles">眼睛</button>
+    <button id="title-shop-tab-mouth-styles" class="account-mode-tab" type="button" data-shop-tab="mouth-styles">嘴型</button>
+    <button id="title-shop-tab-theme-backgrounds" class="account-mode-tab" type="button" data-shop-tab="theme-backgrounds">主题背景</button>
+    <button id="title-shop-tab-battle-backgrounds" class="account-mode-tab" type="button" data-shop-tab="battle-backgrounds">战斗背景</button>
     <button id="title-shop-tab-card-skins" class="account-mode-tab" type="button" data-shop-tab="card-skins">卡牌皮肤</button>
     <button id="title-shop-tab-rank-cards" class="account-mode-tab" type="button" data-shop-tab="rank-cards">段位卡</button>
+  </div>
+  <div id="player-skin-shop-panel" class="achievement-tab-panel hidden">
+    <div id="player-skin-shop-grid" class="title-shop-grid player-skin-shop-grid"></div>
+    <div id="player-skin-shop-status" class="account-replay-sub"></div>
+  </div>
+  <div id="eye-style-shop-panel" class="achievement-tab-panel hidden">
+    <div id="eye-style-shop-grid" class="title-shop-grid eye-style-shop-grid"></div>
+    <div id="eye-style-shop-status" class="account-replay-sub"></div>
+  </div>
+  <div id="mouth-style-shop-panel" class="achievement-tab-panel hidden">
+    <div id="mouth-style-shop-grid" class="title-shop-grid mouth-style-shop-grid"></div>
+    <div id="mouth-style-shop-status" class="account-replay-sub"></div>
+  </div>
+  <div id="theme-background-shop-panel" class="achievement-tab-panel hidden">
+    <div id="theme-background-shop-grid" class="title-shop-grid background-shop-grid"></div>
+    <div id="theme-background-shop-status" class="account-replay-sub"></div>
+  </div>
+  <div id="battle-background-shop-panel" class="achievement-tab-panel hidden">
+    <div id="battle-background-shop-grid" class="title-shop-grid background-shop-grid"></div>
+    <div id="battle-background-shop-status" class="account-replay-sub"></div>
   </div>
   <div id="card-skin-shop-panel" class="achievement-tab-panel hidden">
     <div id="card-skin-shop-grid" class="title-shop-grid"></div>
@@ -300,14 +326,14 @@
   <div id="title-shop-status" class="account-replay-sub"></div>
   <div id="title-shop-afdian-panel" class="title-shop-afdian-panel hidden">
     <a id="title-shop-afdian-go" class="title-shop-afdian-go" href="#" target="_blank" rel="noopener" hidden>前往爱发电赞助 ↗</a>
-    <p class="title-shop-afdian-intro">通过爱发电赞助获得<b>付费荆露</b>：付款时在订单留言里填写你的绑定码，到账全自动。</p>
+    <p class="title-shop-afdian-intro">通过爱发电赞助解锁累计称号：付款时在订单留言里填写你的绑定码，到账全自动。</p>
     <div class="title-shop-afdian-code-row">
       <span id="title-shop-afdian-code" class="title-shop-afdian-code">……</span>
       <button id="btn-title-shop-afdian-copy" class="mini-btn" type="button">复制</button>
     </div>
     <div id="title-shop-afdian-plans" class="title-shop-afdian-plans"></div>
     <p id="title-shop-afdian-note" class="title-shop-afdian-note"></p>
-    <a id="title-shop-afdian-link" class="mini-btn title-shop-afdian-link" href="/afdian" target="_blank" rel="noopener">完整兑换页（重置绑定码 / 查询补单）</a>
+    <a id="title-shop-afdian-link" class="mini-btn title-shop-afdian-link" href="/afdian" target="_blank" rel="noopener">完整赞助页（累计进度 / 重置绑定码 / 查询补单）</a>
   </div>
   <div id="title-shop-grid" class="title-shop-grid"></div>
 </div>
@@ -400,8 +426,20 @@
       </div>
       <div class="account-mode-tabs skin-page-tabs">
         <button class="account-mode-tab active" type="button" data-skin-tab="look">形象</button>
+        <button class="account-mode-tab" type="button" data-skin-tab="backgrounds">背景</button>
         <button class="account-mode-tab" type="button" data-skin-tab="titles">称号</button>
         <button class="account-mode-tab" type="button" data-skin-tab="card-skins">卡牌皮肤</button>
+      </div>
+      <div id="backgrounds-panel" class="achievement-tab-panel hidden">
+        <p class="background-equipment-note">主题背景用于普通界面；战斗背景只在对战与观战中显示。两种背景分别装备、互不影响。</p>
+        <section class="background-equipment-section">
+          <h3>主题背景</h3>
+          <div id="theme-background-list" class="background-equipment-grid"></div>
+        </section>
+        <section class="background-equipment-section">
+          <h3>战斗背景</h3>
+          <div id="battle-background-list" class="background-equipment-grid"></div>
+        </section>
       </div>
       <div id="skin-titles-panel" class="achievement-tab-panel title-center-panel hidden"></div>
       <div id="card-skins-panel" class="achievement-tab-panel hidden"></div>
@@ -411,6 +449,10 @@
           <div id="skin-sync-note" class="skin-sync-note">游客皮肤会保存在本地；账号皮肤会保存到服务器。</div>
         </div>
         <div class="skin-controls-column">
+          <div class="skin-preset-section">
+            <div id="skin-preset-label" class="skin-preset-label">皮肤款式</div>
+            <div id="skin-preset-list" class="skin-preset-list" role="radiogroup" aria-labelledby="skin-preset-label"></div>
+          </div>
           <label class="skin-control-row" for="skin-primary-color">
             <span id="skin-primary-label">主颜色</span>
             <input id="skin-primary-color" type="color" value="#FFE763">
@@ -422,6 +464,19 @@
               <option value="rectangle" id="skin-eye-rectangle">长方形</option>
               <option value="diamond" id="skin-eye-diamond">菱形</option>
               <option value="hexagon" id="skin-eye-hexagon">六边形</option>
+              <option value="angry" id="skin-eye-angry">愤怒</option>
+              <option value="coin" id="skin-eye-coin">金币</option>
+              <option value="dizzy" id="skin-eye-dizzy">眩晕</option>
+            </select>
+          </label>
+          <label class="skin-control-row" for="skin-mouth-shape">
+            <span id="skin-mouth-shape-label">嘴型</span>
+            <select id="skin-mouth-shape">
+              <option value="original" id="skin-mouth-original">原版嘴型</option>
+              <option value="cat" id="skin-mouth-cat">w嘴</option>
+              <option value="smirk" id="skin-mouth-smirk">歪嘴</option>
+              <option value="open" id="skin-mouth-open">张口</option>
+              <option value="angry" id="skin-mouth-angry">愤怒</option>
             </select>
           </label>
           <div class="skin-placeholder-row">
@@ -711,6 +766,7 @@
 </div>
 {% endif %}
 <div id="season-countdown" class="season-countdown hidden"></div>
+<div id="ranked-availability" class="ranked-availability hidden" role="status" aria-live="polite"></div>
 </div>
 <div id="lobby-rank-cards" class="lobby-rank-cards hidden"></div>
 <div id="lobby-team-section" class="lobby-team-section"></div>
@@ -1133,6 +1189,10 @@
 <input type="checkbox" id="settings-landscape-mode">
 <label id="settings-label-landscape-mode" for="settings-landscape-mode">开启横屏模式</label>
 </div>
+<div id="settings-lock-aspect-ratio-row" class="settings-check-row">
+<input type="checkbox" id="settings-lock-aspect-ratio">
+<label id="settings-label-lock-aspect-ratio" for="settings-lock-aspect-ratio" title="按 16:9 等比缩放并居中显示">锁定长宽比（16:9）</label>
+</div>
 <div id="settings-fullscreen-row" class="settings-theme-row settings-action-row">
 <label id="settings-label-fullscreen" for="btn-settings-fullscreen">全屏</label>
 <button id="btn-settings-fullscreen" class="btn btn-secondary settings-inline-action" type="button">进入全屏</button>
@@ -1296,6 +1356,7 @@
 <section>
 <h4 id="credits-developer-title">开发者</h4>
 <p>Stickerbug</p>
+<p>Eric</p>
 </section>
 <section>
 <h4 id="credits-design-title">设计</h4>
@@ -1397,6 +1458,10 @@
   };
   T.fr = { ...T.en, subtitle: 'Combat de cartes multijoueur en ligne', nickname: 'Pseudo', nicknamePlaceholder: 'Saisir un pseudo', enterLobby: 'Multijoueur', storyMode: 'Mode histoire', soloTraining: 'Entraînement solo', soloMods: 'Réglages des mods', settings: 'Paramètres', loadLast: 'Charger', saveDecks: 'Sauver decks', startTraining: 'Commencer', back: 'Retour', shuffleDeck: 'Mélanger', searchCards: 'Chercher cartes', soloDeckA: 'Votre deck', soloDeckB: 'Deck adverse', soloEventA: 'Événement de départ', soloEventB: 'Événement adverse', lobby: 'Salon', onlinePlayers: 'Joueurs en ligne', onlineCount: 'En ligne: 0', ongoingGames: 'Parties en cours', messagePlaceholder: 'Saisir un message...', send: 'Envoyer', backHome: "Retour à l'accueil", draft: 'Phase de draft', reroll: 'Relancer', selectEvent: 'Choisir événement', selectEventDesc: 'Choisir un événement de départ', opponent: 'Adversaire', oppInfo: 'Main:0 Deck:0', battleLog: 'Journal de combat', you: 'Vous', youInfo: 'Main:0 Deck:0 Défausse:0', dragToPlay: 'Glisser pour jouer', endTurn: 'Fin du tour', viewDeck: 'Voir la pioche', viewDiscard: 'Voir la défausse', viewExile: "Voir l’exil", setNextDraw: 'Fixer prochaine pioche', pauseEdit: 'Pause édition', surrender: 'Abandonner', switchPerspective: 'Changer de perspective', leaveSpectate: "Quitter l'observation", rematch: 'Rejouer', returnLobby: 'Retour au salon', modEditor: 'Éditeur de mod', modPlaceholder: 'Collez ou modifiez le JSON du mod ici...', loadMod: 'Charger le mod', save: 'Enregistrer', validateJson: 'Valider le JSON', appearance: 'Apparence', theme: 'Thème', light: 'Clair', dark: 'Sombre', language: 'Langue', landscapeMode: 'Activer le mode paysage', server: 'Serveur', address: 'Adresse', serverPlaceholder: 'Laisser vide pour le serveur par défaut', mods: 'Mods', noMods: 'Aucun fichier de mod', cancel: 'Annuler', rotatePrompt: 'Veuillez jouer en mode paysage', rotateSub: 'Passez en mode paysage', continueEnter: 'Continuer' };
   T.ja = { ...T.en, subtitle: 'オンラインカード対戦', nickname: 'ニックネーム', nicknamePlaceholder: 'ニックネームを入力', enterLobby: 'マルチプレイ', storyMode: 'ストーリーモード', soloTraining: 'ソロ練習場', soloMods: 'Mod設定', settings: '設定', loadLast: '前回を読み込む', saveDecks: 'デッキ保存', startTraining: '開始', shuffleDeck: 'シャッフル', searchCards: 'カード検索', soloDeckA: '自分のデッキ', soloDeckB: '相手デッキ', soloEventA: '自分の開局イベント', soloEventB: '相手の開局イベント', lobby: 'ロビー', onlinePlayers: 'オンラインプレイヤー', onlineCount: 'オンライン: 0', ongoingGames: '進行中の対戦', messagePlaceholder: 'メッセージを入力...', send: '送信', backHome: 'ホームに戻る', draft: 'ドラフトフェイズ', reroll: 'リロール', selectEvent: 'イベント選択', selectEventDesc: 'オープニングイベントを選択', opponent: '相手', oppInfo: '手札:0 デッキ:0', battleLog: 'バトルログ', you: 'あなた', youInfo: '手札:0 デッキ:0 捨て札:0', dragToPlay: 'ドラッグしてプレイ', endTurn: 'ターン終了', viewDeck: '山札を見る', viewDiscard: '捨て札を見る', viewExile: '放逐を見る', setNextDraw: '次のドロー設定', pauseEdit: '中断して編集', surrender: '降参', switchPerspective: '視点切替', leaveSpectate: '観戦終了', rematch: '再戦', returnLobby: 'ロビーに戻る', modEditor: 'Modエディター', modPlaceholder: 'ここにMod JSONを貼り付けるか編集...', loadMod: 'Modを読み込む', validateJson: 'JSONを検証', appearance: '外観', theme: 'テーマ', light: 'ライト', dark: 'ダーク', language: '言語', landscapeMode: '横画面モードを有効化', server: 'サーバー', address: 'アドレス', serverPlaceholder: '空欄なら既定サーバーを使用', mods: 'Mod', noMods: 'Modファイルが見つかりません', cancel: 'キャンセル', rotatePrompt: '横向きでプレイしてください', rotateSub: '横向きにしてください', continueEnter: '続ける' };
+  T.en.lockAspectRatio = 'Lock aspect ratio (16:9)';
+  T.zh.lockAspectRatio = '锁定长宽比（16:9）';
+  T.fr.lockAspectRatio = 'Verrouiller le format (16:9)';
+  T.ja.lockAspectRatio = 'アスペクト比を固定（16:9）';
   const t = T[window.__bootLang] || T.zh;
   const setText = (sel, value) => {
     const el = document.querySelector(sel);
@@ -1416,7 +1481,7 @@
   setText('#view-lobby .lobby-header h2', t.lobby); setText('#view-lobby .lobby-left .lobby-section:first-child h3', t.onlinePlayers); setText('#lobby-online-count', t.onlineCount); setText('#view-lobby .lobby-left .lobby-section:last-child h3', t.ongoingGames); setText('#view-lobby .lobby-right .lobby-section h3', t.chat); setPlaceholder('#lobby-chat-input', t.messagePlaceholder); setText('#btn-lobby-chat-send', t.send); setText('#btn-lobby-back', t.backHome);
   setText('#view-draft h2', t.draft); setText('#btn-draft-reroll', t.reroll); setText('#view-event-select h2', t.selectEvent); setText('#view-event-select .event-desc', t.selectEventDesc); setText('#opp-label', t.opponent); setText('#opp-info', t.oppInfo); document.querySelectorAll('[data-battle-panel-tab="log"] .battle-panel-tab-label').forEach(el => { el.textContent = t.battleLog; }); setText('#you-label', t.you); setText('#you-info', t.youInfo); setText('#play-zone .play-zone-hint', t.dragToPlay); setText('#btn-end-turn', t.endTurn); setText('#btn-view-deck', t.viewDeck); setText('#btn-view-discard', t.viewDiscard); setText('#btn-view-exile', t.viewExile); setText('#btn-solo-next-draw', t.setNextDraw); setText('#btn-solo-edit', t.pauseEdit); setText('#btn-prediction-target', t.predictionTarget || '修改预测目标'); setText('#btn-surrender', t.surrender); setText('#btn-switch-perspective', t.switchPerspective); setText('#btn-spectate-view-deck', t.viewDeck); setText('#btn-spectate-view-discard', t.viewDiscard); setText('#btn-spectate-view-exile', t.viewExile); setText('#btn-leave-spectate', t.leaveSpectate); setPlaceholder('#game-chat-input', t.messagePlaceholder); setText('#btn-game-chat-send', t.send);
   setText('#btn-rematch', t.rematch); setText('#btn-return-lobby', t.returnLobby); setText('#btn-report-match', (window.__bootLang === 'zh' ? '举报本局' : 'Report Match')); setText('#view-mod-editor h2', t.modEditor); setPlaceholder('#mod-editor-area', t.modPlaceholder); setText('#btn-mod-load', t.loadMod); setText('#btn-mod-save', t.save); setText('#btn-mod-validate', t.validateJson); setText('#btn-mod-back', t.back);
-  setText('#settings-title', t.settings); setText('#settings-tab-appearance', t.appearance); setText('#settings-tab-server', t.server); setText('#settings-tab-mods', t.mods); setText('#settings-tab-audio', t.audio); setText('#settings-section-appearance', t.appearance); setText('#settings-label-theme', t.theme); setText('#settings-theme-select option[value=\"light\"]', t.light); setText('#settings-theme-select option[value=\"dark\"]', t.dark); setText('#settings-label-ui-style', t.uiStyle); setText('#settings-ui-style-select option[value=\"minimal\"]', t.minimal); setText('#settings-ui-style-select option[value=\"classic\"]', t.classic); setText('#settings-label-home-ui', t.homeUi); setText('#settings-home-ui-select option[value=\"simple\"]', t.homeUiSimple); setText('#settings-home-ui-select option[value=\"touhou\"]', t.homeUiTouhou); setText('#settings-label-lang', t.language); setText('#settings-label-landscape-mode', t.landscapeMode); setText('#settings-section-server', t.server); setText('#settings-label-server', t.address); setPlaceholder('#settings-server-input', t.serverPlaceholder); setText('#settings-section-mods', t.mods); setText('#settings-section-audio', t.audio); setText('#settings-no-mods', t.noMods); setText('#btn-settings-close', t.ok); setText('#game-prompt-cancel', t.cancel); setText('.rotate-text', t.rotatePrompt); setText('.rotate-text-en', t.rotateSub); setText('#btn-dismiss-rotate', t.continueEnter);
+  setText('#settings-title', t.settings); setText('#settings-tab-appearance', t.appearance); setText('#settings-tab-server', t.server); setText('#settings-tab-mods', t.mods); setText('#settings-tab-audio', t.audio); setText('#settings-section-appearance', t.appearance); setText('#settings-label-theme', t.theme); setText('#settings-theme-select option[value=\"light\"]', t.light); setText('#settings-theme-select option[value=\"dark\"]', t.dark); setText('#settings-label-ui-style', t.uiStyle); setText('#settings-ui-style-select option[value=\"minimal\"]', t.minimal); setText('#settings-ui-style-select option[value=\"classic\"]', t.classic); setText('#settings-label-home-ui', t.homeUi); setText('#settings-home-ui-select option[value=\"simple\"]', t.homeUiSimple); setText('#settings-home-ui-select option[value=\"touhou\"]', t.homeUiTouhou); setText('#settings-label-lang', t.language); setText('#settings-label-landscape-mode', t.landscapeMode); setText('#settings-label-lock-aspect-ratio', t.lockAspectRatio); setText('#settings-section-server', t.server); setText('#settings-label-server', t.address); setPlaceholder('#settings-server-input', t.serverPlaceholder); setText('#settings-section-mods', t.mods); setText('#settings-section-audio', t.audio); setText('#settings-no-mods', t.noMods); setText('#btn-settings-close', t.ok); setText('#game-prompt-cancel', t.cancel); setText('.rotate-text', t.rotatePrompt); setText('.rotate-text-en', t.rotateSub); setText('#btn-dismiss-rotate', t.continueEnter);
   const app = document.getElementById('app'); if (app) app.style.visibility = 'visible';
 })();
 </script>
@@ -1454,7 +1519,15 @@
     <script src="/static/js/resource_orbs.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/equipment_motion.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/shared-chat-actions.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/reward-animation.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/dew-hud.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/player-skins.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/eye-styles.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/mouth-styles.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/backgrounds.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/solo-local.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/game.js?v={{ static_version|default('dev')|urlencode }}"></script>
+    <script src="/static/js/season-settlement.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/keybindings.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/community.js?v={{ static_version|default('dev')|urlencode }}"></script>
 </body>

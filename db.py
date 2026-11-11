@@ -166,7 +166,7 @@ def _apply_signin_modifiers_conn(conn, base):
 
 # 荆露获取全局倍率（2026-10-18 控制台调控）：作用于玩家一切游戏内荆露获取
 # （对局奖励/签到/成就/赛季活动/故事通关/休闲花园与小游戏结算/段位结算），
-# 不影响管理员直发、充值荆露与消费扣减。入账 = round(数量 × 倍率)，下限 0。
+# 不影响管理员直发与消费扣减。入账 = round(数量 × 倍率)，下限 0。
 _DEW_GAIN_MOD_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS dew_gain_modifiers (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -415,8 +415,17 @@ TITLE_ID_RE = re.compile(r'^[a-z0-9][a-z0-9_.:-]{0,63}$')
 DEFAULT_SKIN_CONFIG = {
     'primary_color': '#FFE763',
     'eye_shape': 'oval',
+    'mouth_shape': 'original',
+    'skin_id': 'classic',
 }
-SKIN_EYE_SHAPES = {'oval', 'rectangle', 'diamond', 'hexagon'}
+SKIN_EYE_SHAPES = {'oval', 'rectangle', 'diamond', 'hexagon', 'angry', 'coin', 'dizzy'}
+SKIN_MOUTH_SHAPES = {'original', 'cat', 'smirk', 'open', 'angry'}
+SKIN_IDS = {
+    'classic', 'faceless', 'ghost', 'brain_damage', 'corrupted', 'mark', 'nazar',
+    'right_angle', 'centipede_head', 'desert_centipede_head', 'evil_centipede_head',
+    'tower_curse_ironclad', 'tower_curse_silent', 'tower_curse_defect',
+    'tower_curse_necrobinder', 'tower_curse_regent',
+}
 ROLE_DEFAULTS = {
     'admin': {
         'role_key': 'admin',
@@ -1118,6 +1127,8 @@ def init_db(
             conn.execute('ALTER TABLE users ADD COLUMN thorn_dew_free INTEGER DEFAULT 0')
         if 'thorn_dew_paid' not in existing_columns:
             conn.execute('ALTER TABLE users ADD COLUMN thorn_dew_paid INTEGER DEFAULT 0')
+        if 'golden_dew' not in existing_columns:
+            conn.execute('ALTER TABLE users ADD COLUMN golden_dew INTEGER NOT NULL DEFAULT 0')
         if 'afdian_bind_code' not in existing_columns:
             # 爱发电赞助兑换：玩家把绑定码填进订单留言，webhook 据此入账（可重置）
             conn.execute("ALTER TABLE users ADD COLUMN afdian_bind_code TEXT")
@@ -1179,9 +1190,18 @@ def init_db(
                 after_json TEXT NOT NULL,
                 dew_granted INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
+                animation_seen_at TEXT NOT NULL DEFAULT '',
                 UNIQUE (month_key, user_id)
             )
         ''')
+        rank_settlement_columns = {
+            row['name'] for row in conn.execute('PRAGMA table_info(rank_monthly_settlements)').fetchall()
+        }
+        if 'animation_seen_at' not in rank_settlement_columns:
+            conn.execute(
+                "ALTER TABLE rank_monthly_settlements "
+                "ADD COLUMN animation_seen_at TEXT NOT NULL DEFAULT ''"
+            )
         conn.execute('CREATE INDEX IF NOT EXISTS idx_users_rank ON users(rank_tier, rank_points)')
         if rank_columns_added:
             _backfill_ranks_from_season_gr(conn)
@@ -3374,6 +3394,7 @@ def init_db(
             coop_story_content_version,
             story_rules_version,
         )
+        _migrate_paid_thorn_dew_to_golden_conn(conn)
         conn.commit()
 
 
@@ -5102,6 +5123,8 @@ def load_story_manual_save(
             conn.rollback()
             return _story_run_payload(run_row), 'invalid_save'
         restored = _story_manual_save_snapshot(restored)
+        # 读档属于 SL：结局伤害与通关结算的 SL 系数保持 1.0。
+        restored['sl_used'] = True
         # 2026-10-16 修复：银行无限存钱——回档时清空银行余额，防止
         # 「存钱→存档→取钱→回档→再取钱」的无限循环。
         if int(restored.get('event_bank') or 0) > 0:
@@ -5172,6 +5195,14 @@ def commit_story_run_action(
         except (TypeError, ValueError, json.JSONDecodeError):
             conn.rollback()
             return _story_run_payload(row), 'invalid_state'
+        already_complete = (
+            str((current_state or {}).get('phase') or '') == 'complete'
+            and (current_state or {}).get('completed') is True
+        )
+        dev_run = bool(
+            (next_state or {}).get('dev_mode')
+            or (current_state or {}).get('dev_mode')
+        )
         row_content_version = str(row['content_version'] or '')
         if (
             str(current_state.get('content_version') or '') != row_content_version
@@ -5203,7 +5234,9 @@ def commit_story_run_action(
             (state_json, now, run_id, user_id),
         )
         if (
-            str((next_state or {}).get('phase') or '') == 'complete'
+            not already_complete
+            and not dev_run
+            and str((next_state or {}).get('phase') or '') == 'complete'
             and (next_state or {}).get('completed') is True
         ):
             player = (next_state or {}).get('player') or {}
@@ -5220,6 +5253,10 @@ def commit_story_run_action(
                 completed_at=now,
             )
             # 通关奖励（设计 2026-09-26）：按旅程分数发荆露；银行存款清零。
+            # 用 SAVEPOINT 保证「荆露/金露/流水/台账」原子落库：任何一步失败
+            # 都回滚本次结算并向上抛出，让整个通关动作一起回滚，避免只发钱
+            # 不记账（或只记一部分）的半笔入账。
+            conn.execute('SAVEPOINT story_clear_settlement')
             try:
                 from story_score import settle_story_clear_conn
                 settle_story_clear_conn(
@@ -5230,6 +5267,12 @@ def commit_story_run_action(
                 )
             except Exception as exc:
                 print(f'[story] reward settle failed: {type(exc).__name__}: {exc}', flush=True)
+                conn.execute('ROLLBACK TO story_clear_settlement')
+                conn.execute('RELEASE story_clear_settlement')
+                conn.rollback()
+                raise
+            else:
+                conn.execute('RELEASE story_clear_settlement')
             # 旅程历史（2026-10-09）：通关摘要落库，与上面同事务。
             try:
                 from story_history import record_run_summary_conn
@@ -5333,6 +5376,7 @@ def abandon_story_run(user_id, run_id=None):
     with closing(get_db_connection()) as conn:
         # 旅程历史（2026-10-09）：弃局前先落摘要——快照 phase=game_over 记为
         # defeat（战败后重开/弃局都走这里），其余记为 abandoned。
+        dev_run_ids = []
         try:
             import json as _json
             from story_history import record_run_summary_conn
@@ -5346,6 +5390,11 @@ def abandon_story_run(user_id, run_id=None):
                     state = _json.loads(row['state_json'] or '{}')
                 except (TypeError, ValueError, _json.JSONDecodeError):
                     state = {}
+                # 开发人员模式的旅程不写旅程记录，直接删除本次旅程及其动作日志，
+                # 不在服务端留下永久数据。
+                if state.get('dev_mode'):
+                    dev_run_ids.append(str(row['id']))
+                    continue
                 # 已有摘要（如通关后 UI 走 abandon 关闭旧局）不覆盖：
                 # victory 的记录以结算分支为准。
                 existing = conn.execute(
@@ -5359,6 +5408,10 @@ def abandon_story_run(user_id, run_id=None):
                     started_at=row['created_at'], ended_at=now,
                     result='defeat' if str(state.get('phase') or '') == 'game_over' else 'abandoned',
                 )
+            for dev_run_id in dev_run_ids:
+                conn.execute('DELETE FROM story_run_actions WHERE run_id = ?', (dev_run_id,))
+                conn.execute('DELETE FROM story_manual_saves WHERE run_id = ?', (dev_run_id,))
+                conn.execute('DELETE FROM story_runs WHERE id = ?', (dev_run_id,))
             conn.commit()
         except Exception as exc:
             print(f'[story] abandon history summary failed: {type(exc).__name__}: {exc}', flush=True)
@@ -5368,7 +5421,7 @@ def abandon_story_run(user_id, run_id=None):
             (now, now, *params),
         )
         conn.commit()
-    return bool(cursor.rowcount)
+    return bool(cursor.rowcount) or bool(dev_run_ids)
 
 
 def reset_story_run_map(user_id, seed, content_version, state, run_id=None):
@@ -5614,6 +5667,12 @@ def normalize_skin_config(value):
     eye_shape = str(value.get('eye_shape') or value.get('eyeShape') or '').strip().lower()
     if eye_shape in SKIN_EYE_SHAPES:
         skin['eye_shape'] = eye_shape
+    mouth_shape = str(value.get('mouth_shape') or value.get('mouthShape') or '').strip().lower()
+    if mouth_shape in SKIN_MOUTH_SHAPES:
+        skin['mouth_shape'] = mouth_shape
+    skin_id = str(value.get('skin_id') or value.get('skinId') or '').strip().lower()
+    if skin_id in SKIN_IDS:
+        skin['skin_id'] = skin_id
     return skin
 
 
@@ -5648,8 +5707,9 @@ def row_to_user(row):
         'online_seconds': int(row['online_seconds'] or 0) if 'online_seconds' in row.keys() else 0,
         'online_session_started_at': row['online_session_started_at'] if 'online_session_started_at' in row.keys() else None,
         'play_seconds': int(row['play_seconds'] or 0) if 'play_seconds' in row.keys() else 0,
-        'thorn_dew_free': max(0, int(row['thorn_dew_free'] or 0)) if 'thorn_dew_free' in row.keys() else 0,
-        'thorn_dew_paid': max(0, int(row['thorn_dew_paid'] or 0)) if 'thorn_dew_paid' in row.keys() else 0,
+        'thorn_dew_free': int(row['thorn_dew_free'] or 0) if 'thorn_dew_free' in row.keys() else 0,
+        'thorn_dew_paid': int(row['thorn_dew_paid'] or 0) if 'thorn_dew_paid' in row.keys() else 0,
+        'golden_dew': int(row['golden_dew'] or 0) if 'golden_dew' in row.keys() else 0,
         'password_changed_at': row['password_changed_at'] if 'password_changed_at' in row.keys() else None,
         'skin': normalize_skin_config(skin_raw),
         # 卡牌皮肤装备值必须随账号下发——客户端 myEquippedCardSkin 靠它渲染（图鉴/训练场全依赖）。
@@ -5852,16 +5912,130 @@ def list_user_recent_ips(user_id, limit=5):
         return items
 
 
+GOLDEN_DEW_MIGRATION_SOURCE_ID = 'paid_thorn_dew_v1'
+
+
+def _migrate_paid_thorn_dew_to_golden_conn(conn):
+    conn.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS golden_dew_migration (
+            user_id INTEGER PRIMARY KEY,
+            paid_earned INTEGER NOT NULL,
+            golden_granted INTEGER NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        '''
+    )
+    rows = conn.execute(
+        '''
+        SELECT user_id, COALESCE(SUM(paid_delta), 0) AS paid_earned
+        FROM user_currency_transactions
+        WHERE paid_delta > 0
+        GROUP BY user_id
+        '''
+    ).fetchall()
+    now = utc_now()
+    for row in rows:
+        uid = int(row['user_id'])
+        paid_earned = max(0, int(row['paid_earned'] or 0))
+        already = conn.execute(
+            'SELECT 1 FROM golden_dew_migration WHERE user_id = ?', (uid,),
+        ).fetchone()
+        if already:
+            continue
+        golden_delta = paid_earned // 100
+        current = conn.execute(
+            'SELECT golden_dew FROM users WHERE id = ?', (uid,),
+        ).fetchone()
+        if current is None:
+            continue
+        golden_after = int(current['golden_dew'] or 0) + golden_delta
+        conn.execute(
+            'UPDATE users SET golden_dew = ?, thorn_dew_paid = 0 WHERE id = ?',
+            (golden_after, uid),
+        )
+        if golden_delta > 0:
+            conn.execute(
+                '''
+                INSERT INTO user_currency_transactions (
+                    user_id, currency, free_delta, paid_delta, reason,
+                    source_type, source_id, balance_free_after,
+                    balance_paid_after, admin_username, created_at
+                ) VALUES (?, 'golden_dew', ?, 0, ?, ?, ?, ?, 0, '', ?)
+                ''',
+                (
+                    uid, golden_delta,
+                    '',
+                    'golden_dew_migration', GOLDEN_DEW_MIGRATION_SOURCE_ID,
+                    golden_after, now,
+                ),
+            )
+        conn.execute(
+            'INSERT INTO golden_dew_migration (user_id, paid_earned, golden_granted, created_at) '
+            'VALUES (?, ?, ?, ?)',
+            (uid, paid_earned, golden_delta, now),
+        )
+    conn.execute('UPDATE users SET thorn_dew_paid = 0')
+
+
+def get_user_golden_dew(user_id):
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return 0
+    with get_db_connection() as conn:
+        row = conn.execute('SELECT golden_dew FROM users WHERE id = ?', (uid,)).fetchone()
+        return int(row['golden_dew'] or 0) if row is not None else 0
+
+
+def adjust_user_golden_dew(user_id, delta, reason='', source_type='afdian', source_id='', admin_username='', allow_negative=False):
+    try:
+        uid = int(user_id)
+        delta = int(delta or 0)
+    except (TypeError, ValueError):
+        return None, '参数无效'
+    if delta == 0:
+        return None, '调整数量不能为0'
+    now = utc_now()
+    with get_db_connection() as conn:
+        row = conn.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
+        if row is None:
+            return None, '账号不存在'
+        before = int(row['golden_dew'] or 0)
+        after = before + delta
+        # 正向获取直接加到（可能为负的）余额上，不能用 max(0, 余额) 抹平欠债；
+        # 只有扣减才要求扣完不为负。
+        if delta < 0 and after < 0 and not allow_negative:
+            return None, '金露不足'
+        conn.execute('UPDATE users SET golden_dew = ? WHERE id = ?', (after, uid))
+        conn.execute(
+            '''
+            INSERT INTO user_currency_transactions (
+                user_id, currency, free_delta, paid_delta, reason,
+                source_type, source_id, balance_free_after,
+                balance_paid_after, admin_username, created_at
+            ) VALUES (?, 'golden_dew', ?, 0, ?, ?, ?, ?, 0, ?, ?)
+            ''',
+            (
+                uid, delta, str(reason or '')[:300], str(source_type or '')[:80],
+                str(source_id or '')[:120], after, str(admin_username or '')[:80], now,
+            ),
+        )
+        conn.commit()
+        row = conn.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
+        return row_to_user(row), None
+
+
 def _thorn_dew_payload(row_or_user):
     if row_or_user is None:
         return {'free': 0, 'paid': 0, 'total': 0}
     getter = row_or_user.get if isinstance(row_or_user, dict) else row_or_user.__getitem__
     try:
-        free = max(0, int(getter('thorn_dew_free') or 0))
+        free = int(getter('thorn_dew_free') or 0)
     except Exception:
         free = 0
     try:
-        paid = max(0, int(getter('thorn_dew_paid') or 0))
+        paid = int(getter('thorn_dew_paid') or 0)
     except Exception:
         paid = 0
     return {'free': free, 'paid': paid, 'total': free + paid}
@@ -5887,7 +6061,7 @@ def get_user_thorn_dew(user_id):
         return _thorn_dew_payload(row)
 
 
-def adjust_user_thorn_dew(user_id, free_delta=0, paid_delta=0, reason='', source_type='admin', source_id='', admin_username=''):
+def adjust_user_thorn_dew(user_id, free_delta=0, paid_delta=0, reason='', source_type='admin', source_id='', admin_username='', allow_negative=False):
     try:
         uid = int(user_id)
         free_delta = int(free_delta or 0)
@@ -5896,13 +6070,21 @@ def adjust_user_thorn_dew(user_id, free_delta=0, paid_delta=0, reason='', source
         return None, '参数无效'
     if free_delta == 0 and paid_delta == 0:
         return None, '调整数量不能为0'
+    if paid_delta:
+        if free_delta:
+            return None, '普通荆露与金露请分开调整'
+        golden_delta = int(paid_delta / 100)
+        return adjust_user_golden_dew(
+            uid, golden_delta, reason=reason, source_type=source_type,
+            source_id=source_id, admin_username=admin_username, allow_negative=allow_negative,
+        )
     now = utc_now()
     with get_db_connection() as conn:
         row = conn.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
         if row is None:
             return None, '账号不存在'
         # 荆露获取全局倍率（控制台调控）：仅作用于玩家游戏内正向获取，
-        # 管理员直发/补偿/充值等来源保持原值。
+        # 管理员直发/补偿/等来源保持原值。
         if (
             free_delta > 0
             and not str(admin_username or '').strip()
@@ -5911,12 +6093,14 @@ def adjust_user_thorn_dew(user_id, free_delta=0, paid_delta=0, reason='', source
             }
         ):
             free_delta = scale_dew_gain_conn(conn, free_delta)
-        free_before = max(0, int(row['thorn_dew_free'] or 0)) if 'thorn_dew_free' in row.keys() else 0
-        paid_before = max(0, int(row['thorn_dew_paid'] or 0)) if 'thorn_dew_paid' in row.keys() else 0
+        free_before = int(row['thorn_dew_free'] or 0) if 'thorn_dew_free' in row.keys() else 0
+        paid_before = int(row['thorn_dew_paid'] or 0) if 'thorn_dew_paid' in row.keys() else 0
         free_after = free_before + free_delta
         paid_after = paid_before + paid_delta
-        if free_after < 0 or paid_after < 0:
-            return None, '余额不足'
+        if not allow_negative:
+            # 正向获取要保留负余额（欠债），只有“扣减”分量才要求结果非负。
+            if (free_delta < 0 and free_after < 0) or (paid_delta < 0 and paid_after < 0):
+                return None, '余额不足'
         conn.execute(
             'UPDATE users SET thorn_dew_free = ?, thorn_dew_paid = ? WHERE id = ?',
             (free_after, paid_after, uid),
@@ -5947,7 +6131,82 @@ def adjust_user_thorn_dew(user_id, free_delta=0, paid_delta=0, reason='', source
         return row_to_user(row), None
 
 
-def spend_user_thorn_dew(user_id, amount, reason='', source_type='spend', source_id='', admin_username=''):
+def convert_user_dew(user_id, direction, amount):
+    """双向货币兑换：1 金露 = 100 荆露；1000 荆露 = 1 金露。"""
+    try:
+        uid = int(user_id)
+        value = int(amount or 0)
+    except (TypeError, ValueError):
+        return None, '数量必须是正整数'
+    if direction not in {'golden_to_dew', 'dew_to_golden'}:
+        return None, '兑换方向无效'
+    if value <= 0:
+        return None, '数量必须是正整数'
+    if direction == 'dew_to_golden' and value % 1000:
+        return None, '荆露数量必须是1000的倍数'
+    now = utc_now()
+    source_id = f'conversion:{secrets.token_hex(8)}'
+    with get_db_connection() as conn:
+        conn.execute('BEGIN IMMEDIATE')
+        row = conn.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
+        if row is None:
+            conn.rollback()
+            return None, '账号不存在'
+        free_before = int(row['thorn_dew_free'] or 0)
+        paid_after = int(row['thorn_dew_paid'] or 0)
+        golden_before = int(row['golden_dew'] or 0)
+        if direction == 'golden_to_dew':
+            if value > golden_before:
+                conn.rollback()
+                return None, '金露不足'
+            spent = value
+            received = value * 100
+            free_delta = received
+            golden_delta = -spent
+            reason = f'{spent}金露兑换为{received}荆露'
+        else:
+            if value > free_before:
+                conn.rollback()
+                return None, '荆露不足'
+            spent = value
+            received = value // 1000
+            free_delta = -spent
+            golden_delta = received
+            reason = f'{spent}荆露兑换为{received}金露'
+        free_after = free_before + free_delta
+        golden_after = golden_before + golden_delta
+        # 被花费的一端必须足够；获得的一端允许仍为负余额（先抵欠债）。
+        if (free_delta < 0 and free_after < 0) or (golden_delta < 0 and golden_after < 0):
+            conn.rollback()
+            return None, '余额不足'
+        conn.execute(
+            'UPDATE users SET thorn_dew_free = ?, thorn_dew_paid = ?, golden_dew = ? WHERE id = ?',
+            (free_after, paid_after, golden_after, uid),
+        )
+        for currency, delta, balance_after in (
+            ('thorn_dew', free_delta, free_after),
+            ('golden_dew', golden_delta, golden_after),
+        ):
+            conn.execute(
+                '''
+                INSERT INTO user_currency_transactions (
+                    user_id, currency, free_delta, paid_delta, reason,
+                    source_type, source_id, balance_free_after,
+                    balance_paid_after, admin_username, created_at
+                ) VALUES (?, ?, ?, 0, ?, 'currency_conversion', ?, ?, 0, '', ?)
+                ''',
+                (uid, currency, delta, reason, source_id, balance_after, now),
+            )
+        conn.commit()
+    return {
+        'direction': direction,
+        'spent': spent,
+        'received': received,
+        'source_id': source_id,
+    }, None
+
+
+def spend_user_thorn_dew(user_id, amount, reason='', source_type='spend', source_id='', admin_username='', allow_negative=False):
     try:
         amount = int(amount or 0)
     except (TypeError, ValueError):
@@ -5955,8 +6214,14 @@ def spend_user_thorn_dew(user_id, amount, reason='', source_type='spend', source
     if amount <= 0:
         return None, '数量必须大于0'
     balance = get_user_thorn_dew(user_id)
-    if balance['total'] < amount:
+    if balance['total'] < amount and not allow_negative:
         return None, '荆露不足'
+    if allow_negative:
+        # 控制台扣款允许欠债，统一从普通荆露扣除，避免拆分债务账户。
+        return adjust_user_thorn_dew(
+            user_id, free_delta=-amount, reason=reason, source_type=source_type,
+            source_id=source_id, admin_username=admin_username, allow_negative=True,
+        )
     free_spent = min(balance['free'], amount)
     paid_spent = amount - free_spent
     return adjust_user_thorn_dew(
@@ -5970,21 +6235,22 @@ def spend_user_thorn_dew(user_id, amount, reason='', source_type='spend', source
     )
 
 
-def list_user_thorn_dew_transactions(user_id, limit=30):
+def list_user_thorn_dew_transactions(user_id, limit=30, currency='thorn_dew'):
     try:
         uid = int(user_id)
         safe_limit = max(1, min(int(limit or 30), 100))
+        currency = str(currency or 'thorn_dew')
     except (TypeError, ValueError):
         return []
     with get_db_connection() as conn:
         rows = conn.execute(
             '''
             SELECT * FROM user_currency_transactions
-            WHERE user_id = ? AND currency = 'thorn_dew'
+            WHERE user_id = ? AND currency = ?
             ORDER BY id DESC
             LIMIT ?
             ''',
-            (uid, safe_limit),
+            (uid, currency, safe_limit),
         ).fetchall()
         return [
             {
@@ -6002,6 +6268,51 @@ def list_user_thorn_dew_transactions(user_id, limit=30):
             }
             for row in rows
         ]
+
+
+def get_thorn_dew_reward_updates(user_id, after_id=None, limit=100, currency='thorn_dew'):
+    """返回指定货币最新正向流水游标及增量，供统一奖励动画去重。"""
+    try:
+        uid = int(user_id)
+        safe_limit = max(1, min(int(limit or 100), 100))
+        cursor_after = None if after_id is None else max(0, int(after_id))
+        currency = str(currency or 'thorn_dew')
+    except (TypeError, ValueError):
+        return {'cursor': 0, 'items': []}
+    with get_db_connection() as conn:
+        cursor = int(conn.execute(
+            "SELECT COALESCE(MAX(id), 0) FROM user_currency_transactions "
+            "WHERE user_id = ? AND currency = ? "
+            "AND (free_delta > 0 OR paid_delta > 0)",
+            (uid, currency),
+        ).fetchone()[0] or 0)
+        if cursor_after is None:
+            return {'cursor': cursor, 'items': []}
+        rows = conn.execute(
+            '''
+            SELECT id, free_delta, paid_delta, reason, source_type, created_at
+            FROM user_currency_transactions
+            WHERE user_id = ? AND currency = ? AND id > ?
+              AND (free_delta > 0 OR paid_delta > 0)
+            ORDER BY id ASC
+            LIMIT ?
+            ''',
+            (uid, currency, cursor_after, safe_limit),
+        ).fetchall()
+    return {
+        # 分批时只能推进到本批最后一条，不能越过尚未返回的奖励。
+        'cursor': int(rows[-1]['id']) if rows else cursor_after,
+        'items': [
+            {
+                'id': int(row['id']),
+                'amount': int(row['free_delta'] or 0) + int(row['paid_delta'] or 0),
+                'reason': str(row['reason'] or ''),
+                'source_type': str(row['source_type'] or ''),
+                'created_at': str(row['created_at'] or ''),
+            }
+            for row in rows
+        ],
+    }
 
 
 def _thorn_dew_now():
@@ -6105,6 +6416,8 @@ def get_user_thorn_dew_center(user_id):
         reward_index = (max(1, next_streak) - 1) % len(THORN_DEW_SIGNIN_REWARDS)
         return {
             'balance': _thorn_dew_payload(user),
+            'golden_balance': int(user['golden_dew'] or 0) if 'golden_dew' in user.keys() else 0,
+            'golden_transactions': list_user_thorn_dew_transactions(uid, limit=20, currency='golden_dew'),
             'today': today,
             'checked_in_today': checkin is not None,
             'streak_day': int(checkin['streak_day'] or 0) if checkin else int(next_streak),
@@ -6148,8 +6461,8 @@ def claim_user_daily_checkin(user_id):
         reward = _apply_signin_modifiers_conn(conn, base)
         # 2026-10-18 控制台调控：荆露获取全局倍率
         reward = scale_dew_gain_conn(conn, reward)
-        free_before = max(0, int(user['thorn_dew_free'] or 0))
-        paid_before = max(0, int(user['thorn_dew_paid'] or 0))
+        free_before = int(user['thorn_dew_free'] or 0)
+        paid_before = int(user['thorn_dew_paid'] or 0)
         free_after = free_before + reward
         conn.execute(
             'INSERT INTO user_daily_checkins (user_id, checkin_date, streak_day, reward, created_at) VALUES (?, ?, ?, ?, ?)',
@@ -6157,10 +6470,12 @@ def claim_user_daily_checkin(user_id):
         )
         conn.execute('UPDATE users SET thorn_dew_free = ? WHERE id = ?', (free_after, uid))
         # 休闲花园门票（设计 2026-09-26）：签到 +1，每 7 天连续签到额外 +1（库存满 5 不发不补）
+        ticket_granted = 0
+        streak_ticket_bonus = 0
         try:
             import leisure_ticket
             leisure_ticket.ensure_ticket_columns(conn)
-            leisure_ticket.grant_checkin_tickets(conn, uid, streak)
+            ticket_granted, streak_ticket_bonus = leisure_ticket.grant_checkin_tickets(conn, uid, streak)
         except Exception as exc:
             try:
                 admin_event_log = f'leisure ticket signin grant failed: {exc}'
@@ -6178,7 +6493,15 @@ def claim_user_daily_checkin(user_id):
             (uid, reward, f'每日签到 第{streak}天', today, free_after, paid_before, now),
         )
         conn.commit()
-    return get_user_thorn_dew_center(uid), None
+    center = get_user_thorn_dew_center(uid)
+    # 只有本次成功签到才带实际发放数量，客户端据此播放奖励动画；
+    # 不用 next_checkin_reward（那是下一天的额度）。
+    center['checkin_granted'] = {
+        'dew': int(reward),
+        'leisure_tickets': int(ticket_granted),
+        'streak_ticket_bonus': int(streak_ticket_bonus),
+    }
+    return center, None
 
 
 def award_match_thorn_dew(match_id, summary, award_time=None):
@@ -6555,8 +6878,8 @@ def _award_achievement_reward_conn(conn, user_id, defn, now=None):
     user = conn.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
     if user is None:
         return False
-    free_before = max(0, int(user['thorn_dew_free'] or 0))
-    paid_before = max(0, int(user['thorn_dew_paid'] or 0))
+    free_before = int(user['thorn_dew_free'] or 0)
+    paid_before = int(user['thorn_dew_paid'] or 0)
     free_after = free_before + reward_delta
     conn.execute('UPDATE users SET thorn_dew_free = ? WHERE id = ?', (free_after, uid))
     source_id = defn['id'] if already_awarded <= 0 else f"{defn['id']}:topup:{reward}"
@@ -7518,8 +7841,8 @@ def _award_gr_season_activity_reward_for_conn(
     ).fetchone()
     if user is None:
         return 0
-    free_before = max(0, int(user['thorn_dew_free'] or 0))
-    paid_balance = max(0, int(user['thorn_dew_paid'] or 0))
+    free_before = int(user['thorn_dew_free'] or 0)
+    paid_balance = int(user['thorn_dew_paid'] or 0)
     free_after = free_before + reward
     conn.execute(
         'UPDATE users SET thorn_dew_free = ? WHERE id = ?',
@@ -7754,6 +8077,22 @@ def list_leaderboard(min_games=None, limit=50, scope='season'):
         )
         for row in rows
     ]
+
+
+def list_leaderboard_ids(limit=10, scope='total', min_games=None):
+    """榜单前 N 的 user_id 集合（匹配规则用，口径与 list_leaderboard 完全一致）。"""
+    try:
+        limit = max(1, min(100, int(limit or 10)))
+    except (TypeError, ValueError):
+        limit = 10
+    rows = list_leaderboard(min_games=min_games, limit=limit, scope=scope)
+    ids = set()
+    for item in rows:
+        try:
+            ids.add(int(item.get('id')))
+        except (TypeError, ValueError):
+            continue
+    return ids
 
 
 def get_leaderboard_rank(user_id, min_games=None, scope='season'):
@@ -8042,6 +8381,18 @@ def update_user_skin(user_id, skin_config):
         row = conn.execute('SELECT * FROM users WHERE id = ?', (uid,)).fetchone()
         if row is None:
             return None, '请先登录账号'
+        if skin['skin_id'] != 'classic':
+            import player_skins as _ps
+            if skin['skin_id'] not in _ps.list_owned_player_skins(conn, uid):
+                return None, '尚未拥有该玩家皮肤'
+        if skin['eye_shape'] not in {'oval', 'rectangle', 'diamond', 'hexagon'}:
+            import eye_styles as _es
+            if skin['eye_shape'] not in _es.list_owned_eye_shapes(conn, uid):
+                return None, '尚未拥有这款眼睛'
+        if skin['mouth_shape'] != 'original':
+            import mouth_styles as _ms
+            if skin['mouth_shape'] not in _ms.list_owned_mouth_shapes(conn, uid):
+                return None, '尚未拥有这款嘴型'
         if str(row['skin_json'] or '') != skin_json:
             conn.execute(
                 'UPDATE users SET skin_json = ? WHERE id = ?',
@@ -9895,7 +10246,7 @@ def _normalize_title_editor_catalog(raw_catalog, current_snapshot=None):
             'source_type': str(raw.get('source_type') or 'admin').strip().lower()[:24] or 'admin',
             'source_ref': str(raw.get('source_ref') or '').strip()[:96],
             'price_free': _title_editor_optional_int(raw.get('price_free'), '普通荆露价格'),
-            'price_paid': _title_editor_optional_int(raw.get('price_paid'), '充值荆露价格'),
+            'price_paid': _title_editor_optional_int(raw.get('price_paid'), ''),
             'purchasable': bool(raw.get('purchasable')),
             'active': bool(raw.get('active', True)),
             'shop_weight': _title_editor_optional_int(raw.get('shop_weight', 0), '商店权重') or 0,
@@ -11648,6 +11999,26 @@ ADMIN_USER_SORTS = {
     'play_seconds': 'play_seconds',
     'reputation': 'reputation',
     'win_rate': 'CASE WHEN games_played > 0 THEN CAST(wins AS REAL) / games_played ELSE 0 END',
+    'dew_earned_total': 'COALESCE(dew_sort.dew_earned_total, 0)',
+    'dew_current_total': '(thorn_dew_free + thorn_dew_paid)',
+    'dew_daily_avg_7d': 'COALESCE(dew_sort.dew_daily_avg_7d, 0)',
+    'dew_daily_avg_30d': 'COALESCE(dew_sort.dew_daily_avg_30d, 0)',
+    'golden_dew_earned_total': 'COALESCE(dew_sort.golden_dew_earned_total, 0)',
+    'golden_dew_current_total': 'golden_dew',
+    'golden_dew_daily_avg_7d': 'COALESCE(dew_sort.golden_dew_daily_avg_7d, 0)',
+    'golden_dew_daily_avg_30d': 'COALESCE(dew_sort.golden_dew_daily_avg_30d, 0)',
+}
+
+# 只有这些流水统计项需要先按全部流水汇总再排序；余额可直接读 users 字段。
+ADMIN_USER_DEW_SORTS = {
+    'dew_earned_total',
+    'dew_daily_avg_7d',
+    'dew_daily_avg_30d',
+}
+ADMIN_USER_GOLDEN_SORTS = {
+    'golden_dew_earned_total',
+    'golden_dew_daily_avg_7d',
+    'golden_dew_daily_avg_30d',
 }
 
 
@@ -11681,9 +12052,66 @@ OPENING_EVENT_STAT_SORTS = {
 }
 
 
+CARD_DRAFT_STATS_SPECIAL_MODES = ('reality', 'fancy', 'ordered')
+CARD_DRAFT_STATS_QUEUE_MODES = ('ranked', 'original', *CARD_DRAFT_STATS_SPECIAL_MODES)
+
+
+def card_draft_stats_mode_key(mode):
+    """接受旧版 1v1/2v2 及附加对局类型的统计模式键。"""
+    text = str(mode or '').strip().lower()
+    if text in ('1v1', '2v2'):
+        return text
+    base, separator, suffix = text.partition(':')
+    if not separator or base not in ('1v1', '2v2') or not suffix:
+        return ''
+    if suffix in ('ranked', 'original'):
+        return f'{base}:{suffix}'
+    tokens = suffix.split('+')
+    if not tokens or len(set(tokens)) != len(tokens) or any(token not in CARD_DRAFT_STATS_SPECIAL_MODES for token in tokens):
+        return ''
+    ordered = [token for token in CARD_DRAFT_STATS_SPECIAL_MODES if token in tokens]
+    return f"{base}:{'+'.join(ordered)}"
+
+
+def _card_draft_stats_mode_clause(mode):
+    """返回模式筛选 SQL；特殊模式组合分别计入每一个启用的模式。"""
+    key = str(mode or '').strip().lower()
+    if key in ('1v1', '2v2'):
+        return '(mode = ? OR mode LIKE ?)', [key, f'{key}:%']
+    if key in ('ranked', 'original'):
+        return 'mode LIKE ?', [f'%:{key}']
+    if key in CARD_DRAFT_STATS_SPECIAL_MODES:
+        return 'mode LIKE ?', [f'%{key}%']
+    return '', []
+
+
+def _card_draft_stats_mode_from_summary(summary, fallback_mode=''):
+    """从历史对局摘要恢复统计模式；缺少新字段时保留旧版混合口径。"""
+    base = str(fallback_mode or summary.get('mode') or '').strip().lower()
+    if base not in ('1v1', '2v2'):
+        return ''
+    canonical = str(summary.get('match_mode') or '').strip().lower()
+    match_type = str(summary.get('match_type') or '').strip().lower()
+    special_modes = summary.get('special_modes')
+    has_special_metadata = special_modes is not None or any(
+        f'{special}_mode' in summary or special in summary
+        for special in CARD_DRAFT_STATS_SPECIAL_MODES
+    )
+    if not canonical and not match_type and 'ranked' not in summary and not has_special_metadata:
+        return base
+    if canonical.startswith('ranked_') or match_type == 'ranked' or summary.get('ranked') is True:
+        return f'{base}:ranked'
+    special_set = {str(value).strip().lower() for value in special_modes or []} if isinstance(special_modes, (list, tuple, set)) else set()
+    active = []
+    for special in CARD_DRAFT_STATS_SPECIAL_MODES:
+        if special in special_set or summary.get(f'{special}_mode') is True or summary.get(special) is True:
+            active.append(special)
+    return card_draft_stats_mode_key(f"{base}:{'+'.join(active) if active else 'original'}")
+
+
 def record_card_draft_pick(mode, option_ids, picked_id, rank_tier=0):
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2'):
+    mode_key = card_draft_stats_mode_key(mode)
+    if not mode_key:
         return False
     picked = str(picked_id or '').strip()
     try:
@@ -11730,8 +12158,8 @@ def record_card_draft_pick(mode, option_ids, picked_id, rank_tier=0):
 
 
 def record_card_draft_counts(mode, card_counts, rank_tier=0):
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2') or not isinstance(card_counts, dict):
+    mode_key = card_draft_stats_mode_key(mode)
+    if not mode_key or not isinstance(card_counts, dict):
         return False
     try:
         rank_value = max(0, int(rank_tier or 0))
@@ -11790,8 +12218,8 @@ def record_card_draft_counts(mode, card_counts, rank_tier=0):
 
 
 def record_opening_event_pick_counts(mode, event_counts):
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2') or not isinstance(event_counts, dict):
+    mode_key = card_draft_stats_mode_key(mode)
+    if not mode_key or not isinstance(event_counts, dict):
         return False
     rows = []
     for raw_id, counts in event_counts.items():
@@ -11846,8 +12274,8 @@ def record_opening_event_pick_counts(mode, event_counts):
 
 
 def record_opening_event_win_result(mode, player_event_ids, winner_indices=None, result='finished'):
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2') or not isinstance(player_event_ids, (list, tuple)):
+    mode_key = card_draft_stats_mode_key(mode)
+    if not mode_key or not isinstance(player_event_ids, (list, tuple)):
         return False
     winner_set = set()
     for raw_idx in winner_indices or []:
@@ -11908,8 +12336,8 @@ def record_opening_event_win_result(mode, player_event_ids, winner_indices=None,
 
 
 def record_card_draft_win_result(mode, player_card_ids, winner_indices=None, result='finished', player_rank_tiers=None):
-    mode_key = str(mode or '').strip()
-    if mode_key not in ('1v1', '2v2'):
+    mode_key = card_draft_stats_mode_key(mode)
+    if not mode_key:
         return False
     if not isinstance(player_card_ids, (list, tuple)):
         return False
@@ -11927,18 +12355,19 @@ def record_card_draft_win_result(mode, player_card_ids, winner_indices=None, res
             rank_value = max(0, int(rank_tiers[pidx] or 0)) if pidx < len(rank_tiers) else 0
         except (TypeError, ValueError):
             rank_value = 0
-        unique_cards = set()
+        card_copies = {}
         for raw_id in raw_cards or []:
             card_id = str(raw_id or '').strip()
             if card_id:
-                unique_cards.add(card_id)
-        for card_id in unique_cards:
+                card_copies[card_id] = card_copies.get(card_id, 0) + 1
+        for card_id, copies in card_copies.items():
             picked_inc, win_inc, draw_inc = rows.get((rank_value, card_id), (0, 0, 0))
+            # 抽到局数按玩家×卡牌×对局去重；胜利按实际获胜的卡牌副本数累计。
             picked_inc += 1
             if is_draw:
                 draw_inc += 1
             elif pidx in winner_set:
-                win_inc += 1
+                win_inc += copies
             rows[(rank_value, card_id)] = (picked_inc, win_inc, draw_inc)
     if not rows:
         return False
@@ -12038,6 +12467,26 @@ def _match_winner_player_indices_for_card_stats(row, summary):
     return [winner_index], False
 
 
+def _match_player_rank_tiers_for_card_stats(summary, player_count):
+    """读取对局时的段位快照；没有快照的旧对局保留未知段位 0。"""
+    raw_tiers = summary.get('player_rank_tiers')
+    tiers = list(raw_tiers) if isinstance(raw_tiers, list) else []
+    if not tiers:
+        player_ids = summary.get('player_ids') or []
+        rank_before = ((summary.get('gr_result') or {}).get('rank') or {}).get('before') or {}
+        for uid in player_ids[:player_count]:
+            entry = rank_before.get(str(uid), {}) if uid is not None else {}
+            tiers.append(entry.get('tier_index', 0) if isinstance(entry, dict) else 0)
+    result = []
+    for pidx in range(player_count):
+        try:
+            tier = max(0, int(tiers[pidx] or 0)) if pidx < len(tiers) else 0
+        except (TypeError, ValueError):
+            tier = 0
+        result.append(tier)
+    return result
+
+
 def rebuild_card_draft_win_stats_from_matches():
     """Rebuild card win-rate stats from persisted match summaries.
 
@@ -12064,34 +12513,41 @@ def rebuild_card_draft_win_stats_from_matches():
                 continue
             week_start = week_start_for_iso(row['ended_at'] or row['started_at'])
             summary = _safe_json_loads(row['summary_json'], {})
+            mode = _card_draft_stats_mode_from_summary(summary, mode)
             player_cards = _match_draft_card_ids_by_player(summary)
             if not player_cards:
                 skipped_matches += 1
                 continue
             winner_indices, is_draw = _match_winner_player_indices_for_card_stats(row, summary)
             winner_set = set(winner_indices)
+            rank_tiers = _match_player_rank_tiers_for_card_stats(summary, len(player_cards))
             added = False
             for pidx, raw_cards in enumerate(player_cards):
-                unique_cards = {str(card_id).strip() for card_id in raw_cards if str(card_id or '').strip()}
-                if not unique_cards:
+                card_copies = {}
+                for card_id in raw_cards:
+                    card_id = str(card_id or '').strip()
+                    if card_id:
+                        card_copies[card_id] = card_copies.get(card_id, 0) + 1
+                if not card_copies:
                     continue
+                rank_value = rank_tiers[pidx]
                 added = True
-                for card_id in unique_cards:
-                    key = (mode, card_id)
+                for card_id, copies in card_copies.items():
+                    key = (mode, rank_value, card_id)
                     picked, wins, draws = totals.get(key, (0, 0, 0))
                     picked += 1
                     if is_draw:
                         draws += 1
                     elif pidx in winner_set:
-                        wins += 1
+                        wins += copies
                     totals[key] = (picked, wins, draws)
-                    weekly_key = (week_start, mode, card_id)
+                    weekly_key = (week_start, mode, rank_value, card_id)
                     week_picked, week_wins, week_draws = weekly_totals.get(weekly_key, (0, 0, 0))
                     week_picked += 1
                     if is_draw:
                         week_draws += 1
                     elif pidx in winner_set:
-                        week_wins += 1
+                        week_wins += copies
                     weekly_totals[weekly_key] = (week_picked, week_wins, week_draws)
             if added:
                 counted_matches += 1
@@ -12102,23 +12558,23 @@ def rebuild_card_draft_win_stats_from_matches():
         if totals:
             conn.executemany(
                 '''
-                INSERT INTO card_draft_win_stats (mode, card_id, picked_games, win_games, draw_games, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO card_draft_win_stats (mode, rank_tier, card_id, picked_games, win_games, draw_games, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ''',
                 [
-                    (mode, card_id, picked, wins, draws, now)
-                    for (mode, card_id), (picked, wins, draws) in totals.items()
+                    (mode, rank_value, card_id, picked, wins, draws, now)
+                    for (mode, rank_value, card_id), (picked, wins, draws) in totals.items()
                 ],
             )
         if weekly_totals:
             conn.executemany(
                 '''
-                INSERT INTO card_draft_win_stats_weekly (week_start, mode, card_id, picked_games, win_games, draw_games, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO card_draft_win_stats_weekly (week_start, mode, rank_tier, card_id, picked_games, win_games, draw_games, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 [
-                    (week_start, mode, card_id, picked, wins, draws, now)
-                    for (week_start, mode, card_id), (picked, wins, draws) in weekly_totals.items()
+                    (week_start, mode, rank_value, card_id, picked, wins, draws, now)
+                    for (week_start, mode, rank_value, card_id), (picked, wins, draws) in weekly_totals.items()
                 ],
             )
         conn.commit()
@@ -12160,6 +12616,7 @@ def rebuild_opening_event_win_stats_from_matches():
                 continue
             week_start = week_start_for_iso(row['ended_at'] or row['started_at'])
             summary = _safe_json_loads(row['summary_json'], {})
+            mode = _card_draft_stats_mode_from_summary(summary, mode)
             event_ids = summary.get('opening_event_ids_by_player')
             if not isinstance(event_ids, (list, tuple)) or not event_ids:
                 skipped_matches += 1
@@ -12250,9 +12707,10 @@ def list_card_draft_stats(mode='', sort='pick_rate', order='desc', limit=300, of
     except (TypeError, ValueError):
         safe_offset = 0
     merge = bool(merge_modes)
-    mode_filter = mode_key if mode_key in ('1v1', '2v2') else ''
-    mode_where = 'WHERE mode = ?' if mode_filter else ''
-    mode_params = [mode_filter] if mode_filter else []
+    mode_filter = mode_key.strip().lower()
+    mode_condition, mode_condition_params = _card_draft_stats_mode_clause(mode_filter)
+    mode_where = f'WHERE {mode_condition}' if mode_condition else ''
+    mode_params = list(mode_condition_params)
     scope_key = 'week' if str(scope or '').lower() in ('week', 'weekly') else 'total'
     draft_table = 'card_draft_stats_weekly' if scope_key == 'week' else 'card_draft_stats'
     win_table = 'card_draft_win_stats_weekly' if scope_key == 'week' else 'card_draft_win_stats'
@@ -12260,9 +12718,9 @@ def list_card_draft_stats(mode='', sort='pick_rate', order='desc', limit=300, of
     selected_week = week_start_for_iso(week_start) if scope_key == 'week' else ''
     if scope_key == 'week':
         week_clause = 'week_start = ?'
-        if mode_filter:
-            mode_where = f'WHERE {week_clause} AND mode = ?'
-            mode_params = [selected_week, mode_filter]
+        if mode_condition:
+            mode_where = f'WHERE {week_clause} AND {mode_condition}'
+            mode_params = [selected_week] + mode_condition_params
         else:
             mode_where = f'WHERE {week_clause}'
             mode_params = [selected_week]
@@ -12306,12 +12764,12 @@ def list_card_draft_stats(mode='', sort='pick_rate', order='desc', limit=300, of
         if scope_key == 'week':
             winner_pool_where = 'WHERE week_start = ?'
             winner_pool_params = [selected_week]
-            if mode_filter:
-                winner_pool_where += ' AND mode = ?'
-                winner_pool_params.append(mode_filter)
-        elif mode_filter:
-            winner_pool_where = 'WHERE mode = ?'
-            winner_pool_params = [mode_filter]
+            if mode_condition:
+                winner_pool_where += f' AND {mode_condition}'
+                winner_pool_params += mode_condition_params
+        elif mode_condition:
+            winner_pool_where = f'WHERE {mode_condition}'
+            winner_pool_params = list(mode_condition_params)
         total_winner_picks = 0
         try:
             total_winner_picks = int(conn.execute(
@@ -12468,9 +12926,10 @@ def list_opening_event_stats(mode='', sort='pick_rate', order='desc', limit=300,
     except (TypeError, ValueError):
         safe_offset = 0
     merge = bool(merge_modes)
-    mode_filter = mode_key if mode_key in ('1v1', '2v2') else ''
-    mode_where = 'WHERE mode = ?' if mode_filter else ''
-    mode_params = [mode_filter] if mode_filter else []
+    mode_filter = mode_key.strip().lower()
+    mode_condition, mode_condition_params = _card_draft_stats_mode_clause(mode_filter)
+    mode_where = f'WHERE {mode_condition}' if mode_condition else ''
+    mode_params = list(mode_condition_params)
     scope_key = 'week' if str(scope or '').lower() in ('week', 'weekly') else 'total'
     pick_table = 'opening_event_pick_stats_weekly' if scope_key == 'week' else 'opening_event_pick_stats'
     win_table = 'opening_event_win_stats_weekly' if scope_key == 'week' else 'opening_event_win_stats'
@@ -12478,9 +12937,9 @@ def list_opening_event_stats(mode='', sort='pick_rate', order='desc', limit=300,
     winner_filter = bool(winner_only)
     selected_week = week_start_for_iso(week_start) if scope_key == 'week' else ''
     if scope_key == 'week':
-        if mode_filter:
-            mode_where = 'WHERE week_start = ? AND mode = ?'
-            mode_params = [selected_week, mode_filter]
+        if mode_condition:
+            mode_where = f'WHERE week_start = ? AND {mode_condition}'
+            mode_params = [selected_week] + mode_condition_params
         else:
             mode_where = 'WHERE week_start = ?'
             mode_params = [selected_week]
@@ -12493,12 +12952,12 @@ def list_opening_event_stats(mode='', sort='pick_rate', order='desc', limit=300,
         if scope_key == 'week':
             winner_pool_where = 'WHERE week_start = ?'
             winner_pool_params = [selected_week]
-            if mode_filter:
-                winner_pool_where += ' AND mode = ?'
-                winner_pool_params.append(mode_filter)
-        elif mode_filter:
-            winner_pool_where = 'WHERE mode = ?'
-            winner_pool_params = [mode_filter]
+            if mode_condition:
+                winner_pool_where += f' AND {mode_condition}'
+                winner_pool_params += mode_condition_params
+        elif mode_condition:
+            winner_pool_where = f'WHERE {mode_condition}'
+            winner_pool_params = list(mode_condition_params)
         total_winner_picks = 0
         try:
             total_winner_picks = int(conn.execute(
@@ -12722,6 +13181,68 @@ def list_average_round_stats(scope='total', mode='', recent_days=7):
     }
 
 
+def _dew_stats_for_users(conn, user_ids, now=None):
+    """批量返回荆露与金露统计：历史正向获取及近 7/30 天日均，不扣消费。"""
+    ids = sorted({int(value) for value in (user_ids or [])})
+    if not ids:
+        return {}
+    now_dt = _parse_utc_datetime(now) if now is not None else utc_now_dt()
+    cutoff_7d = utc_iso(now_dt - timedelta(days=7))
+    cutoff_30d = utc_iso(now_dt - timedelta(days=30))
+    placeholders = ','.join('?' for _ in ids)
+    rows = conn.execute(
+        f'''
+        SELECT user_id,
+               SUM(CASE WHEN currency = 'thorn_dew' AND free_delta > 0 THEN free_delta ELSE 0 END)
+                 + SUM(CASE WHEN currency = 'thorn_dew' AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS dew_earned_total,
+               SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                 + SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS dew_earned_7d,
+               SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                 + SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS dew_earned_30d,
+               SUM(CASE WHEN currency = 'golden_dew' AND free_delta > 0 THEN free_delta ELSE 0 END)
+                 + SUM(CASE WHEN currency = 'golden_dew' AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS golden_dew_earned_total,
+               SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                 + SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS golden_dew_earned_7d,
+               SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                 + SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS golden_dew_earned_30d
+        FROM user_currency_transactions
+        WHERE user_id IN ({placeholders})
+        GROUP BY user_id
+        ''',
+        (
+            cutoff_7d, cutoff_7d, cutoff_30d, cutoff_30d,
+            cutoff_7d, cutoff_7d, cutoff_30d, cutoff_30d,
+            *ids,
+        ),
+    ).fetchall()
+    stats = {}
+    for row in rows:
+        uid = int(row['user_id'])
+        stats[uid] = {
+            'dew_earned_total': int(row['dew_earned_total'] or 0),
+            'dew_daily_avg_7d': round(int(row['dew_earned_7d'] or 0) / 7.0, 2),
+            'dew_daily_avg_30d': round(int(row['dew_earned_30d'] or 0) / 30.0, 2),
+            'golden_dew_earned_total': int(row['golden_dew_earned_total'] or 0),
+            'golden_dew_daily_avg_7d': round(int(row['golden_dew_earned_7d'] or 0) / 7.0, 2),
+            'golden_dew_daily_avg_30d': round(int(row['golden_dew_earned_30d'] or 0) / 30.0, 2),
+        }
+    return stats
+
+
+def _apply_dew_stats(users, stats):
+    for user in users:
+        user['dew_current_total'] = int(user.get('thorn_dew_total') or 0)
+        user['golden_dew_current_total'] = int(user.get('golden_dew') or 0)
+        values = stats.get(int(user['id']), {})
+        user['dew_earned_total'] = int(values.get('dew_earned_total', 0) or 0)
+        user['dew_daily_avg_7d'] = float(values.get('dew_daily_avg_7d', 0.0) or 0.0)
+        user['dew_daily_avg_30d'] = float(values.get('dew_daily_avg_30d', 0.0) or 0.0)
+        user['golden_dew_earned_total'] = int(values.get('golden_dew_earned_total', 0) or 0)
+        user['golden_dew_daily_avg_7d'] = float(values.get('golden_dew_daily_avg_7d', 0.0) or 0.0)
+        user['golden_dew_daily_avg_30d'] = float(values.get('golden_dew_daily_avg_30d', 0.0) or 0.0)
+    return users
+
+
 def list_admin_users(query='', sort='last_login_at', order='desc', limit=30, offset=0, deleted=None,
                      reputation_min=None, reputation_max=None):
     """管理台账号列表/搜索。deleted=None 不过滤（含注销号，输出里带标记）；
@@ -12768,19 +13289,87 @@ def list_admin_users(query='', sort='last_login_at', order='desc', limit=30, off
     else:
         order_clause = f'{sort_expr} {direction}, id DESC'
 
+    select_clause = 'users.*'
+    from_clause = 'users'
+    query_params = list(params)
+    dew_sorted = sort_key in ADMIN_USER_DEW_SORTS
+    golden_sorted = sort_key in ADMIN_USER_GOLDEN_SORTS
+    currency_sorted = dew_sorted or golden_sorted
+    if currency_sorted:
+        # 排序和分页都必须作用于汇总结果，不能只排列当前页的账号。
+        now_dt = utc_now_dt()
+        cutoff_7d = utc_iso(now_dt - timedelta(days=7))
+        cutoff_30d = utc_iso(now_dt - timedelta(days=30))
+        select_clause += '''
+            , COALESCE(dew_sort.dew_earned_total, 0) AS dew_earned_total
+            , COALESCE(dew_sort.dew_daily_avg_7d, 0) AS dew_daily_avg_7d
+            , COALESCE(dew_sort.dew_daily_avg_30d, 0) AS dew_daily_avg_30d
+            , COALESCE(dew_sort.golden_dew_earned_total, 0) AS golden_dew_earned_total
+            , COALESCE(dew_sort.golden_dew_daily_avg_7d, 0) AS golden_dew_daily_avg_7d
+            , COALESCE(dew_sort.golden_dew_daily_avg_30d, 0) AS golden_dew_daily_avg_30d
+        '''
+        from_clause += '''
+            LEFT JOIN (
+                SELECT user_id,
+                       SUM(CASE WHEN currency = 'thorn_dew' AND free_delta > 0 THEN free_delta ELSE 0 END)
+                         + SUM(CASE WHEN currency = 'thorn_dew' AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS dew_earned_total,
+                       ROUND((
+                           SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                           + SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END)
+                       ) / 7.0, 2) AS dew_daily_avg_7d,
+                       ROUND((
+                           SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                           + SUM(CASE WHEN currency = 'thorn_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END)
+                       ) / 30.0, 2) AS dew_daily_avg_30d,
+                       SUM(CASE WHEN currency = 'golden_dew' AND free_delta > 0 THEN free_delta ELSE 0 END)
+                         + SUM(CASE WHEN currency = 'golden_dew' AND paid_delta > 0 THEN paid_delta ELSE 0 END) AS golden_dew_earned_total,
+                       ROUND((
+                           SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                           + SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END)
+                       ) / 7.0, 2) AS golden_dew_daily_avg_7d,
+                       ROUND((
+                           SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND free_delta > 0 THEN free_delta ELSE 0 END)
+                           + SUM(CASE WHEN currency = 'golden_dew' AND created_at >= ? AND paid_delta > 0 THEN paid_delta ELSE 0 END)
+                       ) / 30.0, 2) AS golden_dew_daily_avg_30d
+                FROM user_currency_transactions
+                GROUP BY user_id
+            ) AS dew_sort ON dew_sort.user_id = users.id
+        '''
+        query_params = [
+            cutoff_7d, cutoff_7d, cutoff_30d, cutoff_30d,
+            cutoff_7d, cutoff_7d, cutoff_30d, cutoff_30d,
+        ] + query_params
+
     with get_db_connection() as conn:
         total = conn.execute(f'SELECT COUNT(*) FROM users {where}', params).fetchone()[0]
         rows = conn.execute(
             f'''
-            SELECT * FROM users
+            SELECT {select_clause}
+            FROM {from_clause}
             {where}
             ORDER BY {order_clause}
             LIMIT ? OFFSET ?
             ''',
-            params + [safe_limit, safe_offset],
+            query_params + [safe_limit, safe_offset],
         ).fetchall()
+        users = [row_to_admin_user(row) for row in rows]
+        if currency_sorted:
+            dew_stats = {
+                int(row['id']): {
+                    'dew_earned_total': row['dew_earned_total'],
+                    'dew_daily_avg_7d': row['dew_daily_avg_7d'],
+                    'dew_daily_avg_30d': row['dew_daily_avg_30d'],
+                    'golden_dew_earned_total': row['golden_dew_earned_total'],
+                    'golden_dew_daily_avg_7d': row['golden_dew_daily_avg_7d'],
+                    'golden_dew_daily_avg_30d': row['golden_dew_daily_avg_30d'],
+                }
+                for row in rows
+            }
+        else:
+            dew_stats = _dew_stats_for_users(conn, [user['id'] for user in users])
+        _apply_dew_stats(users, dew_stats)
     return {
-        'users': [row_to_admin_user(row) for row in rows],
+        'users': users,
         'total': total,
         'limit': safe_limit,
         'offset': safe_offset,
@@ -12933,6 +13522,7 @@ def get_admin_user_detail(user_id, match_limit=30):
         if row is None:
             return None
         user = row_to_admin_user(row)
+        _apply_dew_stats([user], _dew_stats_for_users(conn, [uid]))
         link_group = conn.execute(
             '''
             SELECT g.id, g.status, g.risk_score
@@ -15114,8 +15704,13 @@ def preview_gr_match_result(mode, player_ids, viewer_user_id=None):
         by_id = {int(row['id']): row for row in rows}
         if len(by_id) != len(ids):
             return {'applied': False, 'reason': 'unknown_user'}
-        from pvp_economy import protected_loss_conn
+        from pvp_economy import protected_loss_conn, profile_conn as newcomer_profile_conn
         protected = {uid:protected_loss_conn(conn,uid) for uid in ids}
+        newcomer_status = {uid:newcomer_profile_conn(conn,uid)['is_newcomer'] for uid in ids}
+        non_newcomer_protected = [
+            uid for uid in ids
+            if not newcomer_status[uid] and any(newcomer_status[other] for other in (team_b if uid in team_a else team_a))
+        ]
         repeat_rows = conn.execute(
             '''
             SELECT team_a_ids_json, team_b_ids_json
@@ -15176,6 +15771,7 @@ def preview_gr_match_result(mode, player_ids, viewer_user_id=None):
         'repeat_factor': repeat_factor,
         'outcomes': outcomes,
         'viewer': viewer,
+        'non_newcomer_protected_user_ids': non_newcomer_protected,
     }
 
 
@@ -16197,17 +16793,186 @@ def user_rank_payload(user_or_id, *, include_special=False):
     return payload
 
 
-def settle_ranks_monthly(month_key=None, *, limit=None):
-    """月度结算（设计 2026-10-02，北京月末 23:59 锁定）。
+def _rank_season_match_stats_for_conn(conn, user_id, ranked_season_id):
+    """按已计分赛季记录汇总玩家数据，避免为结算回顾重扫全部对局。"""
+    uid = int(user_id)
+    stats = {'games': 0, 'wins': 0, 'losses': 0, 'draws': 0, 'modes': {}}
+    rows = conn.execute(
+        '''
+        SELECT mode, participant_ids_json, team_a_ids_json, team_b_ids_json,
+               winner_side, is_draw
+        FROM gr_match_results
+        WHERE season_id = ?
+        ORDER BY id ASC
+        ''',
+        (str(ranked_season_id or ''),),
+    ).fetchall()
+    for row in rows:
+        participants = {
+            int(value) for value in _safe_json_loads(row['participant_ids_json'], [])
+            if str(value or '').lstrip('-').isdigit()
+        }
+        if uid not in participants:
+            continue
+        mode = str(row['mode'] or '').strip().lower() or 'unknown'
+        mode_stats = stats['modes'].setdefault(
+            mode, {'games': 0, 'wins': 0, 'losses': 0, 'draws': 0},
+        )
+        stats['games'] += 1
+        mode_stats['games'] += 1
+        if int(row['is_draw'] or 0):
+            outcome = 'draws'
+        else:
+            team_a = {
+                int(value) for value in _safe_json_loads(row['team_a_ids_json'], [])
+                if str(value or '').lstrip('-').isdigit()
+            }
+            team_b = {
+                int(value) for value in _safe_json_loads(row['team_b_ids_json'], [])
+                if str(value or '').lstrip('-').isdigit()
+            }
+            player_side = 0 if uid in team_a else (1 if uid in team_b else None)
+            try:
+                winner_side = int(row['winner_side'])
+            except (TypeError, ValueError):
+                winner_side = None
+            if player_side is None or winner_side not in (0, 1):
+                continue
+            outcome = 'wins' if player_side == winner_side else 'losses'
+        stats[outcome] += 1
+        mode_stats[outcome] += 1
+    stats['win_rate'] = round(stats['wins'] * 100 / stats['games'], 1) if stats['games'] else 0.0
+    for mode in ('1v1', '2v2'):
+        stats['modes'].setdefault(mode, {'games': 0, 'wins': 0, 'losses': 0, 'draws': 0})
+    return stats
 
-    每名未注销玩家：获得 段位×1000 荆露；段位分清零；按规则掉段
-    （basic → 前一大段 basic，非 basic → 本大段 basic；common basic 不动）。
-    以 rank_settled_month + rank_monthly_settlements 唯一键做幂等，重复
-    调用同月不会重复发奖或重复掉段。
+
+def get_rank_season_settlement(user_id, month_key=None):
+    """返回一次赛季结算的三页回顾数据；不写段位、库存或已读状态。"""
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return None
+    with get_db_connection() as conn:
+        if month_key:
+            row = conn.execute(
+                '''
+                SELECT month_key, before_json, after_json, dew_granted, created_at, animation_seen_at
+                FROM rank_monthly_settlements
+                WHERE user_id = ? AND month_key = ?
+                ''',
+                (uid, str(month_key)),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                '''
+                SELECT month_key, before_json, after_json, dew_granted, created_at, animation_seen_at
+                FROM rank_monthly_settlements
+                WHERE user_id = ?
+                ORDER BY month_key DESC LIMIT 1
+                ''',
+                (uid,),
+            ).fetchone()
+        if row is None:
+            return None
+        before = _safe_json_loads(row['before_json'], {})
+        after = _safe_json_loads(row['after_json'], {})
+        if not isinstance(before, dict) or not isinstance(after, dict) or not before or not after:
+            return None
+        settled_month = str(row['month_key'] or '')
+        season_label = str(
+            before.get('season_name') or _rank.season_name_for_month(settled_month)
+        ).strip() or _rank.CURRENT_SEASON_NAME
+        month_match = re.fullmatch(r'(\d{4})-(\d{2})', settled_month)
+        ranked_season_id = (
+            f'{GR_RANKED_ERA}-S{month_match.group(1)}{month_match.group(2)}'
+            if month_match else settled_month
+        )
+        stats = _rank_season_match_stats_for_conn(conn, uid, ranked_season_id)
+
+    before_tier = int(before.get('tier_index') or 1)
+    before_points = int(before.get('points') or 0)
+    after_tier = int(after.get('tier_index') or 1)
+    after_points = int(after.get('points') or 0)
+    before_absolute = int(before.get('absolute_points') or _rank.tier_to_absolute(before_tier, before_points))
+    after_absolute = _rank.tier_to_absolute(after_tier, after_points)
+    snapshot_games = before.get('season_ranked_games')
+    # 快照里的 0 是有效值；只有旧记录缺少该字段时才回退到计分统计。
+    match_count = max(0, int(stats['games'] if snapshot_games is None else snapshot_games))
+    base_dew = _rank.settlement_reward_dew(before_tier, before_points, match_count)
+    advanced_earned = match_count >= _rank.SEASON_ADVANCED_REWARD_GAMES
+    advanced_dew = _rank.SEASON_ADVANCED_REWARD_DEW if advanced_earned else 0
+    before['absolute_points'] = before_absolute
+    after['absolute_points'] = after_absolute
+    return {
+        'month_key': settled_month,
+        'season_name': season_label,
+        'created_at': str(row['created_at'] or ''),
+        'animation_seen_at': str(row['animation_seen_at'] or ''),
+        'stats': stats,
+        'before': before,
+        'after': after,
+        'changes': {
+            'subtiers': after_tier - before_tier,
+            'points': after_points - before_points,
+            'absolute_points': after_absolute - before_absolute,
+        },
+        'rewards': {
+            'base': {
+                'earned': match_count >= _rank.SEASON_BASE_REWARD_GAMES,
+                'required_games': _rank.SEASON_BASE_REWARD_GAMES,
+                'remaining_games': max(0, _rank.SEASON_BASE_REWARD_GAMES - match_count),
+                'dew': base_dew,
+            },
+            'advanced': {
+                'earned': advanced_earned,
+                'required_games': _rank.SEASON_ADVANCED_REWARD_GAMES,
+                'remaining_games': max(0, _rank.SEASON_ADVANCED_REWARD_GAMES - match_count),
+                'dew': advanced_dew,
+                'title': f'{season_label}赛季参与者',
+            },
+        },
+    }
+
+
+def claim_rank_season_settlement_animation(user_id, month_key):
+    """原子认领一次动画展示；同一玩家同一赛季仅首个请求成功。"""
+    try:
+        uid = int(user_id)
+    except (TypeError, ValueError):
+        return False
+    with get_db_connection() as conn:
+        cursor = conn.execute(
+            '''
+            UPDATE rank_monthly_settlements
+            SET animation_seen_at = ?
+            WHERE user_id = ? AND month_key = ?
+              AND COALESCE(animation_seen_at, '') = ''
+            ''',
+            (utc_now(), uid, str(month_key or '')),
+        )
+        conn.commit()
+        return cursor.rowcount == 1
+
+
+def settle_ranks_monthly(month_key=None, *, limit=None, season_name=None):
+    """赛季结算：按 ultra 分界掉段，段内分置 10，并按 30/100 局发奖。
+
+    基础奖励为 5000 + 结算前绝对段位分×10；满 100 局再发 5000 荆露与
+    ``XX赛季参与者`` 称号。以 rank_settled_month + rank_monthly_settlements
+    唯一键做幂等，重复调用同月不会重复发奖、授予或掉段。
     """
     if not month_key:
         from datetime import datetime, timezone, timedelta
         month_key = _rank.beijing_month_key(datetime.now(timezone.utc))
+    season_label = str(
+        season_name or _rank.season_name_for_month(month_key)
+    ).strip() or _rank.CURRENT_SEASON_NAME
+    month_match = re.fullmatch(r'(\d{4})-(\d{2})', str(month_key or ''))
+    ranked_season_id = (
+        f'{GR_RANKED_ERA}-S{month_match.group(1)}{month_match.group(2)}'
+        if month_match else str(month_key or '')
+    )
     settled = []
     total_dew = 0
     with get_db_connection() as conn:
@@ -16222,13 +16987,28 @@ def settle_ranks_monthly(month_key=None, *, limit=None):
         ).fetchall()
         if limit:
             rows = rows[:int(limit)]
+        # 直接读赛季对局记录；users.season_ranked_games 可能已被新赛季重置。
+        match_counts = _gr_season_valid_match_counts_for_conn(
+            conn,
+            [int(row['id']) for row in rows],
+            ranked_season_id,
+        )
         for row in rows:
             uid = int(row['id'])
+            tier = int(row['rank_tier'] or 1)
+            points = int(row['rank_points'] or 0)
+            match_count = max(0, int(match_counts.get(uid, 0) or 0))
+            absolute_points = _rank.tier_to_absolute(tier, points)
             before = _rank.rank_payload(
-                int(row['rank_tier'] or 1),
-                int(row['rank_points'] or 0),
+                tier,
+                points,
                 streak=int(row['rank_streak'] or 0),
             )
+            before.update({
+                'absolute_points': absolute_points,
+                'season_ranked_games': match_count,
+                'season_name': season_label,
+            })
             try:
                 conn.execute(
                     '''
@@ -16247,44 +17027,100 @@ def settle_ranks_monthly(month_key=None, *, limit=None):
                 )
             except sqlite3.IntegrityError:
                 continue   # 该玩家本月已结算（并发兜底）
-            new_tier = _rank.monthly_settlement_tier(int(before['tier_index']))
-            after = _rank.rank_payload(new_tier, 0)
-            dew = _rank.settlement_reward_dew(int(before['tier_index']))
+            new_tier = _rank.monthly_settlement_tier(tier)
+            after = _rank.rank_payload(new_tier, _rank.SEASON_SETTLEMENT_POINTS)
+            base_dew = _rank.settlement_reward_dew(tier, points, match_count)
+            advanced = match_count >= _rank.SEASON_ADVANCED_REWARD_GAMES
+            advanced_dew = _rank.SEASON_ADVANCED_REWARD_DEW if advanced else 0
+            title_key = ''
+            if advanced:
+                title_key = _normalize_title_id(
+                    f'season:{season_label.lower()}-participant'
+                )
+                if not title_key:
+                    raise ValueError('赛季名无法生成有效的称号 ID')
+                _upsert_title_catalog_conn(
+                    conn,
+                    title_key,
+                    f'{season_label}赛季参与者',
+                    '#D4AF37',
+                    source_type='season',
+                    source_ref=str(month_key),
+                    purchasable=False,
+                    active=True,
+                )
+                _grant_user_title_conn(
+                    conn,
+                    uid,
+                    title_key,
+                    acquired_source='season',
+                    acquired_ref=str(month_key),
+                    equip=False,
+                )
+            dew = base_dew + advanced_dew
             conn.execute(
                 '''
                 UPDATE users
-                SET rank_tier = ?, rank_points = 0, rank_streak = 0, rank_settled_month = ?
+                SET rank_tier = ?, rank_points = ?, rank_streak = 0, rank_settled_month = ?
                 WHERE id = ?
                 ''',
-                (new_tier, month_key, uid),
+                (new_tier, _rank.SEASON_SETTLEMENT_POINTS, month_key, uid),
             )
             conn.execute(
                 'UPDATE rank_monthly_settlements SET after_json = ?, dew_granted = ? '
                 'WHERE month_key = ? AND user_id = ?',
                 (json.dumps(after, ensure_ascii=False), dew, month_key, uid),
             )
-            settled.append({'user_id': uid, 'before': before, 'after': after, 'dew': dew})
+            settled.append({
+                'user_id': uid,
+                'before': before,
+                'after': after,
+                'dew': dew,
+                'base_dew': base_dew,
+                'advanced_dew': advanced_dew,
+                'match_count': match_count,
+                'title_id': title_key,
+            })
             total_dew += dew
         conn.commit()
-    # 荆露在结算行落库之后逐个发放（同事务外的独立记账，失败不影响段位重置）。
-    granted = 0
+    # 荆露在结算行落库之后发放；两类奖励使用独立流水类型，重试不会混发。
+    granted_user_ids = set()
     for entry in settled:
-        try:
-            adjust_user_thorn_dew(
-                int(entry['user_id']),
-                free_delta=int(entry['dew']),
-                reason=f'段位月度结算 {entry["before"]["label"]}',
-                source_type='rank_settlement',
-                source_id=month_key,
-            )
-            granted += 1
-        except Exception:
-            continue
+        for amount, source_type, reason in (
+            (
+                int(entry['base_dew']),
+                'rank_season_base',
+                f'{season_label}赛季基础奖励（天梯{entry["match_count"]}局，'
+                f'绝对段位分{entry["before"]["absolute_points"]}）',
+            ),
+            (
+                int(entry['advanced_dew']),
+                'rank_season_advanced',
+                f'{season_label}赛季进阶奖励（天梯{entry["match_count"]}局）',
+            ),
+        ):
+            if amount <= 0:
+                continue
+            try:
+                _, error = adjust_user_thorn_dew(
+                    int(entry['user_id']),
+                    free_delta=amount,
+                    reason=reason,
+                    source_type=source_type,
+                    source_id=month_key,
+                )
+                if not error:
+                    granted_user_ids.add(int(entry['user_id']))
+            except Exception:
+                continue
     return {
         'month_key': month_key,
+        'season_name': season_label,
         'users': len(settled),
+        'base_rewards': sum(1 for entry in settled if entry['base_dew'] > 0),
+        'advanced_rewards': sum(1 for entry in settled if entry['advanced_dew'] > 0),
         'dew_total': total_dew,
-        'dew_granted': granted,
+        'dew_granted': len(granted_user_ids),
         'settlements': settled[:20],
     }
 
@@ -16440,8 +17276,14 @@ def apply_gr_match_result(match_id, summary):
         after = {}
         season_deltas = {}
         total_deltas = {}
-        from pvp_economy import protected_loss_conn
+        from pvp_economy import protected_loss_conn, profile_conn as newcomer_profile_conn
         protected = {uid:protected_loss_conn(conn,uid) for uid in all_ids}
+        newcomer_status = {uid:newcomer_profile_conn(conn,uid)['is_newcomer'] for uid in all_ids}
+        non_newcomer_protected = [
+            uid for uid in all_ids
+            if not newcomer_status[uid]
+            and any(newcomer_status[other] for other in (team_b if uid in team_a else team_a))
+        ]
         protected_users = []
         # 段位（设计 2026-10-02）：与 GR 同事务同对局；全局特殊修正读取一次。
         rank_global_special = get_rank_global_special(conn)
@@ -16522,19 +17364,32 @@ def apply_gr_match_result(match_id, summary):
             daily_count = prev_daily_count + 1 if prev_daily_key == rank_daily_key else 1
             shield_armed = int(row['rank_shield_armed'] or 0)
             double_armed = int(row['rank_double_armed'] or 0)
-            rank_change = _rank.apply_match_result(
-                own_tier,
-                own_points,
-                own_streak,
-                outcome=rank_outcome,
-                opponent_tier_avg=opp_tier_avg,
-                special_total=special_total,
-                daily_double=(
-                    daily_count <= _rank.DAILY_DOUBLE_GAMES and rank_outcome == 'win'
-                ),
-                double_card=bool(double_armed),
-                loss_shield=bool(shield_armed),
-            )
+            if uid in non_newcomer_protected:
+                # 非新人对新人：当前 rank 段位、段内分和连胜展示均保持不变。
+                rank_change = {
+                    'tier_index': own_tier,
+                    'points': own_points,
+                    'streak': own_streak,
+                    'changed': False,
+                    'promoted': False,
+                    'demoted': False,
+                    'delta': 0,
+                    'daily_double': False,
+                }
+            else:
+                rank_change = _rank.apply_match_result(
+                    own_tier,
+                    own_points,
+                    own_streak,
+                    outcome=rank_outcome,
+                    opponent_tier_avg=opp_tier_avg,
+                    special_total=special_total,
+                    daily_double=(
+                        daily_count <= _rank.DAILY_DOUBLE_GAMES and rank_outcome == 'win'
+                    ),
+                    double_card=bool(double_armed),
+                    loss_shield=bool(shield_armed),
+                )
             prev_highest = max(int(row['rank_highest_tier'] or 1), own_tier)
             new_highest = max(prev_highest, int(rank_change['tier_index']))
             newbie_games = int(row['rank_newbie_games'] or 0) + 1
@@ -16588,6 +17443,7 @@ def apply_gr_match_result(match_id, summary):
             },
         }
         result_payload['newcomer_protected_user_ids'] = protected_users
+        result_payload['non_newcomer_protected_user_ids'] = non_newcomer_protected
         conn.execute(
             '''
             INSERT INTO gr_match_results (
@@ -17160,10 +18016,12 @@ def get_card_skin_shop(user_id):
             'name': offer['name'],
             'price': int(offer['price'] or 0),
             'special': offer['special'] or '',
+            'category': _cs.skin_category(offer['skin_id']),
+            'layout': _cs.skin_layout(offer['skin_id']),
             'purchased': offer['skin_id'] in owned,
             'owned': offer['skin_id'] in owned,
-            'front_url': "/static/assets/card-skins/front/%s.svg?v=%d" % (offer['skin_id'], _cs.CARD_SKIN_ART_REVISION),
-            'back_url': "/static/assets/card-skins/back/%s.svg?v=%d" % (offer['skin_id'], _cs.CARD_SKIN_ART_REVISION),
+            'front_url': "/static/assets/card-skins/front/%s.svg?v=%d" % (offer['skin_id'], _cs.skin_art_revision(offer['skin_id'])),
+            'back_url': "/static/assets/card-skins/back/%s.svg?v=%d" % (offer['skin_id'], _cs.skin_art_revision(offer['skin_id'])),
         })
     return {
         'set_id': active_set_id,

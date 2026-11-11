@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Set
 
 REALITY_EVENTS: Dict[int, Dict[str, object]] = {
     1: {'name': '攻守之势异也', 'desc': '攻击牌选择量-1，技能牌选择量+1'},
-    2: {'name': '塔之诅咒', 'desc': '每回合多抽3张牌，回合结束丢弃所有非反制牌，回合开始时（回复前）清空费用'},
+    2: {'name': '塔之诅咒', 'desc': '反制牌选择量设为0，技能牌选择量增加同等值；每回合多抽3张牌，回合结束丢弃所有非反制牌，回合开始时（回复前）清空费用'},
     3: {'name': '等我启动', 'desc': '回合费用回复量-2，玩家回合开始时该数值+1（最多为7）'},
     4: {'name': '肚皮', 'desc': '所有玩家初始血量+50'},
     5: {'name': '潦草急就', 'desc': '每回合多抽4张牌，多回复5E'},
@@ -38,7 +38,7 @@ REALITY_EVENT_COUNT = 3
 
 
 def reality_adjusted_draft_ratio(base_ratio: Dict[str, int], events: Set[int]) -> Dict[str, int]:
-    """按生效事件调整选牌类型配额（事件1/9/17/19）。"""
+    """按生效事件调整选牌类型配额（事件1/2/9/17/19）。"""
     ratio = dict(base_ratio)
     if 1 in events:
         ratio['thorn'] = max(0, ratio.get('thorn', 0) - 1)
@@ -49,6 +49,12 @@ def reality_adjusted_draft_ratio(base_ratio: Dict[str, int], events: Set[int]) -
     if 17 in events:
         ratio['root'] = max(0, ratio.get('root', 0) - 3)
         ratio['guard'] = ratio.get('guard', 0) + 3
+    if 2 in events:
+        # 塔之诅咒：反制额度归零，只把当前实际减少的额度转给技能，
+        # 避免与事件9同时生效时重复转移同一批反制额度。
+        removed_guard = max(0, ratio.get('guard', 0))
+        ratio['guard'] = 0
+        ratio['bloom'] = ratio.get('bloom', 0) + removed_guard
     if 19 in events:
         # 装备牌+7，其他全 0；卡组余量由污水补足（见 deck 钩子）。
         ratio = {'thorn': 0, 'bloom': 0, 'root': ratio.get('root', 0) + 7, 'guard': 0}
@@ -241,14 +247,21 @@ class RealityEngineMixin:
     def _reality_draw_option(self, player_id: int, seq: int) -> Optional[dict]:
         import random as _random
         from cards import CARD_DEFS, DRAFT_RATIO
+        ratio = reality_adjusted_draft_ratio(
+            DRAFT_RATIO, set(getattr(self, 'reality_events', set()) or set()),
+        )
+        allowed = getattr(self, 'allowed_card_ids', None)
+        allowed_ids = set(CARD_DEFS) if allowed is None else set(allowed)
         weights = {
-            card_id: float(getattr(card_def, 'draft_weight', 1.0) or 1.0) * DRAFT_RATIO.get(
+            card_id: float(getattr(card_def, 'draft_weight', 1.0) or 1.0) * ratio.get(
                 str(getattr(card_def, 'card_type', '') or ''), 0,
             ) * (2.0 if self.reality_active(11) and int(getattr(card_def, 'cost_m', 0) or 0) > 0 else 1.0)
             for card_id, card_def in CARD_DEFS.items()
-            if card_id in (getattr(self, 'allowed_card_ids', None) or set(CARD_DEFS))
-            and DRAFT_RATIO.get(str(getattr(card_def, 'card_type', '') or ''), 0) > 0
+            if card_id in allowed_ids
+            and int(getattr(card_def, 'count', 0) or 0) > 0
+            and ratio.get(str(getattr(card_def, 'card_type', '') or ''), 0) > 0
         }
+        weights = {card_id: weight for card_id, weight in weights.items() if weight > 0}
         if not weights:
             return None
         ids = list(weights.keys())

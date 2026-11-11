@@ -1,0 +1,203 @@
+/* 玩家主题／战斗背景与两个背景商店。 */
+.player-theme-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.player-theme-backdrop > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.player-theme-backdrop .story-seeded-backdrop-landmark {
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+body.has-player-theme-background { isolation: isolate; background: transparent; }
+body.has-player-theme-background #app .view { background: transparent !important; }
+body.has-player-theme-background > #app,
+body.has-player-theme-background > main,
+body.has-player-theme-background > .wrap,
+body.has-player-theme-background > .te-app { position: relative; z-index: 1; }
+body:has(#view-game:not(.hidden)) .player-theme-backdrop,
+body:has(#story-app:not(.hidden)) .player-theme-backdrop { display: none; }
+
+body[data-player-battle-background] #view-game,
+body[data-player-battle-background] #view-game .battle-classic,
+body[data-player-battle-background] #view-game .game-container { background: transparent; }
+body[data-player-battle-background] #view-game > .battle-classic,
+body[data-player-battle-background] #view-game > .game-container { position: relative; z-index: 1; }
+#view-game { isolation: isolate; }
+#view-game > .player-battle-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+.player-battle-backdrop[data-biome='garden'] { background: #20ab39; }
+.player-battle-backdrop[data-biome='desert'] { background: #c89452; }
+.player-battle-backdrop[data-biome='ocean'] { background: #5c8dca; }
+.player-battle-backdrop[data-biome='jungle'] { background: #69b82d; }
+.player-battle-backdrop[data-biome='factory'] { background: #c9caca; }
+.player-battle-backdrop::after {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: radial-gradient(ellipse at 50% 50%, transparent 20%, rgba(0, 0, 0, .12) 100%);
+  content: '';
+  pointer-events: none;
+}
+.player-battle-backdrop .story-seeded-backdrop-base,
+.player-battle-backdrop .story-seeded-backdrop-patch,
+.player-battle-backdrop .story-seeded-backdrop-landmark {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  transform-origin: center;
+}
+.player-battle-backdrop .story-seeded-backdrop-base {
+  inset: -10%;
+  z-index: 0;
+  background-repeat: repeat;
+}
+.player-battle-backdrop .story-seeded-backdrop-base.is-desert {
+  opacity: .34;
+  background-image: url('/static/assets/story-backgrounds/desert.svg');
+}
+.player-battle-backdrop .story-seeded-backdrop-base.is-jungle {
+  opacity: .4;
+  background-image: url('/static/assets/story-backgrounds/jungle-tile.svg');
+}
+.player-battle-backdrop .story-seeded-backdrop-base.is-ocean {
+  opacity: .54;
+  background-image: url('/static/assets/story-backgrounds/ocean-tile.svg');
+}
+.player-battle-backdrop .story-seeded-backdrop-base.is-factory {
+  opacity: .5;
+  background-image: url('/static/assets/story-backgrounds/factory-tile.svg');
+}
+.player-battle-backdrop .story-seeded-backdrop-patch {
+  border-radius: 34%;
+  opacity: .22;
+}
+.player-battle-backdrop .story-seeded-backdrop-patch.is-dark { background: #12983b; }
+.player-battle-backdrop .story-seeded-backdrop-patch.is-light { background: #82c264; }
+.player-battle-backdrop .story-seeded-backdrop-patch.is-desert-dune {
+  border-radius: 70% 34% 62% 28%;
+  opacity: .2;
+  background: #f5d79d;
+}
+.player-battle-backdrop .story-seeded-backdrop-patch.is-desert-stone {
+  border-radius: 42% 58% 47% 53%;
+  opacity: .18;
+  background: #795331;
+}
+.player-battle-backdrop .story-seeded-backdrop-landmark {
+  z-index: 2;
+  max-width: none;
+  opacity: .26;
+}
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-jungle-branch,
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-jungle-leaf { opacity: .24; }
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-ocean-bubble,
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-ocean-lily { opacity: .22; }
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-factory-plate,
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-factory-gear { opacity: .23; }
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-desert-dune,
+.player-battle-backdrop .story-seeded-backdrop-landmark.is-desert-stone { opacity: .25; }
+
+/* 两个商店共用整幅预览，避免卡片套卡片。 */
+.title-shop-tabs { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.background-shop-item {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+.background-preview {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #ecece6;
+  pointer-events: none;
+}
+.background-preview > img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.background-preview.player-battle-backdrop {
+  position: relative;
+  inset: auto;
+  z-index: 0;
+}
+.background-preview.is-classic {
+  display: grid;
+  place-items: center;
+  color: #5c4a3d;
+  background:
+    linear-gradient(90deg, rgba(44, 62, 80, .055) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(0deg, rgba(44, 62, 80, .04) 1px, transparent 1px) 0 0 / 32px 32px,
+    radial-gradient(ellipse at 50% 60%, #fff 0%, #f3f5ee 72%);
+  font-size: 12px;
+  font-weight: 700;
+}
+.background-shop-meta,
+.background-equipment-meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.background-shop-meta strong,
+.background-equipment-meta strong { font-size: 14px; }
+.background-shop-meta small,
+.background-equipment-meta small {
+  color: var(--text-muted, #786d66);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.background-equipment-section + .background-equipment-section { margin-top: 24px; }
+.background-equipment-section > h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+.background-equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.background-equipment-item {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #e3ddd6);
+}
+.background-equipment-item .title-shop-buy-btn { width: 100%; }
+.background-equipment-note {
+  margin: 10px 0 16px;
+  color: var(--text-muted, #786d66);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 980px) {
+  .title-shop-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 620px) {
+  .title-shop-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .background-equipment-grid { grid-template-columns: 1fr; }
+}

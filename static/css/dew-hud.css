@@ -1,0 +1,47 @@
+/* 全局右上角货币栏：图标 + 数量，只读且不遮挡操作。 */
+.dew-hud {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 32000;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+  user-select: none;
+  font-family: 'Kreadon', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans CJK SC', system-ui, sans-serif;
+}
+.dew-hud[hidden] { display: none; }
+/* 对战与观战共用对局视图；故事模式的全部页面同样隐藏。 */
+body:has(#view-game:not(.hidden)) .dew-hud { display: none; }
+body:has(#story-app:not(.hidden)) .dew-hud { display: none; }
+.dew-hud-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 3px 8px;
+  border: 1px solid rgba(107, 83, 125, .18);
+  border-radius: 999px;
+  color: #4a3a5c;
+  background: rgba(255, 253, 248, .92);
+  box-shadow: 0 2px 10px rgba(65, 43, 84, .1);
+  font-size: 12px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+.dew-hud-item img {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+  display: block;
+}
+.dew-hud-item span { transform: translateY(-.5px); }
+.dew-hud-item.is-golden { border-color: rgba(190, 164, 52, .38); }
+@media (max-width: 620px) {
+  .dew-hud { gap: 4px; top: max(6px, env(safe-area-inset-top)); right: max(6px, env(safe-area-inset-right)); }
+  .dew-hud-item { min-height: 24px; padding: 2px 6px; font-size: 11px; gap: 3px; }
+  .dew-hud-item img { width: 14px; height: 14px; }
+}

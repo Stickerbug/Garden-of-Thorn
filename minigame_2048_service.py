@@ -877,8 +877,8 @@ def _credit_dew(conn, user_id: int, amount: int, *, period_key: str, reason: str
         conn.execute("DELETE FROM minigame_2048_rewards WHERE period_key=? AND user_id=?",
                      (period_key, int(user_id)))
         return False
-    free_before = max(0, int(row["thorn_dew_free"] or 0 )) if "thorn_dew_free" in row.keys() else 0
-    paid_before = max(0, int(row["thorn_dew_paid"] or 0)) if "thorn_dew_paid" in row.keys() else 0
+    free_before = int(row["thorn_dew_free"] or 0) if "thorn_dew_free" in row.keys() else 0
+    paid_before = int(row["thorn_dew_paid"] or 0) if "thorn_dew_paid" in row.keys() else 0
     free_after = free_before + int(amount)
     conn.execute("UPDATE users SET thorn_dew_free = ? WHERE id = ?", (free_after, int(user_id)))
     conn.execute(
@@ -922,8 +922,8 @@ def credit_game_over_dew(conn, user_id: int, game_id: int, score: int, *,
         conn.execute("DELETE FROM minigame_2048_rewards WHERE period_key=? AND user_id=?",
                      (period_key, int(user_id)))
         return 0
-    free_before = max(0, int(row["thorn_dew_free"] or 0)) if "thorn_dew_free" in row.keys() else 0
-    paid_before = max(0, int(row["thorn_dew_paid"] or 0)) if "thorn_dew_paid" in row.keys() else 0
+    free_before = int(row["thorn_dew_free"] or 0) if "thorn_dew_free" in row.keys() else 0
+    paid_before = int(row["thorn_dew_paid"] or 0) if "thorn_dew_paid" in row.keys() else 0
     free_after = free_before + amount
     conn.execute("UPDATE users SET thorn_dew_free = ? WHERE id = ?", (free_after, int(user_id)))
     conn.execute(
@@ -994,6 +994,13 @@ def settle_due(conn, *, now=None,
         existing = conn.execute(
             "SELECT * FROM minigame_2048_periods WHERE period_key = ?", (period_key,)
         ).fetchone()
+        # 已终结奖期的结果不可再被 late upload 改写；不要在每 15 分钟的补做扫描里
+        # 重算并随即丢弃完整排行榜。生产上两个小游戏会因此重复扫十二次记录表，
+        # 同步 SQLite 查询曾在事件循环里造成 5–7 秒的全服停顿。
+        if existing is not None and existing["status"] in ("paid", "skipped"):
+            results.append({"period_key": period_key, "status": existing["status"],
+                            "participants": int(existing["participants"]), "credited": 0})
+            continue
         window = leaderboard(conn, window="14d", limit=0,
                              now=cutoff.astimezone(timezone.utc), game_key=game_key)
         participants = int(window["participants"])

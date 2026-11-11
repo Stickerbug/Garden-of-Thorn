@@ -27,7 +27,7 @@ const SAVE_KEY = `gtn_suika.v1.save.u${USER_KEY}`;
 const BEST_KEY = `gtn_suika.v1.best.u${USER_KEY}`;
 const LEGEND_KEY = 'gtn_suika.v1.prefs';
 
-const DEFAULT_SKIN = Object.freeze({ primary: '#FFE763', shape: 'oval', kind: '' });
+const DEFAULT_SKIN = Object.freeze({ primary: '#FFE763', shape: 'oval', mouth: 'original', kind: '', id: 'classic' });
 /* 玩家档的视线：与游戏 skinLookCssVars 同一套系数（look × 常量 = 瞳孔自身尺寸的偏移比例）。
    游戏里 look 是动态的（看向目标），这里固定看向右上 45°，让球像在望向棋盘。 */
 const PLAYER_LOOK = Object.freeze({ x: 0.707, y: -0.707 });
@@ -136,6 +136,14 @@ const art = new Array(TIERS.length).fill(null);
 const pops = [];
 let playerSkin = { ...DEFAULT_SKIN };
 let phelrenFrame = null;
+let playerSkinTexture = null;
+let playerSkinDecoration = null;
+let playerEyeArt = null;
+let playerMouthArt = null;
+let playerEyeSocketArt = null;
+let playerEyeWhiteArt = null;
+let playerEyeClipPath = null;
+let playerEyeViewBox = 283.5;
 let game = null;
 let aimX = ARENA.width / 2;
 let dragging = false;
@@ -347,7 +355,7 @@ function eyePath(target, shape, cx, cy, w, h) {
 }
 
 /* 脸（眼睛+瞳孔+嘴），以球心 (x,y)、半径 radius 画。canvas 与 SVG 预览共用同一几何表。 */
-function drawSkinFace(target, x, y, radius, feature, pupilColor) {
+function drawSkinFace(target, x, y, radius, feature, pupilColor, showEyes = true, showMouth = true) {
   const shape = playerSkin.shape || 'oval';
   const { eye, pupil } = skinFeatureGeometry(shape);
   const eyeW = radius * 2 * eye.w;
@@ -362,84 +370,120 @@ function drawSkinFace(target, x, y, radius, feature, pupilColor) {
   const pupilH = eyeH * pupil.h;
   const roundPupil = shape !== 'diamond' && shape !== 'hexagon';
 
-  target.fillStyle = feature;
-  [leftX, rightX].forEach((eyeX) => {
-    eyePath(target, shape, eyeX, eyeY, eyeW, eyeH);
-    target.fill();
-  });
-  target.fillStyle = pupilColor;
-  [leftX, rightX].forEach((eyeX) => {
-    if (!roundPupil) {
-      eyePath(target, shape, eyeX + offsetX, eyeY + offsetY, pupilW, pupilH);
-      target.fill();
-      return;
-    }
+  const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
+  const artSize = radius * 2;
+  const artBaseX = x - radius;
+  const artBaseY = y - radius + (eyeY - y);
+  const artOffsetX = PLAYER_LOOK.x * artSize * eyeLook.x / 100;
+  const artOffsetY = PLAYER_LOOK.y * artSize * eyeLook.y / 100;
+  const hasSplitEyeArt = playerEyeSocketArt && playerEyeWhiteArt && playerEyeClipPath;
+  if (showEyes && hasSplitEyeArt) {
+    /* 眼眶固定；眼白按原版瞳孔位移，并用同一 SVG 路径裁切。 */
+    target.drawImage(playerEyeSocketArt, artBaseX, artBaseY, artSize, artSize);
     target.save();
-    if (shape === 'rectangle') {
-      const r = Math.min(pupilW, pupilH) * 0.16;
+    target.translate(artBaseX, artBaseY);
+    const artScale = artSize / playerEyeViewBox;
+    target.scale(artScale, artScale);
+    target.clip(playerEyeClipPath);
+    target.drawImage(playerEyeWhiteArt, artOffsetX / artScale, artOffsetY / artScale, playerEyeViewBox, playerEyeViewBox);
+    target.restore();
+  } else if (showEyes && playerEyeArt) {
+    /* 金币、眩晕为无眼眶眼睛，整体遵循眼白位移，不做眼眶裁切。 */
+    target.drawImage(playerEyeArt, artBaseX + artOffsetX, artBaseY + artOffsetY, artSize, artSize);
+  } else if (showEyes) {
+    target.fillStyle = feature;
+    [leftX, rightX].forEach((eyeX) => {
+      eyePath(target, shape, eyeX, eyeY, eyeW, eyeH);
+      target.fill();
+    });
+    target.fillStyle = pupilColor;
+    [leftX, rightX].forEach((eyeX) => {
+      if (!roundPupil) {
+        eyePath(target, shape, eyeX + offsetX, eyeY + offsetY, pupilW, pupilH);
+        target.fill();
+        return;
+      }
+      target.save();
+      if (shape === 'rectangle') {
+        const r = Math.min(pupilW, pupilH) * 0.16;
+        target.beginPath();
+        if (typeof target.roundRect === 'function') target.roundRect(eyeX + offsetX - pupilW / 2, eyeY + offsetY - pupilH / 2, pupilW, pupilH, r);
+        else target.rect(eyeX + offsetX - pupilW / 2, eyeY + offsetY - pupilH / 2, pupilW, pupilH);
+        target.fill();
+        target.restore();
+        return;
+      }
       target.beginPath();
-      if (typeof target.roundRect === 'function') target.roundRect(eyeX + offsetX - pupilW / 2, eyeY + offsetY - pupilH / 2, pupilW, pupilH, r);
-      else target.rect(eyeX + offsetX - pupilW / 2, eyeY + offsetY - pupilH / 2, pupilW, pupilH);
+      target.ellipse(eyeX + offsetX, eyeY + offsetY, pupilW / 2, pupilH / 2, 0, 0, Math.PI * 2);
       target.fill();
       target.restore();
-      return;
-    }
-    target.beginPath();
-    target.ellipse(eyeX + offsetX, eyeY + offsetY, pupilW / 2, pupilH / 2, 0, 0, Math.PI * 2);
-    target.fill();
-    target.restore();
-  });
+    });
+  }
 
-  /* 嘴：与游戏 .skin-mouth 同位同形（viewBox 100×56 的同一条曲线 M20,18 C36,32 64,32 80,18）。
-     CSS 的 SVG 等比缩放（meet）：s=直径×20%/56，水平居中、线宽 5.6×s（≈直径 2%）。
-     嘴的可见宽度由曲线本身决定（60×s ≈ 直径 21%），不另设盒宽。 */
-  const mouthScale = radius * 2 * SKIN_FEATURES.mouth.h / 56;
-  const mouthTop = y - radius + radius * 2 * SKIN_FEATURES.mouth.top;
-  const px = (v) => x + (v - 50) * mouthScale;
-  const py = (v) => mouthTop + v * mouthScale;
-  target.beginPath();
-  target.moveTo(px(20), py(18));
-  target.bezierCurveTo(px(36), py(32), px(64), py(32), px(80), py(18));
-  target.lineWidth = Math.max(1.2, SKIN_FEATURES.mouth.stroke * mouthScale);
-  target.strokeStyle = feature;
-  target.lineCap = 'round';
-  target.lineJoin = 'round';
-  target.stroke();
+  if (showMouth) {
+    /* 嘴：与游戏 .skin-mouth 同位同形（viewBox 100×56 的同一条曲线 M20,18 C36,32 64,32 80,18）。 */
+    const mouthScale = radius * 2 * SKIN_FEATURES.mouth.h / 56;
+    const mouthTop = y - radius + radius * 2 * SKIN_FEATURES.mouth.top;
+    if (playerMouthArt) {
+      target.drawImage(playerMouthArt, x - 50 * mouthScale, mouthTop, 100 * mouthScale, 56 * mouthScale);
+    } else {
+      const px = (v) => x + (v - 50) * mouthScale;
+      const py = (v) => mouthTop + v * mouthScale;
+      target.beginPath();
+      target.moveTo(px(20), py(18));
+      target.bezierCurveTo(px(36), py(32), px(64), py(32), px(80), py(18));
+      target.lineWidth = Math.max(1.2, SKIN_FEATURES.mouth.stroke * mouthScale);
+      target.strokeStyle = feature;
+      target.lineCap = 'round';
+      target.lineJoin = 'round';
+      target.stroke();
+    }
+  }
 }
 
 function drawPlayerBall(target, x, y, radius) {
   const color = playerSkin.primary || DEFAULT_SKIN.primary;
   const edge = skinBorder(color);
   const inverted = skinLuminance(color) < 0.22;
-  const feature = inverted ? '#ffffff' : '#111111';
-  const pupil = inverted ? '#111111' : '#ffffff';
+  const definition = window.GTNPlayerSkins?.get(playerSkin.id);
+  const hasBodyArt = !!definition?.bodyArt;
+  const feature = playerSkin.id === 'nazar' || inverted ? '#ffffff' : '#111111';
+  const pupil = playerSkin.id === 'nazar' || inverted ? '#111111' : '#ffffff';
   const diameter = radius * 2;
 
   target.save();
-  target.beginPath();
-  target.arc(x, y, radius, 0, Math.PI * 2);
-  target.fillStyle = color;
-  target.fill();
-  /* 边框与游戏 .skin-avatar 的 7.5cqi 一致：CSS 的 border 在盒内（border-box），
-     而 canvas 的 stroke 以路径为中心线——路径必须缩到 radius-borderWidth/2，
-     整圈落在物理圆内。否则描边外溢 3.75% 直径，球看着比碰撞箱大。 */
-  const borderWidth = diameter * SKIN_FEATURES.border;
-  if (borderWidth > 0) {
-    target.lineWidth = borderWidth;
-    target.strokeStyle = edge;
-    target.beginPath();
-    target.arc(x, y, radius - borderWidth / 2, 0, Math.PI * 2);
-    target.stroke();
+  const lookRotation = definition?.hideEyes ? (window.GTNPlayerSkins?.lookRotation(PLAYER_LOOK) || 0) : 0;
+  if (lookRotation) {
+    target.translate(x, y);
+    target.rotate(lookRotation * Math.PI / 180);
+    target.translate(-x, -y);
   }
-  /* 内侧高光/阴影：对应游戏 inset box-shadow（顶部白 18%、底部黑 8%）。 */
-  const highlight = target.createLinearGradient(x, y - radius, x, y + radius);
-  highlight.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
-  highlight.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
-  highlight.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
-  target.fillStyle = highlight;
-  target.beginPath();
-  target.arc(x, y, radius - (borderWidth > 0 ? borderWidth / 2 : 0), 0, Math.PI * 2);
-  target.fill();
+  const borderWidth = diameter * SKIN_FEATURES.border;
+  if (!hasBodyArt) {
+    target.beginPath();
+    target.arc(x, y, radius, 0, Math.PI * 2);
+    target.fillStyle = color;
+    target.fill();
+    /* 边框与游戏 .skin-avatar 的 7.5cqi 一致：CSS 的 border 在盒内（border-box），
+       而 canvas 的 stroke 以路径为中心线——路径必须缩到 radius-borderWidth/2，
+       整圈落在物理圆内。否则描边外溢 3.75% 直径，球看着比碰撞箱大。 */
+    if (borderWidth > 0) {
+      target.lineWidth = borderWidth;
+      target.strokeStyle = edge;
+      target.beginPath();
+      target.arc(x, y, radius - borderWidth / 2, 0, Math.PI * 2);
+      target.stroke();
+    }
+    /* 内侧高光/阴影：对应游戏 inset box-shadow（顶部白 18%、底部黑 8%）。 */
+    const highlight = target.createLinearGradient(x, y - radius, x, y + radius);
+    highlight.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+    highlight.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+    highlight.addColorStop(1, 'rgba(0, 0, 0, 0.08)');
+    target.fillStyle = highlight;
+    target.beginPath();
+    target.arc(x, y, radius - (borderWidth > 0 ? borderWidth / 2 : 0), 0, Math.PI * 2);
+    target.fill();
+  }
 
   if (playerSkin.kind === 'phelren' && phelrenFrame) {
     target.save();
@@ -453,9 +497,41 @@ function drawPlayerBall(target, x, y, radius) {
     return;
   }
 
+  /* 皮肤贴图在五官下方；装饰在五官上方，和主站 DOM 渲染层级一致。 */
+  if (playerSkinTexture) {
+    target.save();
+    if (!hasBodyArt) {
+      target.beginPath();
+      target.arc(x, y, radius - borderWidth / 2, 0, Math.PI * 2);
+      target.clip();
+    }
+    const textureRotate = Number(definition?.textureRotate) || 0;
+    if (textureRotate) {
+      target.translate(x, y);
+      target.rotate(textureRotate * Math.PI / 180);
+      target.translate(-x, -y);
+    }
+    target.drawImage(playerSkinTexture, x - radius, y - radius, diameter, diameter);
+    target.restore();
+  }
+
   /* 脸画在边框内侧的 content 圆里（CSS 的百分比子元素同样只占 border 内侧），
-     否则眼睛/嘴会比游戏里的皮肤大一圈。 */
-  drawSkinFace(target, x, y, radius - borderWidth, feature, pupil);
+     否则眼睛/嘴会比游戏里的皮肤大一圈。完整贴图款式没有 CSS 边框，使用整个球面。 */
+  if (!definition?.hideEyes || !definition?.hideMouth) {
+    target.save();
+    target.translate(x, y);
+    target.rotate((Number(definition?.faceRotate) || 0) * Math.PI / 180);
+    target.translate(-x, -y);
+    drawSkinFace(
+      target, x, y, radius - (hasBodyArt ? 0 : borderWidth), feature, pupil,
+      !definition?.hideEyes, !definition?.hideMouth,
+    );
+    target.restore();
+  }
+  if (playerSkinDecoration) {
+    const decorationSize = diameter * 1.24;
+    target.drawImage(playerSkinDecoration, x - decorationSize / 2, y - decorationSize / 2, decorationSize, decorationSize);
+  }
   target.restore();
 }
 
@@ -727,25 +803,40 @@ function playerBallPreviewEl() {
   const span = document.createElement('span');
   span.className = 'sk-chain-ball sk-player-preview';
   span.innerHTML = '<div class="skin-avatar skin-eye-shape-oval">'
+    + '<div class="skin-face">'
     + '<div class="skin-eye skin-eye-left"><span class="skin-pupil"></span></div>'
     + '<div class="skin-eye skin-eye-right"><span class="skin-pupil"></span></div>'
     + '<svg class="skin-mouth" viewBox="0 0 100 56" aria-hidden="true" focusable="false">'
     + '<path class="skin-mouth-line" d="M 20 18 C 36 32 64 32 80 18"></path>'
-    + '</svg></div>';
+    + '</svg></div></div>';
   return span;
 }
 
 /** 把页面上的玩家档预览（合成路线 + 下一枚）同步成当前皮肤。 */
 function updatePlayerPreviews() {
   const color = playerSkin.primary || DEFAULT_SKIN.primary;
-  const shape = ['oval', 'rectangle', 'diamond', 'hexagon'].includes(String(playerSkin.shape || '')) ? playerSkin.shape : 'oval';
+  const shape = ['oval', 'rectangle', 'diamond', 'hexagon', 'angry', 'coin', 'dizzy'].includes(String(playerSkin.shape || '')) ? playerSkin.shape : 'oval';
+  const mouthShape = ['original', 'cat', 'smirk', 'open', 'angry'].includes(String(playerSkin.mouth || '')) ? playerSkin.mouth : 'original';
   const border = skinBorder(color);
+  const isPhelren = playerSkin.kind === 'phelren';
+  const layerClass = isPhelren ? '' : (window.GTNPlayerSkins?.layerClass(playerSkin.id) || '');
+  const faceRotate = Number(window.GTNPlayerSkins?.get(playerSkin.id)?.faceRotate) || 0;
+  const inverted = playerSkin.id === 'nazar' || skinLuminance(color) < 0.22;
+  const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
   document.querySelectorAll('.sk-player-preview .skin-avatar').forEach((avatar) => {
-    avatar.className = `skin-avatar skin-eye-shape-${shape}`;
+    avatar.className = `skin-avatar skin-eye-shape-${shape} skin-mouth-shape-${mouthShape}${layerClass}`;
     avatar.style.setProperty('--skin-main', color);
     avatar.style.setProperty('--skin-border', border);
-    avatar.style.setProperty('--skin-feature', skinLuminance(color) < 0.22 ? '#ffffff' : '#111111');
-    avatar.style.setProperty('--skin-pupil', skinLuminance(color) < 0.22 ? '#111111' : '#ffffff');
+    avatar.style.setProperty('--skin-feature', inverted ? '#ffffff' : '#111111');
+    avatar.style.setProperty('--skin-pupil', inverted ? '#111111' : '#ffffff');
+    avatar.style.setProperty('--skin-face-transform', `rotate(${isPhelren ? 0 : faceRotate}deg)`);
+    avatar.style.setProperty('--skin-look-rotate', `${(window.GTNPlayerSkins?.lookRotation(PLAYER_LOOK) || 0).toFixed(2)}deg`);
+    avatar.style.setProperty('--skin-eye-art-x', `${(PLAYER_LOOK.x * eyeLook.x).toFixed(3)}%`);
+    avatar.style.setProperty('--skin-eye-art-y', `${(PLAYER_LOOK.y * eyeLook.y).toFixed(3)}%`);
+    avatar.querySelectorAll('.skin-texture-layer, .skin-decoration-layer, .skin-eye-art, .skin-mouth-art').forEach((layer) => layer.remove());
+    if (!isPhelren) avatar.insertAdjacentHTML('afterbegin', window.GTNPlayerSkins?.renderLayers(playerSkin.id) || '');
+    if (!isPhelren) avatar.querySelector('.skin-face')?.insertAdjacentHTML('afterbegin', window.GTNEyeStyles?.render(shape) || '');
+    if (!isPhelren) avatar.querySelector('.skin-mouth')?.insertAdjacentHTML('beforebegin', window.GTNMouthStyles?.render(mouthShape) || '');
   });
 }
 
@@ -1281,12 +1372,48 @@ async function loadPlayerSkin() {
     const skin = user.skin || {};
     playerSkin = {
       primary: /^#[0-9a-fA-F]{6}$/.test(String(skin.primary_color || '')) ? String(skin.primary_color).toUpperCase() : DEFAULT_SKIN.primary,
-      shape: ['oval', 'rectangle', 'diamond', 'hexagon'].includes(String(skin.eye_shape || '')) ? String(skin.eye_shape) : DEFAULT_SKIN.shape,
+      shape: ['oval', 'rectangle', 'diamond', 'hexagon', 'angry', 'coin', 'dizzy'].includes(String(skin.eye_shape || '')) ? String(skin.eye_shape) : DEFAULT_SKIN.shape,
+      mouth: ['original', 'cat', 'smirk', 'open', 'angry'].includes(String(skin.mouth_shape || '')) ? String(skin.mouth_shape) : DEFAULT_SKIN.mouth,
       kind: String(user.avatar_kind || '') === 'phelren' ? 'phelren' : '',
+      id: window.GTNPlayerSkins?.normalize(skin.skin_id || skin.skinId) || DEFAULT_SKIN.id,
     };
     if (playerSkin.kind === 'phelren') {
       phelrenFrame = await loadImage('/static/assets/player-avatars/phelren-frame.svg').catch(() => null);
+    } else {
+      const definition = window.GTNPlayerSkins?.get(playerSkin.id);
+      if (definition) {
+        const textureUrl = window.GTNPlayerSkins?.textureUrl(
+          playerSkin.id, playerSkin.primary, skinBorder(playerSkin.primary),
+        ) || definition.texture;
+        [playerSkinTexture, playerSkinDecoration] = await Promise.all([
+          textureUrl ? loadImage(textureUrl).catch(() => null) : Promise.resolve(null),
+          definition.decoration ? loadImage(definition.decoration).catch(() => null) : Promise.resolve(null),
+        ]);
+      }
     }
+    const eyeDefinition = window.GTNEyeStyles?.get(playerSkin.shape);
+    playerEyeArt = null;
+    playerEyeSocketArt = null;
+    playerEyeWhiteArt = null;
+    playerEyeClipPath = null;
+    if (eyeDefinition?.socketAsset && eyeDefinition?.whiteAsset && eyeDefinition.clipPaths?.length && typeof Path2D === 'function') {
+      const [socketImage, whiteImage] = await Promise.all([
+        loadImage(eyeDefinition.socketAsset).catch(() => null),
+        loadImage(eyeDefinition.whiteAsset).catch(() => null),
+      ]);
+      if (socketImage && whiteImage) {
+        playerEyeSocketArt = socketImage;
+        playerEyeWhiteArt = whiteImage;
+        playerEyeClipPath = new Path2D(eyeDefinition.clipPaths.join(' '));
+        playerEyeViewBox = Number(eyeDefinition.viewBox) || 283.5;
+      }
+    }
+    /* 分层资源不可用时保留整张眼睛贴图兜底。 */
+    if (!playerEyeSocketArt && eyeDefinition?.asset) {
+      playerEyeArt = await loadImage(eyeDefinition.asset).catch(() => null);
+    }
+    const mouthArtUrl = window.GTNMouthStyles?.url(playerSkin.mouth) || '';
+    playerMouthArt = mouthArtUrl ? await loadImage(mouthArtUrl).catch(() => null) : null;
   } catch (error) {
     console.warn('[suika] 读取皮肤失败，用初始皮肤', error);
   }

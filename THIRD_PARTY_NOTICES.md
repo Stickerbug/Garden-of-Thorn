@@ -58,3 +58,11 @@
 - 在 GTN 中的用途：休闲花园「合成大花花」小游戏的 2D 物理引擎。
 - 说明：文件头保留原作者的 MIT 声明注释（`matter-js 0.19.0 by @liabru ... License MIT`），
   仅作为静态资源加载，服务器不联网拉取。
+
+## Pyodide
+
+- 来源：<https://github.com/pyodide/pyodide>（官方 npm 包 `pyodide@314.0.7`）
+- 本地路径：`static/vendor/pyodide`
+- 许可证：Mozilla Public License 2.0（`static/vendor/pyodide/package.json` 中标记为 `MPL-2.0`）
+- 在 GTN 中的用途：在浏览器模块 Worker 中运行与服务器相同的 Python GameEngine、模组加载器和训练场规则。
+- 说明：运行库与 Python 标准库均随站点本地提供，不依赖 CDN；仅普通单人训练场使用。

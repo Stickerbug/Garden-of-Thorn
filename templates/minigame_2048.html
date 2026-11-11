@@ -8,6 +8,9 @@
   <link rel="stylesheet" href="/static/css/shared-lobby-chat.css?v={{ static_version|default('dev')|urlencode }}">
   <link rel="stylesheet" href="/static/css/minigame_2048.css?v={{ static_version|default('dev')|urlencode }}">
   <link rel="stylesheet" href="/static/css/motion_policy.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/reward-animation.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/dew-hud.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
   <script nonce="{{ csp_nonce }}">
   (() => {
     const read = (key) => {
@@ -168,7 +171,7 @@
   </aside>
 </main>
 
-<script type="application/json" id="mg-config">{{ {
+<script nonce="{{ csp_nonce }}" type="application/json" id="mg-config">{{ {
   'username': username,
   'userId': user_id,
   'chatRole': chat_role|default('player'),
@@ -180,6 +183,9 @@
 <script nonce="{{ csp_nonce }}" type="application/json" id="mg-palette">{{ rarity_table | tojson }}</script>
   <script src="/static/vendor/socket.io.min.js?v=4.7.2"></script>
   <script src="/static/js/motion_policy.js?v={{ static_version|default('dev')|urlencode }}"></script>
+  <script src="/static/js/reward-animation.js?v={{ static_version|default('dev')|urlencode }}"></script>
+  <script src="/static/js/dew-hud.js?v={{ static_version|default('dev')|urlencode }}"></script>
+  <script src="/static/js/backgrounds.js?v={{ static_version|default('dev')|urlencode }}"></script>
   <script src="/static/js/leisure-ticket.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/shared-chat-actions.js?v={{ static_version|default('dev')|urlencode }}"></script>
   <script src="/static/js/minigame-chat.js?v={{ static_version|default('dev')|urlencode }}"></script>

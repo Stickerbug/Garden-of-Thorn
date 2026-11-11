@@ -184,8 +184,9 @@ def test_guest_ranked_room_skips_to_vanilla(monkeypatch):
 def test_ban_limits_and_local_mode_gate():
     one_v_one = gtn.GameRoom(99003, ['a', 'b'], None, mode='1v1', match_mode='ranked_1v1')
     two_v_two = gtn.GameRoom(99004, ['a', 'b', 'c', 'd'], None, mode='2v2', match_mode='ranked_2v2')
-    assert gtn.mod_draw_ban_limit(one_v_one) == 2
-    assert gtn.mod_draw_ban_limit(two_v_two) == 1
+    # 现行配置：1v1 候选 4 个、禁用 3 个；2v2 禁用 2 个。
+    assert gtn.mod_draw_ban_limit(one_v_one) == 3
+    assert gtn.mod_draw_ban_limit(two_v_two) == 2
     pending = _fake_player(1, mod_unlocks.compute_state(20, ()))
     # 2026-09-30 对调：解锁门槛跟抽选走 → 天梯检查、娱乐不检查
     assert gtn.mod_unlock_required_for_match_mode(pending, 'ranked_1v1')
@@ -257,6 +258,8 @@ def test_ranked_invite_creates_mod_draw_room(monkeypatch):
         })
         gtn.players[sid] = player
     gtn.invites[sids[0]] = sids[1]
+    # 娱乐邀请发出后切成天梯：旧的特殊模式标记不得进入天梯房间。
+    gtn.invite_special_modes[sids[0]] = {'reality': True, 'fancy': True, 'ordered': True}
     created_room = None
     try:
         clients[1].emit('accept_invite', {'inviter_sid': sids[0]})
@@ -270,9 +273,12 @@ def test_ranked_invite_creates_mod_draw_room(monkeypatch):
         assert created_room is not None
         assert created_room.match_mode == 'ranked_1v1'
         assert created_room.mod_draw_active
+        for flag in ('reality_mode', 'fancy_mode', 'ordered_mode'):
+            assert getattr(created_room, flag, False) is False
     finally:
         if created_room is not None:
             gtn.rooms.pop(created_room.room_id, None)
+        gtn.invite_special_modes.pop(sids[0], None)
         for sid in sids:
             gtn.players.pop(sid, None)
             gtn.invites.pop(sid, None)
@@ -307,7 +313,8 @@ def test_ranked_2v2_team_match_starts_mod_draw(monkeypatch):
     gtn.teams[sids[3]] = gtn.teams[sids[2]]
     created_room = None
     try:
-        clients[2].emit('accept_team_match', {'from_leader': sids[0]})
+        # 伪造娱乐模式参数也不能把操纵现实带入天梯 2v2。
+        clients[2].emit('accept_team_match', {'from_leader': sids[0], 'reality': True})
         created_room = next(
             (
                 room for room in gtn.rooms.values()
@@ -318,6 +325,7 @@ def test_ranked_2v2_team_match_starts_mod_draw(monkeypatch):
         assert created_room is not None
         assert created_room.match_mode == 'ranked_2v2'
         assert created_room.mod_draw_active
+        assert created_room.reality_mode is False
         assert len(created_room.mod_draw_candidates) == 4   # 2026-10-02：候选 5→4
     finally:
         if created_room is not None:
@@ -330,6 +338,7 @@ def test_ranked_2v2_team_match_starts_mod_draw(monkeypatch):
 
 
 def test_ranked_rematch_redraws_and_blocks_on_pending_choice(monkeypatch):
+    monkeypatch.setattr(gtn.ranked_availability, 'ranked_is_open', lambda: True)
     clients = [gtn.socketio.test_client(gtn.app), gtn.socketio.test_client(gtn.app)]
     room_map = gtn.socketio.server.manager.rooms["/"][None]
     sids = [

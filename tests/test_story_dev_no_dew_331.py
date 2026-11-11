@@ -25,7 +25,7 @@ def _mk_conn():
         payload_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT '')''')
     conn.execute('''CREATE TABLE users (
         id INTEGER PRIMARY KEY, thorn_dew_free INTEGER NOT NULL DEFAULT 0,
-        thorn_dew_paid INTEGER NOT NULL DEFAULT 0)''')
+        thorn_dew_paid INTEGER NOT NULL DEFAULT 0, golden_dew INTEGER NOT NULL DEFAULT 0)''')
     conn.execute('''CREATE TABLE user_currency_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
         currency TEXT NOT NULL, free_delta INTEGER NOT NULL DEFAULT 0,
@@ -55,10 +55,13 @@ class StoryDevNoDewTest(unittest.TestCase):
         result = settle_story_clear_conn(conn, user_id=1, run_id='r1', state=_completed_state())
         self.assertGreater(result['total'], 0)
         self.assertFalse(result['dev_used'])
-        dew = conn.execute('SELECT thorn_dew_free FROM users WHERE id = 1').fetchone()['thorn_dew_free']
-        self.assertEqual(dew, result['total'])
+        balances = conn.execute('SELECT thorn_dew_free, golden_dew FROM users WHERE id = 1').fetchone()
+        self.assertEqual(balances['thorn_dew_free'], result['total'])
+        self.assertEqual(result['completed_stages'], 3)
+        self.assertEqual(result['golden_dew_reward'], 4)
+        self.assertEqual(balances['golden_dew'], 4)
         tx = conn.execute(
-            'SELECT reason FROM user_currency_transactions ORDER BY id DESC LIMIT 1'
+            "SELECT reason FROM user_currency_transactions WHERE currency = 'thorn_dew' ORDER BY id DESC LIMIT 1"
         ).fetchone()
         # 反馈 #378：结算文案要显示难度全局乘数
         self.assertIn('难度normal×1', tx['reason'])
@@ -76,11 +79,15 @@ class StoryDevNoDewTest(unittest.TestCase):
         conn.execute(
             "INSERT INTO story_run_actions (run_id, sequence, action_id, action_type) "
             "VALUES ('r2', 2, 'a2', 'enter_node')")
-        result = settle_story_clear_conn(conn, user_id=1, run_id='r2', state=_completed_state())
+        state = _completed_state()
+        state['journey_route'] = [{'stage': 1, 'floor': floor, 'final': False} for floor in range(1, 5)]
+        result = settle_story_clear_conn(conn, user_id=1, run_id='r2', state=state)
         self.assertTrue(result['dev_used'])
         self.assertEqual(result['total'], 0)
-        dew = conn.execute('SELECT thorn_dew_free FROM users WHERE id = 1').fetchone()['thorn_dew_free']
-        self.assertEqual(dew, 0)
+        self.assertEqual(result['golden_dew_reward'], 0)
+        balances = conn.execute('SELECT thorn_dew_free, golden_dew FROM users WHERE id = 1').fetchone()
+        self.assertEqual(balances['thorn_dew_free'], 0)
+        self.assertEqual(balances['golden_dew'], 0)
         txs = conn.execute('SELECT COUNT(*) AS n FROM user_currency_transactions').fetchone()['n']
         self.assertEqual(txs, 0)
         ledger = conn.execute('SELECT * FROM story_reward_ledger').fetchone()

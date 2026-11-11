@@ -14,12 +14,7 @@ def test_story_template_has_one_inert_seeded_backdrop_surface():
         'id="story-seeded-backdrop" class="story-seeded-backdrop" '
         'aria-hidden="true"'
     ) in TEMPLATE
-    assert TEMPLATE.count('id="story-coop-seeded-backdrop"') == 1
-    assert (
-        'id="story-coop-seeded-backdrop" '
-        'class="story-seeded-backdrop story-coop-seeded-backdrop" '
-        'aria-hidden="true"'
-    ) in TEMPLATE
+    assert TEMPLATE.count('id="story-coop-seeded-backdrop"') == 0
 
 
 def test_landmarks_are_transparent_extracted_svg_assets():
@@ -71,9 +66,7 @@ def test_garden_layout_uses_seeded_static_jitter_without_math_random():
     assert 'appendStoryBackdropLandmarks(container, signature, biome)' in block
     assert '!STORY_BACKDROP_BIOMES.includes(biome)' in block
     assert 'renderStorySeededBackdrop(run);' in STORY_JS
-    assert "'story-coop-seeded-backdrop'" in STORY_JS
     assert "snapshot ? { id: run?.id, visual_seed: run?.visual_seed, state: snapshot }" in STORY_JS
-    assert "clearStorySeededBackdrop($('story-coop-seeded-backdrop'))" in STORY_JS
 
 
 def test_garden_backdrop_keeps_readability_and_reduced_motion_contracts():
@@ -91,17 +84,6 @@ def test_garden_backdrop_keeps_readability_and_reduced_motion_contracts():
         assert f".story-seeded-backdrop[data-biome='{biome}']" in STORY_CSS
     for filename in ('jungle-tile.svg', 'ocean-tile.svg', 'factory-tile.svg'):
         assert f"/static/assets/story-backgrounds/{filename}" in STORY_CSS
-
-
-def test_story_combat_reuses_the_seeded_biome_without_the_old_grid():
-    combat_block = STORY_CSS.split('/* Keep Story combat on the same visual grammar', 1)[1].split(
-        '.story-round,', 1,
-    )[0]
-    assert '.story-coop-seeded-backdrop.is-active { opacity: .72; }' in STORY_CSS
-    assert 'rgba(251, 251, 247, .34)' in combat_block
-    assert 'rgba(16, 20, 33, .28)' in combat_block
-    assert '48px 48px' not in combat_block
-    assert combat_block.count('background: none;') == 2
 
 
 def test_garden_backdrop_uses_dense_small_motifs():

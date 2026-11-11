@@ -1,22 +1,14 @@
 # -*- coding: utf-8 -*-
-"""爱发电赞助 → 付费荆露兑换（绑定码 + Webhook 自动到账 + query-order 补单）。
+"""爱发电赞助 → 累计实收金额称号（绑定码 + Webhook + query-order 补单）。
 
-流程：玩家在游戏内 /afdian 页拿到个人绑定码（8 位，可重置）→ 在爱发电选择方案赞助、
-付款时把绑定码填进**订单留言** → 爱发电 webhook 把订单 POST 到
-``/api/afdian/webhook/<密钥>`` → 按 out_trade_no 幂等登记 ``afdian_orders``，并给绑定码
-对应的账号加 ``thorn_dew_paid``（走 ``db.adjust_user_thorn_dew``，
-``source_type='afdian'``、``source_id=订单号``，流水可审计）。
+订单按 out_trade_no 幂等登记到 ``afdian_orders``。已确认与人工确认的订单按实收金额
+累计：满 1 元发灰色「赞助者」，满 10 元发彩虹「大赞助者」。不再发放金露；
+历史订单走同一同步函数补发称号，重复同步不会增加称号数量。
 
-webhook 官方文档明说可能漏推：玩家在兑换页点「查询补单」（或管理员
-``afdian reconcile``），用爱发电开放平台 ``query-order`` 拉最近订单，走同一条入账路径。
-
-兑换率是数据驱动的：``afdian_plans`` 按 ``plan_id`` 配荆露数（管理端 ``afdian plan set``）。
-未映射的方案先记 ``unmapped``，配置后对账/补单会自动补上；绑定码对不上的记
-``unmatched``（玩家改绑后旧码失效，由管理员 ``afdian credit`` 兜底）。
-按月订阅一次买多个月的，荆露按 ``plan 荆露 × month`` 结算。
+webhook 可能漏推：玩家在赞助页点「查询补单」（或管理员 ``afdian reconcile``），
+用爱发电开放平台 ``query-order`` 拉最近订单，走同一条确认与称号同步路径。
 
 爱发电开发者文档：https://guide.afdian.com/creator/developer.md
-（后台 https://afdian.com/dashboard/dev 取 user_id / API Token / 配 Webhook。）
 """
 
 from __future__ import annotations
@@ -30,9 +22,11 @@ import unicodedata
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional, Tuple
 
 import db
+from title_styles import parse_title_style
 
 AFDIAN_API_BASE = 'https://afdian.com/api/open/'
 BIND_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'   # 去掉 I/O/0/1 防误读
@@ -45,6 +39,22 @@ BIND_CODE_LEN = 8
 BIND_CODE_RE = re.compile(r'(?<![A-Z0-9])([A-Z2-9]{8})(?![A-Z0-9])')
 LEDGER_LIMIT = 20
 REQUERY_MAX_PAGES = 5          # 补单/对账最多翻 5 页（每页 50 条）
+PUBLIC_SPONSOR_PLANS = (
+    {'plan_id': 'maimai-two', 'name': '请开发组打两把舞萌', 'price': '3.00', 'kind': 'sku'},
+    {'plan_id': 'muse-dash', 'name': '为开发组购买喵斯快跑', 'price': '18.00', 'kind': 'sku'},
+    {'plan_id': 'crazy-thursday', 'name': '请开发组吃一顿疯狂星期四', 'price': '50.00', 'kind': 'sku'},
+    {'plan_id': 'custom', 'name': '自定义', 'price': '', 'kind': 'custom'},
+)
+SPONSOR_TITLE_TIERS = (
+    {
+        'id': 'afdian:sponsor', 'name': '赞助者', 'threshold_fen': 100,
+        'color': '#808080', 'style': '',
+    },
+    {
+        'id': 'afdian:major-sponsor', 'name': '大赞助者', 'threshold_fen': 1000,
+        'color': '#FF3B30', 'style': '{rainbow}大赞助者{/}',
+    },
+)
 
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS afdian_plans (
@@ -118,6 +128,149 @@ def ensure_schema(conn) -> None:
         if column not in cols:
             conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {decl}')
     conn.commit()
+
+
+def _amount_fen(value: Any) -> int:
+    """把订单金额安全转换为分，拒绝非数字、负数与非有限值。"""
+    try:
+        amount = Decimal(str(value or '0').strip())
+        if not amount.is_finite() or amount < 0:
+            return 0
+        return max(0, int((amount * 100).quantize(Decimal('1'), rounding=ROUND_HALF_UP)))
+    except (InvalidOperation, TypeError, ValueError):
+        return 0
+
+
+def _money(fen: int) -> str:
+    return f'{(Decimal(max(0, int(fen or 0))) / 100):.2f}'
+
+
+def _sponsor_totals_conn(conn, user_id: Optional[int] = None) -> Dict[int, int]:
+    sql = (
+        "SELECT game_user_id, total_amount, show_amount FROM afdian_orders "
+        "WHERE status IN ('credited', 'manual') AND game_user_id IS NOT NULL"
+    )
+    params: List[Any] = []
+    if user_id is not None:
+        sql += ' AND game_user_id = ?'
+        params.append(int(user_id))
+    totals: Dict[int, int] = {}
+    for row in conn.execute(sql, params).fetchall():
+        uid = int(row['game_user_id'])
+        totals[uid] = totals.get(uid, 0) + _amount_fen(row['total_amount'] or row['show_amount'])
+    return totals
+
+
+def _ensure_sponsor_title_catalog_conn(conn) -> None:
+    for tier in SPONSOR_TITLE_TIERS:
+        if conn.execute(
+            'SELECT 1 FROM title_catalog WHERE title_id = ?', (tier['id'],),
+        ).fetchone() is not None:
+            continue
+        parent_revision_id = db._ensure_title_catalog_revision_state_conn(conn)
+        before_snapshot = db._title_catalog_snapshot_conn(conn)
+        style = parse_title_style(tier['style'] or tier['name'], fallback_color=tier['color'])
+        db._upsert_title_catalog_conn(
+            conn,
+            tier['id'],
+            tier['name'],
+            tier['color'],
+            source_type='afdian',
+            source_ref='sponsor',
+            purchasable=False,
+            active=True,
+            style=style,
+            style_markup=tier['style'],
+        )
+        db._record_title_catalog_mutation_conn(
+            conn,
+            before_snapshot,
+            parent_revision_id,
+            actor={'username': 'system'},
+            kind='afdian-sponsor-title',
+            message=f'Create sponsor title {tier["id"]}',
+        )
+
+
+def _sync_sponsor_titles_conn(conn, user_id: int, total_fen: Optional[int] = None) -> List[str]:
+    _ensure_sponsor_title_catalog_conn(conn)
+    uid = int(user_id)
+    if total_fen is None:
+        total_fen = _sponsor_totals_conn(conn, uid).get(uid, 0)
+    owned = {
+        str(row['title_id'])
+        for row in conn.execute(
+            'SELECT title_id FROM user_titles WHERE user_id = ? AND quantity > 0', (uid,),
+        ).fetchall()
+    }
+    granted = []
+    for tier in SPONSOR_TITLE_TIERS:
+        if total_fen < tier['threshold_fen'] or tier['id'] in owned:
+            continue
+        db._grant_user_title_conn(
+            conn,
+            uid,
+            tier['id'],
+            acquired_source='afdian',
+            acquired_ref=f'cumulative_{tier["threshold_fen"]}',
+            equip=False,
+            allow_duplicate=False,
+        )
+        granted.append(str(tier['id']))
+    return granted
+
+
+def _sponsor_progress_conn(conn, user_id: int, total_fen: int) -> Dict[str, Any]:
+    uid = int(user_id)
+    owned = {
+        str(row['title_id'])
+        for row in conn.execute(
+            'SELECT title_id FROM user_titles WHERE user_id = ? AND quantity > 0', (uid,),
+        ).fetchall()
+    }
+    return {
+        'total_fen': int(total_fen),
+        'total_amount': _money(total_fen),
+        'titles': [
+            {
+                'id': tier['id'],
+                'name': tier['name'],
+                'threshold_fen': tier['threshold_fen'],
+                'threshold_amount': _money(tier['threshold_fen']),
+                'owned': tier['id'] in owned,
+            }
+            for tier in SPONSOR_TITLE_TIERS
+        ],
+    }
+
+
+def sponsor_progress(user_id: int) -> Dict[str, Any]:
+    """同步当前玩家的历史称号，再返回页面所需的累计金额与称号进度。"""
+    uid = int(user_id)
+    with db.get_db_connection() as conn:
+        ensure_schema(conn)
+        total_fen = _sponsor_totals_conn(conn, uid).get(uid, 0)
+        granted = _sync_sponsor_titles_conn(conn, uid, total_fen=total_fen)
+        progress = _sponsor_progress_conn(conn, uid, total_fen)
+        progress['granted'] = granted
+        conn.commit()
+        return progress
+
+
+def sync_all_sponsor_titles() -> Dict[str, int]:
+    """启动时按历史订单补发；可重复执行，已有称号不会增加数量。"""
+    with db.get_db_connection() as conn:
+        ensure_schema(conn)
+        totals = _sponsor_totals_conn(conn)
+        granted_users = 0
+        granted_count = 0
+        for uid, total_fen in totals.items():
+            granted = _sync_sponsor_titles_conn(conn, uid, total_fen=total_fen)
+            if granted:
+                granted_users += 1
+                granted_count += len(granted)
+        conn.commit()
+    return {'eligible_users': len(totals), 'granted_users': granted_users, 'granted_titles': granted_count}
 
 
 def config() -> Dict[str, str]:
@@ -324,9 +477,7 @@ def _sku_dew(conn, plan_id: str, sku_id: str, name: str) -> Tuple[Optional[int],
     return int(row['dew_amount'] or 0), str(row['name'] or '')
 
 def _settle(out_trade_no: str, *, via: str) -> Dict[str, Any]:
-    """尝试入账：事务里**先占位**（判定结果与荆露数写回 ledger 并置 credited），
-    提交后再走 ``adjust_user_thorn_dew``（它自开连接，外层不能持锁跨调用）；
-    加款失败则把占位回滚，单子留待重试/人工。"""
+    """确认订单并在同一事务内同步累计赞助称号，不发放任何货币。"""
     with db.get_db_connection() as conn:
         ensure_schema(conn)
         conn.execute('BEGIN IMMEDIATE')
@@ -335,94 +486,66 @@ def _settle(out_trade_no: str, *, via: str) -> Dict[str, Any]:
         if row is None:
             conn.rollback()
             return {'status': 'missing', 'out_trade_no': out_trade_no, 'detail': '订单不存在'}
-        if str(row['status']) == 'credited':
+        if str(row['status']) in {'credited', 'manual'}:
             conn.rollback()
-            return {'status': 'duplicate', 'out_trade_no': out_trade_no, 'detail': '已入账'}
+            return {'status': 'duplicate', 'out_trade_no': out_trade_no, 'detail': '已确认'}
         game_user_id = row['game_user_id']
         if game_user_id is None:
             game_user_id = _user_id_for_code(conn, str(row['bind_code'] or ''))
         if game_user_id is None:
-            # 无绑定码（如按月方案的自动续费单）：同一爱发电账号此前到账过则自动认领
             game_user_id = _user_id_for_afdian_history(conn, str(row['afdian_user_id'] or ''))
-        dew_per, plan_name = _plan_dew(conn, str(row['plan_id'] or ''))
-        month = max(1, int(row['month'] or 1))
-        if game_user_id is None:
-            conn.execute(
-                "UPDATE afdian_orders SET status='unmatched', plan_name=? WHERE out_trade_no=?",
-                (plan_name, out_trade_no))
-            conn.commit()
-            return {'status': 'unmatched', 'out_trade_no': out_trade_no,
-                    'detail': f"留言里没有可识别的绑定码（remark={row['remark']!r}）"}
-        # 售卖订单（带 sku_detail）只走 SKU 级映射：一个购买项多个价格方案，
-        # 各方案荆露数不同，整包映射会错发。未配置的 SKU 安全挂起等补结。
-        sku_entries = []
         try:
             sku_entries = json.loads(row['sku_json'] or '[]')
         except Exception:
             sku_entries = []
-        label = plan_name or str(row['plan_id'] or '')
+        amount_key = _price_key(row['total_amount'])
+        label = next(
+            (plan['name'] for plan in PUBLIC_SPONSOR_PLANS if plan['price'] and plan['price'] == amount_key),
+            '',
+        )
+        label = label or str(row['plan_name'] or row['plan_id'] or '自定义')
+        if label == 'custom':
+            label = '自定义'
         if sku_entries:
-            dew = 0
-            missing = []
             sku_labels = []
             for entry in sku_entries:
-                amount, sku_label = _sku_dew(conn, str(row['plan_id'] or ''),
-                                             str(entry.get('sku_id') or ''),
-                                             str(entry.get('name') or ''))
-                count = max(1, int(entry.get('count') or 1))
-                if amount is None:
-                    missing.append(str(entry.get('name') or entry.get('sku_id') or '?'))
-                    continue
-                dew += amount * count
-                sku_labels.append(f'{sku_label}×{count}')
-            if missing:
-                conn.execute(
-                    "UPDATE afdian_orders SET status='unmapped', plan_name=?, game_user_id=? "
-                    "WHERE out_trade_no=?",
-                    (label, int(game_user_id), out_trade_no))
-                conn.commit()
-                return {'status': 'unmapped', 'out_trade_no': out_trade_no,
-                        'detail': f"价格方案未配置荆露（{','.join(missing)}），配置后对账自动补"}
+                name = str(entry.get('name') or entry.get('sku_id') or '').strip()
+                if name:
+                    sku_labels.append(f'{name}×{max(1, int(entry.get("count") or 1))}')
             label = '+'.join(sku_labels) or label
-        else:
-            # 无 SKU 明细（部分订单/接口不回传 sku_detail）：先按订阅方案映射，
-            # 再按订单总价匹配 SKU 价格兜底（售卖项固定价：¥3→800 这类）。
-            if not dew_per:
-                amount_dew, amount_name = _dew_for_amount(conn, row['total_amount'])
-                if amount_dew:
-                    dew = amount_dew
-                    label = plan_name or amount_name
-                    plan_name = amount_name
-                else:
-                    conn.execute(
-                        "UPDATE afdian_orders SET status='unmapped', plan_name=?, game_user_id=? "
-                        "WHERE out_trade_no=?",
-                        (plan_name, int(game_user_id), out_trade_no))
-                    conn.commit()
-                    return {'status': 'unmapped', 'out_trade_no': out_trade_no,
-                            'detail': f"方案未配置荆露（plan_id={row['plan_id']}，总价 {row['total_amount']} 无匹配档），配置后对账自动补"}
-            else:
-                dew = int(dew_per) * month
-        # 先占位再出账：占位提交后并发的 ingest 只会看到 credited（幂等），
-        # 出账失败再回滚为 pending 等下次补。
-        conn.execute(
-            "UPDATE afdian_orders SET status='credited', game_user_id=?, dew_amount=?, "
-            "plan_name=?, credited_at=?, via=? WHERE out_trade_no=?",
-            (int(game_user_id), dew, plan_name, _now_iso(), via, out_trade_no))
-        conn.commit()
-    payload, error = db.adjust_user_thorn_dew(
-        int(game_user_id), free_delta=0, paid_delta=dew,
-        reason=f'爱发电赞助到账 …{str(out_trade_no)[-6:]}（{label}）',
-        source_type='afdian', source_id=out_trade_no)
-    if error:
-        with db.get_db_connection() as conn:
+        if game_user_id is None:
             conn.execute(
-                "UPDATE afdian_orders SET status='pending', dew_amount=0, credited_at=NULL "
-                "WHERE out_trade_no=?", (out_trade_no,))
+                "UPDATE afdian_orders SET status='unmatched', plan_name=? WHERE out_trade_no=?",
+                (label, out_trade_no))
             conn.commit()
-        return {'status': 'error', 'out_trade_no': out_trade_no, 'detail': str(error)}
-    return {'status': 'credited', 'out_trade_no': out_trade_no,
-            'dew': dew, 'user_id': int(game_user_id)}
+            return {'status': 'unmatched', 'out_trade_no': out_trade_no,
+                    'detail': f"留言里没有可识别的绑定码（remark={row['remark']!r}）"}
+        amount_fen = _amount_fen(row['total_amount'] or row['show_amount'])
+        if amount_fen <= 0:
+            conn.execute(
+                "UPDATE afdian_orders SET status='unmapped', plan_name=?, game_user_id=? "
+                "WHERE out_trade_no=?",
+                (label, int(game_user_id), out_trade_no))
+            conn.commit()
+            return {'status': 'unmapped', 'out_trade_no': out_trade_no, 'detail': '订单金额无效'}
+        conn.execute(
+            "UPDATE afdian_orders SET status='credited', game_user_id=?, dew_amount=0, "
+            "plan_name=?, credited_at=?, via=? WHERE out_trade_no=?",
+            (int(game_user_id), label, _now_iso(), via, out_trade_no))
+        try:
+            granted = _sync_sponsor_titles_conn(conn, int(game_user_id))
+        except Exception as exc:
+            conn.rollback()
+            return {'status': 'error', 'out_trade_no': out_trade_no, 'detail': str(exc)}
+        conn.commit()
+    return {
+        'status': 'credited',
+        'out_trade_no': out_trade_no,
+        'user_id': int(game_user_id),
+        'amount_fen': amount_fen,
+        'total_amount': _money(amount_fen),
+        'titles_granted': granted,
+    }
 
 
 # ---------------------------------------------------------------- 开放平台 API（补单/对账）
@@ -490,29 +613,8 @@ def ledger_for_user(user_id: int, limit: int = LEDGER_LIMIT) -> List[Dict[str, A
 
 
 def public_plans() -> List[Dict[str, Any]]:
-    """兑换页展示的档位：SKU（售卖项价格方案，按份）+ 订阅方案（按月）合并，
-    各带 kind 字段（'sku' / 'plan'）。此前只读 afdian_plans，六个真实档位
-    （配在 afdian_skus）在页面上看不到（反馈：可见档位只有 Y1）。"""
-    out: List[Dict[str, Any]] = []
-    with db.get_db_connection() as conn:
-        ensure_schema(conn)
-        for row in conn.execute(
-                'SELECT name, sku_id, dew_amount, price FROM afdian_skus '
-                'WHERE active = 1 ORDER BY dew_amount ASC').fetchall():
-            out.append({'plan_id': str(row['sku_id'] or ''),
-                        'name': str(row['name'] or ''),
-                        'dew_amount': int(row['dew_amount'] or 0),
-                        'price': _price_key(row['price']),
-                        'kind': 'sku'})
-        for row in conn.execute(
-                'SELECT plan_id, name, dew_amount FROM afdian_plans '
-                'WHERE active = 1 ORDER BY dew_amount ASC').fetchall():
-            out.append({'plan_id': str(row['plan_id'] or ''),
-                        'name': str(row['name'] or row['plan_id'] or ''),
-                        'dew_amount': int(row['dew_amount'] or 0),
-                        'price': '',
-                        'kind': 'plan'})
-    return out
+    """固定赞助档位；旧金露映射不再影响页面或订单金额。"""
+    return [dict(plan) for plan in PUBLIC_SPONSOR_PLANS]
 
 
 def get_page_url() -> str:
@@ -659,22 +761,33 @@ def admin_list_orders(limit: int = 20) -> List[Dict[str, Any]]:
         return [dict(row) for row in rows]
 
 
-def admin_credit(out_trade_no: str, dew: int, user_id: int, reason: str = '') -> Dict[str, Any]:
-    """兜底手动入账（unmatched / 金额有争议等）：指定账号与荆露数，记 manual。"""
+def admin_credit(out_trade_no: str, user_id: int, reason: str = '') -> Dict[str, Any]:
+    """人工确认赞助订单，只累计实收金额并同步称号，不发放金露。"""
     out_trade_no = str(out_trade_no or '').strip()
-    dew = int(dew or 0)
-    if not out_trade_no or dew <= 0:
-        return {'ok': False, 'error': '需要订单号与正数荆露'}
-    payload, error = db.adjust_user_thorn_dew(
-        int(user_id), free_delta=0, paid_delta=dew,
-        reason=reason or f'爱发电赞助手动入账 …{str(out_trade_no)[-6:]}',
-        source_type='afdian', source_id=out_trade_no)
-    if error:
-        return {'ok': False, 'error': str(error)}
+    if not out_trade_no:
+        return {'ok': False, 'error': '需要订单号'}
     with db.get_db_connection() as conn:
         ensure_schema(conn)
+        row = conn.execute(
+            'SELECT total_amount FROM afdian_orders WHERE out_trade_no = ?', (out_trade_no,),
+        ).fetchone()
+        if row is None:
+            return {'ok': False, 'error': '订单不存在'}
+        conn.execute('BEGIN IMMEDIATE')
         conn.execute(
-            "UPDATE afdian_orders SET status='manual', game_user_id=?, dew_amount=?, "
-            "credited_at=?, via='admin' WHERE out_trade_no=?", (int(user_id), dew, _now_iso(), out_trade_no))
+            "UPDATE afdian_orders SET status='manual', game_user_id=?, dew_amount=0, "
+            "credited_at=?, via='admin' WHERE out_trade_no=?",
+            (int(user_id), _now_iso(), out_trade_no))
+        try:
+            granted = _sync_sponsor_titles_conn(conn, int(user_id))
+        except Exception as exc:
+            conn.rollback()
+            return {'ok': False, 'error': str(exc)}
         conn.commit()
-    return {'ok': True, 'out_trade_no': out_trade_no, 'dew': dew}
+    return {
+        'ok': True,
+        'out_trade_no': out_trade_no,
+        'total_amount': _money(_amount_fen(row['total_amount'])),
+        'titles_granted': granted,
+        'reason': str(reason or ''),
+    }

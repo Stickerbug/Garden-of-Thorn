@@ -48,6 +48,8 @@ def test_room_snapshots_canonical_match_mode_and_rejects_topology_mismatch():
         raise AssertionError('mismatched topology must be rejected')
 
 
+@patch.object(gtn.ranked_availability, 'ranked_is_open', lambda: True)
+@patch.object(gtn.account_integrity, 'get_reputation_profile', lambda user_id: {'value': 85})
 def test_ranked_eligibility_is_fail_closed_for_guests_and_mods():
     eligible = [_registered_player(1), _registered_player(2)]
     assert gtn.ranked_match_eligibility(eligible) == (True, '')
@@ -62,6 +64,7 @@ def test_ranked_eligibility_is_fail_closed_for_guests_and_mods():
     ])[1] == 'community_mod'
 
 
+@patch.object(gtn.ranked_availability, 'ranked_is_open', lambda: True)
 def test_guest_cannot_switch_into_ranked_lobby():
     client = gtn.socketio.test_client(gtn.app)
     sid = None
@@ -82,6 +85,7 @@ def test_guest_cannot_switch_into_ranked_lobby():
                 gtn.players.pop(sid, None)
 
 
+@patch.object(gtn.ranked_availability, 'ranked_is_open', lambda: True)
 def test_ranked_silently_disables_entertainment_mods_and_restores_casual_preference():
     # 娱乐包的启用走 build_casual_mode_loadout：v2 构建层对部分 DLC 另有
     # 启用门槛，测试目标取实际能进入玩家 entertainment_mods 的稳定包。
@@ -115,6 +119,7 @@ def test_ranked_silently_disables_entertainment_mods_and_restores_casual_prefere
             )
             assert target_mod in player['entertainment_mods']
         assert target_mod not in player['preferred_disabled_mods']
+        gtn.invite_special_modes[sid] = {'reality': True, 'fancy': True, 'ordered': True}
 
         with patch.object(gtn, 'DB_AVAILABLE', False):
             client.emit('set_mode', {'match_mode': 'ranked_1v1'})
@@ -123,6 +128,7 @@ def test_ranked_silently_disables_entertainment_mods_and_restores_casual_prefere
             with gtn._lock:
                 player = gtn.players[sid]
                 assert player['match_mode'] == 'ranked_1v1'
+                assert sid not in gtn.invite_special_modes
                 assert player['entertainment_mods'] == []
                 assert set(entertainment_mods).issubset(player['disabled_mods'])
                 assert target_mod not in player['preferred_disabled_mods']
@@ -157,6 +163,7 @@ def test_ranked_silently_disables_entertainment_mods_and_restores_casual_prefere
         if sid:
             with gtn._lock:
                 gtn.players.pop(sid, None)
+                gtn.invite_special_modes.pop(sid, None)
 
 
 def test_only_explicit_ranked_room_is_valid_for_rating():
@@ -317,6 +324,45 @@ def test_entertainment_mod_gate_follows_the_match_flow_not_a_stale_ranked_mode()
         'if (isModDrawMatchMode(getSettingsModMatchMode())) {',
     ):
         assert call_site in source
+
+
+def test_ranked_mod_draw_completion_ignores_forged_reality_flag(monkeypatch):
+    for match_mode, sids in (
+        ('ranked_1v1', ['a', 'b']),
+        ('ranked_2v2', ['a', 'b', 'c', 'd']),
+    ):
+        room = gtn.GameRoom(
+            97006,
+            sids,
+            None,
+            mode='1v1' if match_mode == 'ranked_1v1' else '2v2',
+            match_mode=match_mode,
+        )
+        room.mod_draw_active = True
+        room.reality_mode = True
+        calls = []
+        monkeypatch.setattr(gtn, 'casual_room_shared_profile_for_room', lambda _: {})
+        monkeypatch.setattr(gtn, '_apply_casual_room_loadout_locked', lambda *args: None)
+        monkeypatch.setattr(gtn, 'emit_room_game_phase', lambda *args, **kwargs: None)
+        monkeypatch.setattr(gtn, '_begin_reality_ban_locked', lambda _: calls.append('reality'))
+        monkeypatch.setattr(gtn, '_casual_room_begin_event_select', lambda _: calls.append('event'))
+
+        assert gtn._complete_mod_draw_locked(room) is True
+        assert calls == ['event']
+
+
+def test_ranked_start_game_ignores_forged_deck_mode_flags(monkeypatch):
+    room = gtn.GameRoom(97007, ['a', 'b'], None, mode='1v1', match_mode='ranked_1v1')
+    room.engine.phase = 'action'
+    room.fancy_mode = True
+    room.ordered_mode = True
+    monkeypatch.setattr(
+        gtn,
+        '_fancy_start_game',
+        lambda _: (_ for _ in ()).throw(AssertionError('天梯不得进入特殊卡组启动')),
+    )
+
+    gtn.start_game(room)
 
 
 def test_ranked_mode_tabs_are_rendered_before_casual_mode_tabs():

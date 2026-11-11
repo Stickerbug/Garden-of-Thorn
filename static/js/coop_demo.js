@@ -58,11 +58,9 @@ function render() {
 start();
 // CSP 禁止内联 onclick 属性——改用 JS 绑定动作按钮
 function bindActs() {
-  const gold = document.querySelector('button.act.gold');
-  if (gold) gold.addEventListener('click', start);
-  const acts = [...document.querySelectorAll('button.act')];
-  acts.find((b) => (b.textContent || '').includes('切换操控玩家'))?.addEventListener('click', switchSeat);
-  acts.find((b) => (b.textContent || '').includes('结束回合'))?.addEventListener('click', endTurn);
-  acts.find((b) => (b.textContent || '').includes('撤回就绪'))?.addEventListener('click', cancelReady);
+  document.getElementById('coop-start')?.addEventListener('click', start);
+  document.getElementById('coop-switch-seat')?.addEventListener('click', switchSeat);
+  document.getElementById('coop-end-turn')?.addEventListener('click', endTurn);
+  document.getElementById('cancel-btn')?.addEventListener('click', cancelReady);
 }
 bindActs();

@@ -2,6 +2,7 @@
 """操纵现实（2026-10-24）：全局事件引擎钩子回归测试。"""
 
 import unittest
+from unittest import mock
 from pathlib import Path
 import sys
 
@@ -44,12 +45,29 @@ class RealityEventTests(unittest.TestCase):
         base = {'thorn': 6, 'bloom': 4, 'root': 3, 'guard': 2}
         self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {1}),
                          {'thorn': 5, 'bloom': 5, 'root': 3, 'guard': 2})
+        self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {2}),
+                         {'thorn': 6, 'bloom': 6, 'root': 3, 'guard': 0})
         self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {9}),
                          {'thorn': 6, 'bloom': 6, 'root': 3, 'guard': 0})
         self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {17}),
                          {'thorn': 6, 'bloom': 4, 'root': 0, 'guard': 5})
         self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {19}),
                          {'thorn': 0, 'bloom': 0, 'root': 10, 'guard': 0})
+
+    def test_tower_curse_transfers_only_current_guard_allowance(self):
+        base = {'thorn': 6, 'bloom': 4, 'root': 3, 'guard': 2}
+        # 事件9已经转移同一批反制额度，事件2不得再重复加一次。
+        self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {2, 9}),
+                         {'thorn': 6, 'bloom': 6, 'root': 3, 'guard': 0})
+        # 事件17提供的反制额度也会被事件2转给技能，最终反制仍为0。
+        self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {2, 17}),
+                         {'thorn': 6, 'bloom': 9, 'root': 0, 'guard': 0})
+        self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {2, 9, 17}),
+                         {'thorn': 6, 'bloom': 9, 'root': 0, 'guard': 0})
+        self.assertEqual(reality_events.reality_adjusted_draft_ratio(base, {2, 19}),
+                         {'thorn': 0, 'bloom': 0, 'root': 10, 'guard': 0})
+        no_guard = {'thorn': 6, 'bloom': 4, 'root': 3, 'guard': 0}
+        self.assertEqual(reality_events.reality_adjusted_draft_ratio(no_guard, {2}), no_guard)
 
     def test_health_bonus_events_4_and_6(self):
         e = make_engine({4})
@@ -70,6 +88,92 @@ class RealityEventTests(unittest.TestCase):
     def test_extra_draw_events_2_and_5(self):
         e = make_engine({2, 5})
         self.assertEqual(7, e.reality_extra_draw_count(0))
+
+    def start_discovery_turn(self, player_id):
+        e = make_engine({7})
+        e.round_num = 2
+        e.phase = 'draw'
+        e.first_player = player_id
+        e.current_player = player_id
+        e.players[player_id].elixir = 0
+        e._start_player_turn(player_id)
+        self.assertEqual('reality_draw', (e.pending_choice or {}).get('kind'))
+        self.assertEqual(player_id, e.pending_choice.get('player_id'))
+        return e
+
+    def complete_discovery_choices(self, e, player_id):
+        while e.pending_choice and e.pending_choice.get('kind') == 'reality_draw':
+            options = (e.pending_choice.get('choice_params') or {}).get('options') or []
+            self.assertTrue(options)
+            result = e.resolve_choice(player_id, {'def_id': options[0]})
+            self.assertTrue(result.get('success'), result)
+        self.assertIsNone(e.pending_choice)
+
+    def test_discovery_selection_restores_action_and_allows_manual_end(self):
+        for player_id in (0, 1):
+            with self.subTest(player_id=player_id):
+                e = self.start_discovery_turn(player_id)
+                self.complete_discovery_choices(e, player_id)
+                self.assertEqual('action', e.phase)
+                self.assertTrue(e.end_turn(player_id).get('success'))
+
+    def test_discovery_timeout_cancel_restores_action_and_allows_natural_end(self):
+        for player_id in (0, 1):
+            with self.subTest(player_id=player_id):
+                e = self.start_discovery_turn(player_id)
+                result = e.resolve_choice(player_id, {'cancelled': True})
+                self.assertTrue(result.get('success'), result)
+                self.assertIsNone(e.pending_choice)
+                self.assertEqual('action', e.phase)
+                self.assertTrue(e.end_turn(player_id).get('success'))
+
+    def test_discovery_completion_recovers_elixir_and_runs_remaining_turn_start_effects(self):
+        for player_id in (0, 1):
+            with self.subTest(player_id=player_id):
+                e = self.start_discovery_turn(player_id)
+                with mock.patch.object(
+                    e, '_run_timed_effects_for_turn', wraps=e._run_timed_effects_for_turn,
+                ) as timed:
+                    self.complete_discovery_choices(e, player_id)
+                self.assertEqual(5, e.players[player_id].elixir)
+                after_draw_calls = [
+                    call for call in timed.call_args_list
+                    if len(call.args) >= 2 and call.args[1] == 'after_turn_start_draw'
+                ]
+                self.assertEqual(1, len(after_draw_calls))
+
+    def test_discovery_cancel_also_recovers_elixir(self):
+        e = self.start_discovery_turn(0)
+        result = e.resolve_choice(0, {'cancelled': True})
+        self.assertTrue(result.get('success'), result)
+        self.assertEqual(5, e.players[0].elixir)
+
+    def test_discovery_reroll_preserves_remaining_choice_count(self):
+        e = self.start_discovery_turn(0)
+        remaining = int(e.pending_choice.get('remaining') or 0)
+        self.assertGreater(remaining, 1)
+        e.players[0].custom_vars['reality_redraw_charges'] = 1
+        result = e.resolve_choice(0, {'reroll': True})
+        self.assertTrue(result.get('success'), result)
+        self.assertTrue(result.get('needs_choice'))
+        self.assertEqual(remaining, int(e.pending_choice.get('remaining') or 0))
+
+    def test_discovery_options_exclude_zero_count_cards_and_reject_forged_choice(self):
+        zero_count_ids = [
+            card_id for card_id, card_def in CARD_DEFS.items()
+            if int(getattr(card_def, 'count', 0) or 0) <= 0
+        ]
+        self.assertTrue(zero_count_ids)
+        e = self.start_discovery_turn(0)
+        e.allowed_card_ids = set(CARD_DEFS)
+        with mock.patch('random.choices', side_effect=lambda pool, weights, k: [pool[0]]):
+            option = e._reality_draw_option(0, 0)
+        self.assertTrue(option['options'])
+        self.assertTrue(all(int(CARD_DEFS[card_id].count or 0) > 0 for card_id in option['options']))
+        pending_before = e.pending_choice
+        result = e.resolve_choice(0, {'def_id': zero_count_ids[0]})
+        self.assertFalse(result.get('success'))
+        self.assertIs(pending_before, e.pending_choice)
 
     def test_startup_process_uses_ten_equipment_picks_then_adds_sewage(self):
         e = make_engine({19})

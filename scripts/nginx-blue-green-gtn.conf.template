@@ -28,6 +28,14 @@ server {
     # ssl_certificate_key ...
 
     client_max_body_size 1m;
+    # 动态 HTML / API 不压缩，避免带秘密或反射输入的响应形成 BREACH 条件。
+    # 纯静态资源应在独立 location 中显式 gzip on。
+    gzip off;
+    # 下列响应头只由 nginx 输出一次，屏蔽上游同名头，避免重复或冲突。
+    proxy_hide_header X-Content-Type-Options;
+    proxy_hide_header X-Frame-Options;
+    proxy_hide_header Referrer-Policy;
+    proxy_hide_header Strict-Transport-Security;
     client_body_timeout 10s;
     client_header_timeout 10s;
     keepalive_timeout 30s;
@@ -39,7 +47,7 @@ server {
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header Referrer-Policy "same-origin" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()" always;
 
     location /socket.io/ {

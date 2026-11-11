@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="54.90 54.90 173.71 173.71">
+  <!-- Generator: Adobe Illustrator 29.0.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 186)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #f5b02c;
+      }
+
+      .st1 {
+        fill: #f18d24;
+        stroke: #e97812;
+        stroke-width: 10px;
+      }
+
+      .st1, .st2 {
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .st2 {
+        fill: #231815;
+        stroke: #231815;
+        stroke-width: 6px;
+      }
+    </style>
+  </defs>
+  <polygon class="st1" points="141.7 221.8 118.6 164.7 66.7 141.7 118.6 118.7 141.7 61.7 164.9 118.7 216.8 141.7 164.9 164.7 141.7 221.8"/>
+  <polygon class="st2" points="141.7 174.2 132.6 151.1 112 141.7 132.6 132.4 141.7 109.3 150.9 132.4 171.5 141.7 150.9 151.1 141.7 174.2"/>
+  <path class="st0" d="M146.8,141.8c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M138.9,139.7c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M141.8,148c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M134.4,144.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M146.8,151.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M138.8,149.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M142.8,154.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M140.8,144.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M147.8,147.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M143.8,136.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M135.8,149.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M145.8,143.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+  <path class="st0" d="M135.8,139.5c3.2,0,3.2-5,0-5s-3.2,5,0,5h0Z"/>
+</svg>

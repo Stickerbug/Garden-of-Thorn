@@ -8,6 +8,12 @@
   <link rel="stylesheet" href="/static/css/shared-lobby-chat.css?v={{ static_version|default('dev')|urlencode }}">
   <link rel="stylesheet" href="/static/css/minigame_suika.css?v={{ static_version|default('dev')|urlencode }}">
   <link rel="stylesheet" href="/static/css/motion_policy.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/reward-animation.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/dew-hud.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/player-skins.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/eye-styles.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/mouth-styles.css?v={{ static_version|default('dev')|urlencode }}">
+  <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
   <script nonce="{{ csp_nonce }}">
   (() => {
     const read = (key) => {
@@ -169,17 +175,23 @@
 <script src="/static/vendor/matter.min.js?v=0.19.0"></script>
 <script src="/static/js/motion_policy.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/vendor/socket.io.min.js?v=4.7.2"></script>
+<script src="/static/js/reward-animation.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/dew-hud.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/leisure-ticket.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/shared-chat-actions.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/minigame-presence.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/minigame-chat.js?v={{ static_version|default('dev')|urlencode }}"></script>
-<script type="application/json" id="sk-config">{{ {
+<script nonce="{{ csp_nonce }}" type="application/json" id="sk-config">{{ {
   'username': username,
   'userId': user_id,
   'chatRole': chat_role|default('player'),
   'staticVersion': static_version|default('dev'),
   'gameKey': 'suika',
 } | tojson }}</script>
+<script src="/static/js/player-skins.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/eye-styles.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/mouth-styles.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/backgrounds.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script type="module" src="/static/js/minigame_suika.js?v={{ static_version|default('dev')|urlencode }}"></script>
 </body>
 </html>

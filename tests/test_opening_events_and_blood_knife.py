@@ -516,6 +516,42 @@ class OpeningEventsAndBloodKnifeTests(unittest.TestCase):
             else:
                 CARD_DEFS['BloodKnife'] = previous
 
+    def test_exile_blood_knife_goes_to_exile_instead_of_returning_to_hand(self):
+        package = Path(__file__).resolve().parents[1] / 'mods' / 'Bio Cards Addition.gtnmod'
+        mod = load_mod(str(package))
+        previous = CARD_DEFS.get('BloodKnife')
+        CARD_DEFS['BloodKnife'] = next(
+            item for item in mod.cards if item.id == 'BloodKnife'
+        ).to_card_def()
+        try:
+            engine = GameEngine()
+            engine.phase = 'action'
+            engine.current_player = 0
+            player = engine.players[0]
+            player.hand = []
+            player.deck = []
+            player.discard = []
+            player.exile = []
+            player.health = 100
+            player.max_health = 100
+            player.elixir = 0
+            card = CardInstance('BloodKnife')
+            card.instance_flags.add('exile')
+            player.hand.append(card)
+
+            result = engine.play_card(0, card.instance_id, {})
+
+            self.assertTrue(result.get('success'), result)
+            self.assertEqual(player.elixir, 2)
+            self.assertIn(card, player.exile)
+            self.assertNotIn(card, player.hand)
+            self.assertNotIn(card, player.discard)
+        finally:
+            if previous is None:
+                CARD_DEFS.pop('BloodKnife', None)
+            else:
+                CARD_DEFS['BloodKnife'] = previous
+
     def test_blood_knife_mod_data_matches_new_rules(self):
         archive = Path(__file__).resolve().parents[1] / 'mods' / 'Bio Cards Addition.gtnmod'
         with zipfile.ZipFile(archive) as package:

@@ -1,5 +1,6 @@
 import gc
 import os
+from datetime import datetime, timedelta, timezone
 import shlex
 import tempfile
 import time
@@ -133,6 +134,9 @@ class AdminConsoleCommandTests(unittest.TestCase):
         cases = {
             'player list': 'players',
             'account dew get Alice': 'dew get Alice',
+            'account dew getgolden Alice': 'dew getgolden Alice',
+            'account dew txgolden Alice': 'dew txgolden Alice',
+            'account dew addgolden Alice': 'dew addgolden Alice',
             'account identity set Alice staff': 'identity set Alice staff',
             'account title equip Alice a,b': 'title equip Alice a,b',
             'account title namecolor Alice styled left': 'title namecolor Alice styled left',
@@ -433,6 +437,251 @@ class ConsoleBroadcastCommandTests(unittest.TestCase):
 
         self.assertTrue(result['success'], result['output'])
         self.assertEqual(send.call_args[0][0], 'notice(test)!')
+
+
+class AdminDewStatsTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.old_db_path = db.DB_PATH
+        db.DB_PATH = os.path.join(self.temp_dir.name, 'admin-dew-stats.sqlite3')
+        db.init_db()
+        self.user, error = db.create_user('DewStatsUser', 'Aa1!aaaa')
+        self.assertIsNone(error)
+        self.empty_user, error = db.create_user('NoDewStatsUser', 'Aa1!aaaa')
+        self.assertIsNone(error)
+        self.now = datetime(2026, 10, 30, 12, 0, tzinfo=timezone.utc)
+        transactions = [
+            (100, 0, self.now),
+            (0, 20, self.now),
+            (70, 0, self.now - timedelta(days=6)),
+            (30, 0, self.now - timedelta(days=8)),
+            (0, 5, self.now - timedelta(days=8)),
+            (40, 0, self.now - timedelta(days=20)),
+            (50, 0, self.now - timedelta(days=31)),
+            (0, 10, self.now - timedelta(days=31)),
+            (-999, 0, self.now),
+            (0, -50, self.now),
+        ]
+        with db.get_db_connection() as conn:
+            conn.execute(
+                'UPDATE users SET thorn_dew_free = 1000, thorn_dew_paid = 200 WHERE id = ?',
+                (self.user['id'],),
+            )
+            conn.executemany(
+                '''
+                INSERT INTO user_currency_transactions (
+                    user_id, currency, free_delta, paid_delta, reason, created_at
+                ) VALUES (?, 'thorn_dew', ?, ?, 'admin-stats-test', ?)
+                ''',
+                [
+                    (self.user['id'], free_delta, paid_delta, db.utc_iso(created_at))
+                    for free_delta, paid_delta, created_at in transactions
+                ],
+            )
+            conn.execute('UPDATE users SET golden_dew = 36 WHERE id = ?', (self.user['id'],))
+            golden_transactions = [
+                (6, self.now),
+                (4, self.now - timedelta(days=6)),
+                (2, self.now - timedelta(days=8)),
+                (3, self.now - timedelta(days=20)),
+                (5, self.now - timedelta(days=31)),
+                (-99, self.now),
+            ]
+            conn.executemany(
+                '''
+                INSERT INTO user_currency_transactions (
+                    user_id, currency, free_delta, paid_delta, reason, created_at
+                ) VALUES (?, 'golden_dew', ?, 0, 'admin-golden-stats-test', ?)
+                ''',
+                [
+                    (self.user['id'], delta, db.utc_iso(created_at))
+                    for delta, created_at in golden_transactions
+                ],
+            )
+            conn.commit()
+
+    def tearDown(self):
+        db.release_wal_keeper()
+        db.DB_PATH = self.old_db_path
+        gc.collect()
+        self.temp_dir.cleanup()
+
+    def assert_dew_stats(self, user, earned_total=325, current_total=1200):
+        self.assertEqual(user['dew_earned_total'], earned_total)
+        self.assertEqual(user['dew_current_total'], current_total)
+        expected_avg_7d = 27.14 if earned_total else 0.0
+        expected_avg_30d = 8.83 if earned_total else 0.0
+        self.assertEqual(user['dew_daily_avg_7d'], expected_avg_7d)
+        self.assertEqual(user['dew_daily_avg_30d'], expected_avg_30d)
+        self.assertEqual(user['golden_dew_earned_total'], 20 if earned_total else 0)
+        self.assertEqual(user['golden_dew_current_total'], 36 if current_total else 0)
+        self.assertEqual(user['golden_dew_daily_avg_7d'], 1.43 if earned_total else 0.0)
+        self.assertEqual(user['golden_dew_daily_avg_30d'], 0.5 if earned_total else 0.0)
+
+    def test_rolling_averages_exclude_spending_and_old_income(self):
+        with db.get_db_connection() as conn:
+            stats = db._dew_stats_for_users(conn, [self.user['id']], now=self.now)
+        self.assertEqual(stats, {
+            self.user['id']: {
+                'dew_earned_total': 325,
+                'dew_daily_avg_7d': 27.14,
+                'dew_daily_avg_30d': 8.83,
+                'golden_dew_earned_total': 20,
+                'golden_dew_daily_avg_7d': 1.43,
+                'golden_dew_daily_avg_30d': 0.5,
+            },
+        })
+
+    def test_list_and_detail_include_stats_without_per_user_queries(self):
+        with (
+            mock.patch.object(db, 'utc_now_dt', return_value=self.now),
+            mock.patch.object(db, '_dew_stats_for_users', wraps=db._dew_stats_for_users) as aggregate,
+        ):
+            result = db.list_admin_users(query='', limit=50)
+        self.assertEqual(aggregate.call_count, 1)
+        self.assertEqual(
+            set(aggregate.call_args.args[1]),
+            {self.user['id'], self.empty_user['id']},
+        )
+        listed = {user['id']: user for user in result['users']}
+        self.assert_dew_stats(listed[self.user['id']])
+        self.assert_dew_stats(listed[self.empty_user['id']], earned_total=0, current_total=0)
+
+        with mock.patch.object(db, 'utc_now_dt', return_value=self.now):
+            detail = db.get_admin_user_detail(self.user['id'])
+            empty_detail = db.get_admin_user_detail(self.empty_user['id'])
+        self.assert_dew_stats(detail['user'])
+        self.assert_dew_stats(empty_detail['user'], earned_total=0, current_total=0)
+
+    def test_admin_script_displays_all_dew_metrics(self):
+        script_path = os.path.join(os.path.dirname(db.__file__), 'static', 'js', 'admin.js')
+        with open(script_path, encoding='utf-8') as script_file:
+            script = script_file.read()
+        template_path = os.path.join(os.path.dirname(db.__file__), 'templates', 'admin_stats.html')
+        with open(template_path, encoding='utf-8') as template_file:
+            template = template_file.read()
+        for field in (
+            'dew_earned_total',
+            'dew_current_total',
+            'dew_daily_avg_7d',
+            'dew_daily_avg_30d',
+            'golden_dew_earned_total',
+            'golden_dew_current_total',
+            'golden_dew_daily_avg_7d',
+            'golden_dew_daily_avg_30d',
+        ):
+            self.assertIn(field, script)
+            self.assertIn(f'<option value="{field}">', template)
+        for label in (
+            '总荆露流水', '目前荆露', '近 7 天日均', '近 30 天日均',
+            '总金露流水', '目前金露', '近 7 天日均金露', '近 30 天日均金露',
+        ):
+            self.assertIn(label, script)
+
+    def test_dew_sorts_apply_before_pagination(self):
+        high_user, error = db.create_user('DewSortHighUser', 'Aa1!aaaa')
+        self.assertIsNone(error)
+        with db.get_db_connection() as conn:
+            conn.execute(
+                '''
+                UPDATE users
+                SET thorn_dew_free = 5000, thorn_dew_paid = 0,
+                    last_login_at = '2020-01-01T00:00:00Z'
+                WHERE id = ?
+                ''',
+                (high_user['id'],),
+            )
+            conn.execute(
+                'UPDATE users SET last_login_at = ? WHERE id = ?',
+                (db.utc_iso(self.now), self.user['id']),
+            )
+            conn.execute(
+                "UPDATE users SET last_login_at = '2025-01-01T00:00:00Z' WHERE id = ?",
+                (self.empty_user['id'],),
+            )
+            conn.executemany(
+                '''
+                INSERT INTO user_currency_transactions (
+                    user_id, currency, free_delta, paid_delta, reason, created_at
+                ) VALUES (?, 'thorn_dew', ?, 0, 'admin-sort-test', ?)
+                ''',
+                [
+                    (high_user['id'], 700, db.utc_iso(self.now - timedelta(days=20))),
+                    (high_user['id'], 1, db.utc_iso(self.now)),
+                ],
+            )
+            conn.commit()
+
+        with mock.patch.object(db, 'utc_now_dt', return_value=self.now):
+            high_result = db.list_admin_users(sort='dew_earned_total', order='desc', limit=1)
+            high_stats = high_result['users'][0]
+            self.assertEqual(high_stats['id'], high_user['id'])
+            self.assertEqual(high_stats['dew_earned_total'], 701)
+            self.assertEqual(high_stats['dew_current_total'], 5000)
+            self.assertEqual(high_stats['dew_daily_avg_7d'], 0.14)
+            self.assertEqual(high_stats['dew_daily_avg_30d'], 23.37)
+
+            expected_leaders = {
+                'dew_earned_total': high_user['id'],
+                'dew_current_total': high_user['id'],
+                'dew_daily_avg_7d': self.user['id'],
+                'dew_daily_avg_30d': high_user['id'],
+            }
+            for sort, leader_id in expected_leaders.items():
+                with self.subTest(sort=sort, order='desc'):
+                    result = db.list_admin_users(sort=sort, order='desc', limit=1)
+                    self.assertEqual(result['sort'], sort)
+                    self.assertEqual(result['total'], 3)
+                    self.assertEqual(len(result['users']), 1)
+                    self.assertEqual(result['users'][0]['id'], leader_id)
+                with self.subTest(sort=sort, order='asc'):
+                    result = db.list_admin_users(sort=sort, order='asc', limit=1)
+                    self.assertEqual(result['users'][0]['id'], self.empty_user['id'])
+                    self.assertEqual(result['users'][0][sort], 0)
+    def test_golden_dew_sorts_apply_before_pagination(self):
+        high_user, error = db.create_user('GoldenSortHigh', 'Aa1!aaaa')
+        self.assertIsNone(error)
+        with db.get_db_connection() as conn:
+            conn.execute('UPDATE users SET golden_dew = 90 WHERE id = ?', (high_user['id'],))
+            conn.executemany(
+                '''
+                INSERT INTO user_currency_transactions (
+                    user_id, currency, free_delta, paid_delta, reason, created_at
+                ) VALUES (?, 'golden_dew', ?, 0, 'admin-golden-sort-test', ?)
+                ''',
+                [
+                    (high_user['id'], 50, db.utc_iso(self.now - timedelta(days=20))),
+                    (high_user['id'], 2, db.utc_iso(self.now)),
+                ],
+            )
+            conn.commit()
+
+        with mock.patch.object(db, 'utc_now_dt', return_value=self.now):
+            high_result = db.list_admin_users(sort='golden_dew_earned_total', order='desc', limit=1)
+            high_stats = high_result['users'][0]
+            self.assertEqual(high_stats['id'], high_user['id'])
+            self.assertEqual(high_stats['golden_dew_earned_total'], 52)
+            self.assertEqual(high_stats['golden_dew_current_total'], 90)
+            self.assertEqual(high_stats['golden_dew_daily_avg_7d'], 0.29)
+            self.assertEqual(high_stats['golden_dew_daily_avg_30d'], 1.73)
+
+            expected_leaders = {
+                'golden_dew_earned_total': high_user['id'],
+                'golden_dew_current_total': high_user['id'],
+                'golden_dew_daily_avg_7d': self.user['id'],
+                'golden_dew_daily_avg_30d': high_user['id'],
+            }
+            for sort, leader_id in expected_leaders.items():
+                with self.subTest(sort=sort, order='desc'):
+                    result = db.list_admin_users(sort=sort, order='desc', limit=1)
+                    self.assertEqual(result['sort'], sort)
+                    self.assertEqual(result['total'], 3)
+                    self.assertEqual(len(result['users']), 1)
+                    self.assertEqual(result['users'][0]['id'], leader_id)
+                with self.subTest(sort=sort, order='asc'):
+                    result = db.list_admin_users(sort=sort, order='asc', limit=1)
+                    self.assertEqual(result['users'][0]['id'], self.empty_user['id'])
+                    self.assertEqual(result['users'][0][sort], 0)
 
 
 class AccountRestoreCommandTests(unittest.TestCase):

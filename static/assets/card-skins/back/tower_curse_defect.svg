@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层_1" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1133.9 1133.9">
+  <!-- Generator: Adobe Illustrator 29.0.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 186)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #0f7abb;
+      }
+
+      .st1, .st2 {
+        stroke: #158bc4;
+      }
+
+      .st1, .st2, .st3, .st4, .st5, .st6 {
+        fill: none;
+      }
+
+      .st1, .st2, .st3, .st5, .st6 {
+        stroke-linecap: round;
+      }
+
+      .st1, .st2, .st7, .st8, .st9 {
+        stroke-width: 3.2px;
+      }
+
+      .st1, .st7, .st8, .st9 {
+        stroke-miterlimit: 25.2;
+      }
+
+      .st10 {
+        fill: #4e9ad4;
+      }
+
+      .st11 {
+        fill: #f6e275;
+      }
+
+      .st2, .st3, .st5, .st6 {
+        stroke-linejoin: round;
+      }
+
+      .st3 {
+        stroke: #f6d762;
+        stroke-width: 14.1px;
+      }
+
+      .st7 {
+        fill: #f4d623;
+      }
+
+      .st7, .st8, .st9 {
+        stroke: #f5ae21;
+      }
+
+      .st12 {
+        clip-path: url(#clippath-1);
+      }
+
+      .st5 {
+        stroke: #1686c5;
+        stroke-width: 7.1px;
+      }
+
+      .st8 {
+        fill: url(#_未命名的渐变_11);
+      }
+
+      .st13 {
+        fill: #37a3dd;
+      }
+
+      .st6 {
+        stroke: #1886c9;
+        stroke-width: 2.8px;
+      }
+
+      .st9 {
+        fill: url(#_未命名的渐变_111);
+      }
+
+      .st14 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <linearGradient id="_未命名的渐变_11" data-name="未命名的渐变 11" x1="854.2" y1="220.8" x2="940.2" y2="220.8" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#e0c317"/>
+      <stop offset="1" stop-color="#f4d623"/>
+    </linearGradient>
+    <linearGradient id="_未命名的渐变_111" data-name="未命名的渐变 11" x1="879.6" x2="965.7" gradientTransform="translate(1159.3) rotate(-180) scale(1 -1)" xlink:href="#_未命名的渐变_11"/>
+    <clipPath id="clippath">
+      <rect class="st4" x="283.5" y="283.5" width="566.9" height="566.9" transform="translate(-234.8 566.9) rotate(-45)"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect class="st4" x="283.5" y="283.5" width="566.9" height="566.9" transform="translate(-234.8 566.9) rotate(-45)"/>
+    </clipPath>
+  </defs>
+  <g>
+    <path class="st7" d="M279.7,190.2v374c0,7.8,6.3,14.2,14.2,14.2h546.1c7.8,0,14.2-6.3,14.2-14.2V190.2H279.7ZM826.2,551.3H307.7V217.2h518.5v334Z"/>
+    <polygon class="st8" points="854.2 242.3 854.2 221.6 867.1 179.4 940.2 262.3 854.2 242.3"/>
+    <polygon class="st9" points="279.7 242.3 279.7 221.6 266.7 179.4 193.6 262.3 279.7 242.3"/>
+    <polygon class="st7" points="873.5 158.7 854.2 221.6 566.5 221.2 278.9 221.6 259.5 158.7 873.5 158.7"/>
+  </g>
+  <path class="st10" d="M290.7,131h552.5c19.1,0,34.7,15.8,34.7,35.2v801.4c0,19.4-15.5,35.2-34.7,35.2H290.7c-19.1,0-34.7-15.8-34.7-35.2V166.2c0-19.4,15.5-35.2,34.7-35.2Z"/>
+  <path class="st0" d="M841.9,165.3v803.3H291.9V165.3h550M846.8,125.3H287c-19.4,0-35.1,16-35.1,35.7v811.9c0,19.7,15.7,35.7,35.1,35.7h559.8c19.4,0,35.1-16,35.1-35.7V161c0-19.7-15.7-35.7-35.1-35.7h0Z"/>
+  <g>
+    <g>
+      <line class="st1" x1="840.7" y1="166.3" x2="871.5" y2="135.6"/>
+      <line class="st2" x1="840.8" y1="966.7" x2="871.5" y2="997.4"/>
+    </g>
+    <g>
+      <line class="st1" x1="292.9" y1="968.1" x2="262.1" y2="998.8"/>
+      <line class="st2" x1="292.8" y1="167.7" x2="262.1" y2="137"/>
+    </g>
+  </g>
+  <g class="st14">
+    <g class="st12">
+      <path class="st11" d="M658.5,439.6l50,50-16.9,202-202,16.9-50-50c-45.8-45.8-79.9-85.8-31.4-128.7,13.1-11.6,23.3-16.2,34.7-17.7-15.7-25-16.7-53.5-.5-69.7s44.7-15.2,69.7.5c1.6-11.4,6.1-21.6,17.7-34.7,42.9-48.4,82.9-14.3,128.7,31.5"/>
+      <path class="st3" d="M658.5,439.6l50,50-16.9,202-202,16.9-50-50c-45.8-45.8-79.9-85.8-31.4-128.7,13.1-11.6,23.3-16.2,34.7-17.7-15.7-25-16.7-53.5-.5-69.7s44.7-15.2,69.7.5c1.6-11.4,6.1-21.6,17.7-34.7,42.9-48.4,82.9-14.3,128.7,31.5Z"/>
+      <path class="st13" d="M616.5,517.3c27.4,27.4,27.4,71.8,0,99.2-27.4,27.4-71.8,27.4-99.2,0-27.4-27.4-27.4-71.8,0-99.2s71.8-27.4,99.2,0"/>
+      <circle class="st5" cx="566.9" cy="566.9" r="70.1" transform="translate(-234.8 566.9) rotate(-45)"/>
+      <path class="st13" d="M494.1,473c5.8,5.8,5.8,15.3,0,21.1s-15.3,5.8-21.1,0-5.8-15.3,0-21.1,15.3-5.8,21.1,0"/>
+      <circle class="st6" cx="483.5" cy="483.5" r="14.9" transform="translate(-182 326.4) rotate(-31.7)"/>
+    </g>
+  </g>
+</svg>
