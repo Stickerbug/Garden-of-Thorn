@@ -128,7 +128,7 @@ function handlingPageVisible() {
 /* ── 状态 ─────────────────────────────────────── */
 const state = {
   tab: 'reports',
-  reports: [], users: [], matches: [], riskMatches: [], clusters: [], ipBans: [], moderationRecords: [],
+  reports: [], users: [], matches: [], riskMatches: [], currencyRisks: [], currencyRiskDay: '', currencyRiskCounts: {}, clusters: [], ipBans: [], moderationRecords: [],
   selected: { reportId: null, userId: null, matchId: null, clusterKey: null, moderationKey: '', ip: null },
   loadedOnce: {},
   totals: {},
@@ -394,11 +394,18 @@ async function loadRiskMatches() {
   if (state.inFlight.risk) return;
   state.inFlight.risk = true;
   try {
-    const data = await api('/api/feedback/handling/matches?risk=risk&limit=30');
+    const [data, currency] = await Promise.all([
+      api('/api/feedback/handling/matches?risk=risk&limit=30'),
+      // 流水异常是独立数据源，失败不应挡住对局风险列表。
+      api('/api/feedback/handling/currency-risks?limit=50').catch(() => ({ items: [], counts: {} })),
+    ]);
     state.riskMatches = data.items || [];
     state.totals.risk = data.total || state.riskMatches.length;
+    state.currencyRisks = (currency && currency.items) || [];
+    state.currencyRiskCounts = (currency && currency.counts) || {};
+    state.currencyRiskDay = (currency && currency.day) || '';
     state.loadedOnce.risk = true;
-    setText('summary', `风险对局 ${state.riskMatches.length}/${state.totals.risk}`);
+    setText('summary', `风险对局 ${state.riskMatches.length}/${state.totals.risk} · 货币异常 ${state.currencyRisks.length}`);
     renderList();
   } finally {
     state.inFlight.risk = false;
@@ -503,18 +510,43 @@ function riskBadge(level) {
   return node;
 }
 
+function renderCurrencyRiskItem(item) {
+  const row = el('div', 'hd-item hd-currency-risk');
+  const title = el('div', 'hd-item-title');
+  title.appendChild(el('strong', '', partyName(item.username, item.user_id)));
+  title.appendChild(badge(item.kind === 'daily' ? 'pending' : 'danger', item.kind_label || item.kind || '异常'));
+  row.appendChild(title);
+  const amount = Number(item.amount || 0);
+  const threshold = Number(item.threshold || 0);
+  const count = Number(item.count || 1);
+  const amountText = item.kind === 'daily' ? `当日合计 ${amount}` : `金额 ${amount}`;
+  row.appendChild(el('div', 'hd-item-sub', `${item.currency_label || item.currency} · ${amountText}（阈值 >${threshold}）· ${count} 笔`));
+  const meta = el('div', 'hd-item-sub mono', `${fmtTime(item.last_at)}${item.reason ? ` · ${item.reason}` : ''}`);
+  row.appendChild(meta);
+  row.addEventListener('click', () => selectUser({ id: item.user_id, username: item.username }));
+  return row;
+}
+
+function renderCurrencyRiskGroup(list) {
+  const label = state.currencyRiskDay ? `货币流水异常 · ${state.currencyRiskDay}（北京时间）` : '货币流水异常（北京时间）';
+  list.appendChild(el('div', 'hd-section-label', label));
+  state.currencyRisks.forEach((item) => list.appendChild(renderCurrencyRiskItem(item)));
+  if (state.riskMatches.length) list.appendChild(el('div', 'hd-section-label', '对局风险'));
+}
+
 function renderList() {
   const list = $('list');
   if (!list) return;
   list.textContent = '';
   const tab = state.tab;
   const items = itemsOf(tab);
-  if (!items.length) {
+  const hasCurrency = tab === 'risk' && state.currencyRisks.length > 0;
+  if (!items.length && !hasCurrency) {
     const hints = {
       reports: '暂无举报',
       users: '暂无玩家，输入条件后点击搜索',
       matches: '暂无对局，输入条件后点击搜索',
-      risk: '暂无风险标记，点击「读取风险对局」',
+      risk: '暂无风险记录，点击「读取风险」',
       clusters: '暂无关联串，点击「读取关联串」',
       moderation: '暂无有效处罚',
       ip: '暂无 IP 封禁，输入 IP 后点「封禁 IP…」',
@@ -522,6 +554,7 @@ function renderList() {
     list.appendChild(el('div', 'hd-list-empty', hints[tab] || '暂无数据'));
     return;
   }
+  if (hasCurrency) renderCurrencyRiskGroup(list);
   items.forEach((item) => list.appendChild(renderItem(tab, item)));
 }
 

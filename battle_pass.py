@@ -19,10 +19,10 @@ from __future__ import annotations
 import json
 import math
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 
 PASS_SEASON_ID = 'S1'
-PASS_SEASON_WEEKS = 8
 PASS_MAX_LEVEL = 100
 XP_PER_LEVEL = 100
 GOLDEN_PRICE_GOLDEN_DEW = 250
@@ -49,8 +49,9 @@ TRACKS = (TRACK_FREE, TRACK_GOLDEN)
 TRACK_LABELS = {TRACK_FREE: '荆棘之路', TRACK_GOLDEN: '黄金之路'}
 
 _CN_TZ = timezone(timedelta(hours=8))
-# 赛季锚点：上线日 2026-11-11 00:00（北京时间），周期 8 周。
+# 赛季锚点：上线日 2026-11-11 00:00 开始，到 2026-11-30 23:59:59 截止（北京时间，含 23:59 整分钟）。
 PASS_SEASON_START = datetime(2026, 11, 11, 0, 0, 0, tzinfo=_CN_TZ)
+PASS_SEASON_END = datetime(2026, 11, 30, 23, 59, 59, tzinfo=_CN_TZ)
 
 REWARD_KIND_LABELS = {
     'dew': '荆露',
@@ -186,8 +187,7 @@ def _beijing(now=None):
 
 
 def season_bounds(now=None):
-    start = PASS_SEASON_START
-    end = start + timedelta(weeks=PASS_SEASON_WEEKS)
+    start, end = PASS_SEASON_START, PASS_SEASON_END
     return start, end, _beijing(now) < end
 
 
@@ -441,6 +441,15 @@ def _apply_xp(conn, user_id, base_xp, *, source, source_key, multiplier=1.0, now
     ensure_pass_schema(conn)
     uid = int(user_id)
     key = str(source_key)
+    _, _, season_open = season_bounds(now)
+    if not season_open:
+        progress = _ensure_progress(conn, uid, now)
+        current = int(progress['xp_total'] or 0)
+        return {
+            'applied': False, 'reason': 'season_closed', 'xp': 0,
+            'xp_total': current, 'level_before': level_for_xp(current),
+            'level_after': level_for_xp(current), 'multiplier': float(multiplier),
+        }
     progress = _ensure_progress(conn, uid, now)
     before_xp = int(progress['xp_total'] or 0)
     if _ledger_exists(conn, uid, key):
@@ -851,3 +860,152 @@ def state_payload(conn, user_id, *, now=None):
         'story_weekly_triple_count': STORY_WEEKLY_TRIPLE_COUNT,
         'tracks': tracks,
     }
+
+
+# --------------------------------------------------------------------------
+# 管理端：经验查询与调整（控制台 account xp ...）
+# --------------------------------------------------------------------------
+
+XP_SOURCES = ('match', 'story', 'checkin', 'admin')
+
+XP_SOURCE_LABELS = {
+    'match': '对局经验',
+    'story': '爬塔经验',
+    'checkin': '签到经验',
+    'admin': '管理调整',
+}
+
+
+def source_label(source):
+    """经验来源的中文标签；未知来源原样返回。"""
+    key = str(source or '').strip()
+    return XP_SOURCE_LABELS.get(key, key or '-')
+
+
+def normalize_source(source):
+    key = str(source or '').strip().lower()
+    return key if key in XP_SOURCES else ''
+
+
+def xp_summary(conn, user_id, now=None):
+    """控制台用：赛季经验总览（总量/等级/分来源合计）。"""
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    progress = _ensure_progress(conn, uid, now)
+    total = int(progress['xp_total'] or 0)
+    rows = conn.execute(
+        '''SELECT source, SUM(xp) AS total, COUNT(*) AS entries
+           FROM battle_pass_xp_ledger
+           WHERE user_id = ? AND season_id = ?
+           GROUP BY source''',
+        (uid, season_id()),
+    ).fetchall()
+    by_source = {key: {'xp': 0, 'entries': 0} for key in XP_SOURCES}
+    for row in rows:
+        key = str(row['source'] or '')
+        by_source[key] = {'xp': int(row['total'] or 0), 'entries': int(row['entries'] or 0)}
+    level = level_for_xp(total)
+    return {
+        'season_id': season_id(),
+        'xp_per_level': XP_PER_LEVEL,
+        'xp_total': total,
+        'level': level,
+        'level_display': min(level, PASS_MAX_LEVEL),
+        'xp_into_level': xp_into_level(total),
+        'golden': bool(progress['golden_unlocked_at']),
+        'by_source': by_source,
+    }
+
+
+def adjust_xp(conn, user_id, delta, *, source='admin', reason='', admin_username='', now=None):
+    """管理端增减通行证经验（正数发放、负数扣除），写经验台账。
+
+    返回 (result, error)。扣除时不会把累计经验压到 0 以下。
+    """
+    ensure_pass_schema(conn)
+    try:
+        value = int(delta)
+    except (TypeError, ValueError):
+        return None, '数量必须是整数'
+    if value == 0:
+        return None, '调整数量不能为0'
+    key = normalize_source(source)
+    if not key:
+        return None, f'未知经验来源：{source}'
+    uid = int(user_id)
+    progress = _ensure_progress(conn, uid, now)
+    before = int(progress['xp_total'] or 0)
+    after = max(0, before + value)
+    applied = after - before
+    if applied == 0:
+        return None, '累计经验已是 0，无法再扣除'
+    now_text = _now_iso(now)
+    operator = (str(admin_username or 'console').strip() or 'console')[:24]
+    source_key = f'admin:{operator}:{uuid.uuid4().hex}'
+    conn.execute(
+        '''INSERT INTO battle_pass_xp_ledger
+           (user_id, season_id, source, source_key, base_xp, xp, multiplier, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, 1.0, ?)''',
+        (uid, season_id(), key, source_key, applied, applied, now_text),
+    )
+    conn.execute(
+        'UPDATE battle_pass_progress SET xp_total = ?, updated_at = ? WHERE user_id = ? AND season_id = ?',
+        (after, now_text, uid, season_id()),
+    )
+    return {
+        'applied': applied,
+        'requested': value,
+        'source': key,
+        'reason': str(reason or ''),
+        'xp_total': after,
+        'level_before': level_for_xp(before),
+        'level_after': level_for_xp(after),
+    }, ''
+
+
+def list_xp_transactions(conn, user_id, limit=20, source=None):
+    """控制台用：最近经验台账（可按来源过滤）。"""
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    try:
+        limit = max(1, min(200, int(limit or 20)))
+    except (TypeError, ValueError):
+        limit = 20
+    sql = ('SELECT source, source_key, base_xp, xp, multiplier, created_at '
+           'FROM battle_pass_xp_ledger WHERE user_id = ? AND season_id = ?')
+    params = [uid, season_id()]
+    key = normalize_source(source) if source else ''
+    if key:
+        sql += ' AND source = ?'
+        params.append(key)
+    sql += ' ORDER BY created_at DESC, rowid DESC LIMIT ?'
+    params.append(limit)
+    return [dict(row) for row in conn.execute(sql, params).fetchall()]
+
+
+# 控制台入口：自建连接并提交（db 反向 import battle_pass，故延迟导入 db）
+
+def admin_xp_summary(user_id, now=None):
+    import db
+    with db.get_db_connection() as conn:
+        return xp_summary(conn, user_id, now)
+
+
+def admin_list_xp_transactions(user_id, limit=20, source=None):
+    import db
+    with db.get_db_connection() as conn:
+        return list_xp_transactions(conn, user_id, limit=limit, source=source)
+
+
+def admin_adjust_xp(user_id, delta, *, source='admin', reason='', admin_username='console', now=None):
+    """控制台增减经验：自建连接、提交事务，返回 (result, error)。"""
+    import db
+    with db.get_db_connection() as conn:
+        result, error = adjust_xp(
+            conn, user_id, delta, source=source, reason=reason,
+            admin_username=admin_username, now=now,
+        )
+        if error:
+            return None, error
+        conn.commit()
+        return result, ''

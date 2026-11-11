@@ -5,6 +5,7 @@ import gc
 import os
 import tempfile
 import unittest
+from datetime import datetime
 
 import battle_pass as bp
 import db
@@ -306,6 +307,126 @@ class BattlePassTests(unittest.TestCase):
             conn.commit()
         self.assertEqual(result['reward']['kind'], 'card_skin')
         self.assertEqual(owned, 1)
+
+
+    # ---- 控制台经验指令 ----
+
+    def test_admin_adjust_xp_moves_levels_and_writes_ledger(self):
+        result, error = bp.admin_adjust_xp(self.uid, 150, source='admin', reason='补偿', admin_username='console')
+        self.assertEqual(error, '')
+        self.assertEqual(result['applied'], 150)
+        self.assertEqual(result['xp_total'], 150)
+        self.assertEqual(result['level_before'], 0)
+        self.assertEqual(result['level_after'], 1)
+
+        with self._conn() as conn:
+            rows = [dict(row) for row in conn.execute(
+                'SELECT source, base_xp, xp, multiplier FROM battle_pass_xp_ledger WHERE user_id = ?',
+                (self.uid,),
+            ).fetchall()]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['source'], 'admin')
+        self.assertEqual(rows[0]['xp'], 150)
+
+        result, error = bp.admin_adjust_xp(self.uid, -40, source='admin', admin_username='console')
+        self.assertEqual(error, '')
+        self.assertEqual(result['applied'], -40)
+        self.assertEqual(result['xp_total'], 110)
+
+    def test_admin_adjust_xp_never_drops_below_zero(self):
+        result, error = bp.admin_adjust_xp(self.uid, -50, source='admin')
+        self.assertIsNone(result)
+        self.assertEqual(error, '累计经验已是 0，无法再扣除')
+
+        bp.admin_adjust_xp(self.uid, 20, source='admin')
+        result, error = bp.admin_adjust_xp(self.uid, -200, source='admin')
+        self.assertEqual(error, '')
+        self.assertEqual(result['applied'], -20)
+        self.assertEqual(result['xp_total'], 0)
+
+    def test_admin_adjust_xp_rejects_bad_arguments(self):
+        self.assertEqual(bp.admin_adjust_xp(self.uid, 0, source='admin')[1], '调整数量不能为0')
+        self.assertEqual(bp.admin_adjust_xp(self.uid, 10, source='nope')[1], '未知经验来源：nope')
+        self.assertEqual(bp.admin_adjust_xp(self.uid, 'abc', source='admin')[1], '数量必须是整数')
+
+    def test_admin_xp_summary_splits_by_source(self):
+        with self._conn() as conn:
+            bp._apply_xp(conn, self.uid, 40, source='match', source_key='m-1')
+            bp._apply_xp(conn, self.uid, 60, source='story', source_key='s-1')
+            bp._apply_xp(conn, self.uid, 25, source='checkin', source_key='c-1')
+            conn.commit()
+        summary = bp.admin_xp_summary(self.uid)
+        self.assertEqual(summary['xp_total'], 125)
+        self.assertEqual(summary['level'], 1)
+        self.assertEqual(summary['xp_into_level'], 25)
+        self.assertEqual(summary['by_source']['match']['xp'], 40)
+        self.assertEqual(summary['by_source']['story']['xp'], 60)
+        self.assertEqual(summary['by_source']['checkin']['xp'], 25)
+        self.assertEqual(summary['by_source']['admin']['xp'], 0)
+
+    def test_admin_list_xp_transactions_can_filter_source(self):
+        bp.admin_adjust_xp(self.uid, 30, source='match')
+        bp.admin_adjust_xp(self.uid, 70, source='story')
+        self.assertEqual(len(bp.admin_list_xp_transactions(self.uid)), 2)
+        only_story = bp.admin_list_xp_transactions(self.uid, source='story')
+        self.assertEqual([row['source'] for row in only_story], ['story'])
+        self.assertEqual(only_story[0]['xp'], 70)
+
+    def test_xp_source_labels_cover_every_source(self):
+        for source in bp.XP_SOURCES:
+            self.assertIn(source, bp.XP_SOURCE_LABELS)
+            self.assertTrue(bp.source_label(source))
+            self.assertEqual(bp.normalize_source(source), source)
+        self.assertEqual(bp.normalize_source('bogus'), '')
+        self.assertEqual(bp.source_label('bogus'), 'bogus')
+
+    def test_season_ends_on_november_30_2359(self):
+        def stamp(*args):
+            return datetime(*args, tzinfo=bp._CN_TZ).timestamp()
+
+        start, end, active = bp.season_bounds(stamp(2026, 11, 15, 12, 0, 0))
+        self.assertEqual(start, bp.PASS_SEASON_START)
+        self.assertEqual((end.year, end.month, end.day, end.hour, end.minute), (2026, 11, 30, 23, 59))
+        self.assertTrue(active)
+        # 23:59 仍在赛季内，00:00（次日）已经结束。
+        _, _, still_active = bp.season_bounds(stamp(2026, 11, 30, 23, 59, 30))
+        self.assertTrue(still_active)
+        _, _, closed = bp.season_bounds(stamp(2026, 12, 1, 0, 0, 1))
+        self.assertFalse(closed)
+        self.assertFalse(hasattr(bp, 'PASS_SEASON_WEEKS'))
+
+    def test_season_payload_reports_the_new_window(self):
+        with db.get_db_connection() as conn:
+            bp.ensure_pass_schema(conn)
+            payload = bp.state_payload(conn, self.uid)
+            conn.commit()
+        self.assertEqual(payload['season_end'][:10], '2026-11-30')
+        self.assertEqual(payload['season_start'][:10], '2026-11-11')
+        self.assertTrue(payload['season_active'])
+
+    def test_xp_grants_stop_after_the_season_closes(self):
+        closed = datetime(2026, 12, 1, 0, 0, 1, tzinfo=bp._CN_TZ).timestamp()
+        with db.get_db_connection() as conn:
+            bp.ensure_pass_schema(conn)
+            result = bp.grant_match_xp(
+                conn, self.uid, match_id='late-match', seconds=300, rounds=10, won=True, now=closed,
+            )
+            ledger = conn.execute(
+                'SELECT COUNT(*) AS c FROM battle_pass_xp_ledger WHERE user_id = ?', (self.uid,),
+            ).fetchone()
+            conn.commit()
+        self.assertFalse(result['applied'])
+        self.assertEqual(result['reason'], 'season_closed')
+        self.assertEqual(int(ledger['c']), 0)
+        # 赛季内同样的对局照常发经验。
+        inside = datetime(2026, 11, 20, 12, 0, 0, tzinfo=bp._CN_TZ).timestamp()
+        with db.get_db_connection() as conn:
+            allowed = bp.grant_match_xp(
+                conn, self.uid, match_id='on-time-match', seconds=300, rounds=10, won=True, now=inside,
+            )
+            conn.commit()
+        self.assertTrue(allowed['applied'])
+        self.assertGreater(allowed['xp'], 0)
 
 
 if __name__ == '__main__':

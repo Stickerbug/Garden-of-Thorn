@@ -20962,9 +20962,11 @@ function renderRankCardsShop(user) {
         double: lt({ zh: '下一局胜利得分×2', en: 'Next win gains ×2', fr: 'La prochaine victoire rapporte ×2', ja: '次の勝利で獲得×2' }),
     };
     const dewLabel = lt({ zh: '荆露', en: 'dew', fr: 'brume', ja: '荊露' });
+    const goldLabel = lt({ zh: '金露', en: 'golden dew', fr: 'rosée d’or', ja: '金露' });
     const price = Number(cards.price_today);
     const priceKnown = Number.isFinite(price) && price > 0;
-    const priceLabel = priceKnown ? `${price} ${dewLabel}` : '';
+    const priceCurrency = cards.price_today_currency === 'golden_dew' ? goldLabel : dewLabel;
+    const priceLabel = priceKnown ? `${price} ${priceCurrency}` : '';
     const rows = ['shield', 'double'].map(kind => {
         const info = cards[kind] || { owned: 0, armed: false };
         const stateLabel = info.armed
@@ -20986,10 +20988,10 @@ function renderRankCardsShop(user) {
         </div>`;
     }).join('');
     const buyTitleSuffix = lt({
-        zh: '（每买一张涨价，每日重置）',
-        en: ' (rises per purchase, resets daily)',
-        fr: ' (monte à chaque achat, réinitialisé chaque jour)',
-        ja: '（購入ごとに値上がり、毎日リセット）',
+        zh: '（每日第一张 300 荆露，之后每张 5 金露，每日重置）',
+        en: ' (first card of the day 300 dew, then 5 golden dew each, resets daily)',
+        fr: ' (1re carte du jour 300 brume, puis 5 rosée d’or, réinitialisé chaque jour)',
+        ja: '（1日の1枚目は荊露300、以降は金露5、毎日リセット）',
     });
     const noteText = priceKnown
         ? lt({ zh: '一场对局只能激活一张；激活后下一局消耗。今日价格', en: 'One card per match; armed card is consumed next game. Today’s price', fr: 'Une carte par partie ; la carte activée est consommée au prochain match. Prix du jour', ja: '1対局1枚のみ。発動カードは次の対局で消費。本日の価格' }) + ' ' + priceLabel + buyTitleSuffix
@@ -21099,9 +21101,12 @@ function renderRankCardsStrip(strip, modeKey, opts = {}) {
     }).join('');
     const stripPrice = Number(cards.price_today);
     const stripPriceKnown = Number.isFinite(stripPrice) && stripPrice > 0;
+    const stripCurrency = cards.price_today_currency === 'golden_dew'
+        ? lt({ zh: '金露', en: 'golden dew', fr: 'rosée d’or', ja: '金露' })
+        : lt({ zh: '荆露', en: 'dew', fr: 'brume', ja: '荊露' });
     strip.classList.remove('hidden');
     strip.innerHTML = `<span class="lobby-rank-cards-note">${escapeHtml(noteLabel)}</span>${chips}` +
-        `<button type="button" class="mini-btn lobby-rank-cards-shop" data-lobby-rank-cards-shop>${escapeHtml(lt({ zh: '商店购买', en: 'Buy in Shop', fr: 'Acheter en boutique', ja: 'ショップで購入' }))}${stripPriceKnown ? ` · ${escapeHtml(String(stripPrice))}` : ''}</button>`;
+        `<button type="button" class="mini-btn lobby-rank-cards-shop" data-lobby-rank-cards-shop>${escapeHtml(lt({ zh: '商店购买', en: 'Buy in Shop', fr: 'Acheter en boutique', ja: 'ショップで購入' }))}${stripPriceKnown ? ` · ${escapeHtml(String(stripPrice))} ${escapeHtml(stripCurrency)}` : ''}</button>`;
     strip.querySelectorAll('[data-lobby-rank-card-use]').forEach(btn => {
         btn.addEventListener('click', async () => {
             const kind = btn.dataset.lobbyRankCardUse;
@@ -21188,24 +21193,28 @@ function confirmRankCardPurchase(kind, onDone) {
         double: lt({ zh: '下一局胜利得分×2', en: 'Next win gains ×2', fr: 'La prochaine victoire rapporte ×2', ja: '次の勝利で獲得×2' }),
     };
     const dewLabel = lt({ zh: '荆露', en: 'dew', fr: 'brume', ja: '荊露' });
-    const balance = Number(currentAccount.thorn_dew_total);
+    const goldLabel = lt({ zh: '金露', en: 'golden dew', fr: 'rosée d’or', ja: '金露' });
+    const payGold = cards && cards.price_today_currency === 'golden_dew';
+    const payLabel = payGold ? goldLabel : dewLabel;
+    const balance = Number(payGold ? currentAccount.golden_dew : currentAccount.thorn_dew_total);
     const balanceKnown = Number.isFinite(balance);
     const afterText = balanceKnown ? (balance - price) : '';
     const balanceLine = balanceKnown
-        ? lt({ zh: '当前余额', en: 'Balance', fr: 'Solde', ja: '所持' }) + ` ${balance} ${dewLabel}` + (balance - price < 0 ? ` → ` + lt({ zh: '不足', en: 'insufficient', fr: 'insuffisant', ja: '不足' }) : ` → ${afterText} ${dewLabel}`)
+        ? lt({ zh: '当前余额', en: 'Balance', fr: 'Solde', ja: '所持' }) + ` ${balance} ${payLabel}` + (balance - price < 0 ? ` → ` + lt({ zh: '不足', en: 'insufficient', fr: 'insuffisant', ja: '不足' }) : ` → ${afterText} ${payLabel}`)
         : '';
-    const nextLine = Number.isFinite(priceNext) && priceNext > price
-        ? lt({ zh: '买后下一张', en: 'Next one costs', fr: 'La suivante coûte', ja: '次の一枚は' }) + ` ${priceNext} ${dewLabel}（` + lt({ zh: '每日重置', en: 'resets daily', fr: 'réinitialisé chaque jour', ja: '毎日リセット' }) + `）`
+    const nextCurrency = cards && cards.price_next_currency === 'golden_dew' ? goldLabel : dewLabel;
+    const nextLine = Number.isFinite(priceNext) && priceNext > 0
+        ? lt({ zh: '买后下一张', en: 'Next one costs', fr: 'La suivante coûte', ja: '次の一枚は' }) + ` ${priceNext} ${nextCurrency}（` + lt({ zh: '每日重置', en: 'resets daily', fr: 'réinitialisé chaque jour', ja: '毎日リセット' }) + `）`
         : '';
     showModal(`
         <h3>${escapeHtml(lt({ zh: '确认购买', en: 'Confirm Purchase', fr: 'Confirmer l’achat', ja: '購入の確認' }))}</h3>
         <p><strong>${escapeHtml(labels[kind] || kind)}</strong> — ${escapeHtml(descs[kind] || '')}</p>
-        <p>${escapeHtml(lt({ zh: '价格', en: 'Price', fr: 'Prix', ja: '価格' }))}：<strong>${escapeHtml(String(price))} ${escapeHtml(dewLabel)}</strong></p>
+        <p>${escapeHtml(lt({ zh: '价格', en: 'Price', fr: 'Prix', ja: '価格' }))}：<strong>${escapeHtml(String(price))} ${escapeHtml(payLabel)}</strong></p>
         ${balanceLine ? `<p class="muted">${escapeHtml(balanceLine)}</p>` : ''}
         ${nextLine ? `<p class="muted">${escapeHtml(nextLine)}</p>` : ''}
         <div class="modal-buttons">
             <button class="btn btn-secondary" id="rank-card-confirm-cancel">${escapeHtml(UI.cancel || lt({ zh: '取消', en: 'Cancel', fr: 'Annuler', ja: 'キャンセル' }))}</button>
-            <button class="btn btn-primary" id="rank-card-confirm-ok">${escapeHtml(lt({ zh: '购买', en: 'Buy', fr: 'Acheter', ja: '購入' }))} · ${escapeHtml(String(price))} ${escapeHtml(dewLabel)}</button>
+            <button class="btn btn-primary" id="rank-card-confirm-ok">${escapeHtml(lt({ zh: '购买', en: 'Buy', fr: 'Acheter', ja: '購入' }))} · ${escapeHtml(String(price))} ${escapeHtml(payLabel)}</button>
         </div>
     `);
     const cancelBtn = $('rank-card-confirm-cancel');

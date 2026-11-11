@@ -297,6 +297,21 @@ textarea { resize: vertical; }
 .hd-item-sub { color: var(--hd-muted); font-size: 12px; }
 .hd-item-sub.mono { font-size: 11.5px; }
 
+/* 分组标题：风险页签里「货币流水异常 / 对局风险」分开列 */
+.hd-section-label {
+  padding: 8px 10px 4px;
+  color: var(--hd-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.hd-section-label:not(:first-child) {
+  margin-top: 4px;
+  border-top: 1px dashed var(--hd-line);
+  padding-top: 10px;
+}
+.hd-currency-risk { border-left: 3px solid rgba(229, 57, 53, 0.55); }
+
 /* 徽章 */
 .hd-badge {
   display: inline-flex;

@@ -5758,9 +5758,12 @@ def _rank_card_price_fields_from_row(row):
             buys = max(0, int(row['rank_card_buys'] or 0))
         except (TypeError, ValueError):
             buys = 0
+    price, currency = rank_card_price(buys)
     return {
-        'price_today': rank_card_price(buys),
-        'price_next': rank_card_price(buys + 1),
+        'price_today': price,
+        'price_today_currency': currency,
+        'price_next': rank_card_price(buys + 1)[0],
+        'price_next_currency': rank_card_price(buys + 1)[1],
         'buys_today': buys,
         'day_key': today,
     }
@@ -16611,17 +16614,21 @@ def set_user_rank_special(identifier, value):
     return {'id': user['id'], 'username': user.get('username'), 'rank_special': amount}, None
 
 
-RANK_CARD_PRICES = (300, 500, 1000, 2000)   # 保分/双倍卡阶梯定价（每日重置）
+RANK_CARD_FIRST_PRICE_DEW = 300     # 每天第一张保分/双倍卡：300 荆露
+RANK_CARD_REPEAT_PRICE_GOLD = 5     # 当天后续每张：5 金露
 RANK_CARD_TYPES = ('shield', 'double')
+# 两类卡共用当日购买计数：每天全场第一张是 300 荆露，之后一律 5 金露。
 
 
-def rank_card_price(buys_today: int) -> int:
-    """当日第 N 张的价格：300/500/1000/2000，第 5 张起恒 2000。"""
+def rank_card_price(buys_today: int) -> tuple:
+    """当日第 N 张的价格与币种：N=0 → (300, 'thorn_dew')，之后 (5, 'golden_dew')。"""
     try:
         n = max(0, int(buys_today or 0))
     except (TypeError, ValueError):
         n = 0
-    return RANK_CARD_PRICES[min(n, len(RANK_CARD_PRICES) - 1)]
+    if n <= 0:
+        return RANK_CARD_FIRST_PRICE_DEW, 'thorn_dew'
+    return RANK_CARD_REPEAT_PRICE_GOLD, 'golden_dew'
 
 
 def rank_cards_payload(user_id) -> dict:
@@ -16641,6 +16648,8 @@ def rank_cards_payload(user_id) -> dict:
     if row is None:
         return {}
     buys = int(row['rank_card_buys'] or 0) if str(row['rank_card_day'] or '') == today else 0
+    price, currency = rank_card_price(buys)
+    next_price, next_currency = rank_card_price(buys + 1)
     return {
         'shield': {
             'owned': int(row['rank_shield_cards'] or 0),
@@ -16650,8 +16659,10 @@ def rank_cards_payload(user_id) -> dict:
             'owned': int(row['rank_double_cards'] or 0),
             'armed': bool(int(row['rank_double_armed'] or 0)),
         },
-        'price_today': rank_card_price(buys),
-        'price_next': rank_card_price(buys + 1),
+        'price_today': price,
+        'price_today_currency': currency,
+        'price_next': next_price,
+        'price_next_currency': next_currency,
         'buys_today': buys,
         'day_key': today,
     }
@@ -16678,11 +16689,16 @@ def purchase_rank_card(user_id, card_type: str) -> tuple:
             conn.rollback()
             return None, '账号不存在'
         buys = int(row['rank_card_buys'] or 0) if str(row['rank_card_day'] or '') == today else 0
-        price = rank_card_price(buys)
-        balance = get_user_thorn_dew(uid)
-        if balance['total'] < price:
-            conn.rollback()
-            return None, '荆露不足'
+        price, currency = rank_card_price(buys)
+        if currency == 'golden_dew':
+            if get_user_golden_dew(uid) < price:
+                conn.rollback()
+                return None, '金露不足'
+        else:
+            balance = get_user_thorn_dew(uid)
+            if balance['total'] < price:
+                conn.rollback()
+                return None, '荆露不足'
         col = 'rank_shield_cards' if kind == 'shield' else 'rank_double_cards'
         conn.execute(
             f'UPDATE users SET {col} = COALESCE({col}, 0) + 1,'
@@ -16690,11 +16706,16 @@ def purchase_rank_card(user_id, card_type: str) -> tuple:
             (buys + 1, today, uid),
         )
         conn.commit()
-    spend_result, spend_err = spend_user_thorn_dew(
-        uid, price,
-        reason=f'购买段位{"保分" if kind == "shield" else "双倍"}卡（今日第{buys + 1}张）',
-        source_type='rank_card', source_id=f'buy:{kind}:{today}:{buys + 1}',
-    )
+    buy_reason = f'购买段位{"保分" if kind == "shield" else "双倍"}卡（今日第{buys + 1}张）'
+    buy_source = f'buy:{kind}:{today}:{buys + 1}'
+    if currency == 'golden_dew':
+        spend_result, spend_err = adjust_user_golden_dew(
+            uid, -price, reason=buy_reason, source_type='rank_card', source_id=buy_source,
+        )
+    else:
+        spend_result, spend_err = spend_user_thorn_dew(
+            uid, price, reason=buy_reason, source_type='rank_card', source_id=buy_source,
+        )
     if spend_err:
         # 授卡与扣费非同一事务：极小概率余额在窗口内变化导致扣费失败。
         # 必须回收卡片和当日购买计数，避免出现免费卡。

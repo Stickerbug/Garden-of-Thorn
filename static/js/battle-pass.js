@@ -159,11 +159,13 @@
             ? '已达满级，继续升级可循环领取溢出奖励'
             : `距下一级还差 ${Math.max(0, xpPer - xpInto)} 经验`;
         const seasonStart = String(payload.season_start || '').slice(0, 10);
-        const seasonEnd = String(payload.season_end || '').slice(0, 10);
+        const seasonEndRaw = String(payload.season_end || '');
+        const seasonEnd = seasonEndRaw.slice(0, 10);
+        const seasonEndClock = seasonEndRaw.slice(11, 16);
         const endMs = payload.season_end ? Date.parse(payload.season_end) : 0;
         const daysLeft = endMs ? Math.max(0, Math.ceil((endMs - Date.now()) / 86400000)) : 0;
         const seasonMeta = seasonStart && seasonEnd
-            ? `<div class="bp-season-meta">赛季 ${seasonStart} → ${seasonEnd} · 剩余 ${daysLeft} 天</div>`
+            ? `<div class="bp-season-meta">赛季 ${seasonStart} → ${seasonEnd}${seasonEndClock ? ' ' + seasonEndClock : ''} · 剩余 ${daysLeft} 天</div>`
             : '';
         panel.innerHTML = `
             <div class="bp-season">

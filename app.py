@@ -11584,6 +11584,25 @@ ADMIN_COMMAND_TREE = {
                     'txgolden': {'summary': '查看最近金露流水', 'usage': 'account dew txgolden <账号>'},
                 },
             },
+            'xp': {
+                'summary': '管理通行证经验（对局/爬塔/签到/通用）',
+                'usage': 'account xp <get|add|spend|tx|getmatch|getstory|getcheckin|addmatch|addstory|addcheckin|txmatch|txstory|txcheckin> ...',
+                'children': {
+                    'get': {'summary': '查看通行证经验与分来源合计', 'usage': 'account xp get <账号>'},
+                    'add': {'summary': '增减通行证经验（正数发放、负数扣除）', 'usage': 'account xp add <账号> <数量> [原因]'},
+                    'spend': {'summary': '扣除通行证经验', 'usage': 'account xp spend <账号> <数量> [原因]'},
+                    'tx': {'summary': '查看最近经验流水', 'usage': 'account xp tx <账号>'},
+                    'getmatch': {'summary': '查看对局经验', 'usage': 'account xp getmatch <账号>'},
+                    'getstory': {'summary': '查看爬塔经验', 'usage': 'account xp getstory <账号>'},
+                    'getcheckin': {'summary': '查看签到经验', 'usage': 'account xp getcheckin <账号>'},
+                    'addmatch': {'summary': '调整对局经验', 'usage': 'account xp addmatch <账号> <数量> [原因]'},
+                    'addstory': {'summary': '调整爬塔经验', 'usage': 'account xp addstory <账号> <数量> [原因]'},
+                    'addcheckin': {'summary': '调整签到经验', 'usage': 'account xp addcheckin <账号> <数量> [原因]'},
+                    'txmatch': {'summary': '查看对局经验流水', 'usage': 'account xp txmatch <账号>'},
+                    'txstory': {'summary': '查看爬塔经验流水', 'usage': 'account xp txstory <账号>'},
+                    'txcheckin': {'summary': '查看签到经验流水', 'usage': 'account xp txcheckin <账号>'},
+                },
+            },
             'rating': {
                 'summary': '管理花阶分',
                 'usage': 'account rating <info|set|add|snapshot> ...',
@@ -12264,6 +12283,19 @@ ADMIN_COMMAND_DIRECT_TRANSLATIONS = {
     ('account', 'dew', 'spend'): ('dew', 'spend'),
     ('account', 'dew', 'tx'): ('dew', 'tx'),
     ('account', 'dew', 'txgolden'): ('dew', 'txgolden'),
+    ('account', 'xp', 'get'): ('xp', 'get'),
+    ('account', 'xp', 'add'): ('xp', 'add'),
+    ('account', 'xp', 'spend'): ('xp', 'spend'),
+    ('account', 'xp', 'tx'): ('xp', 'tx'),
+    ('account', 'xp', 'getmatch'): ('xp', 'getmatch'),
+    ('account', 'xp', 'getstory'): ('xp', 'getstory'),
+    ('account', 'xp', 'getcheckin'): ('xp', 'getcheckin'),
+    ('account', 'xp', 'addmatch'): ('xp', 'addmatch'),
+    ('account', 'xp', 'addstory'): ('xp', 'addstory'),
+    ('account', 'xp', 'addcheckin'): ('xp', 'addcheckin'),
+    ('account', 'xp', 'txmatch'): ('xp', 'txmatch'),
+    ('account', 'xp', 'txstory'): ('xp', 'txstory'),
+    ('account', 'xp', 'txcheckin'): ('xp', 'txcheckin'),
     ('account', 'rating', 'info'): 'rating-info',
     ('account', 'rating', 'set'): 'rating-set',
     ('account', 'rating', 'add'): 'rating-add',
@@ -16825,6 +16857,98 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
         if sub == 'addgolden':
             output += f"\n金露：{int(updated.get('golden_dew') or 0)}"
         return {'success': True, 'output': output}
+    if cmd in ('xp', 'exp', 'passxp', '经验'):
+        xp_usage = (
+            'account xp <get|add|spend|tx|getmatch|getstory|getcheckin|'
+            'addmatch|addstory|addcheckin|txmatch|txstory|txcheckin> <账号> [数量] [原因]'
+        )
+        xp_map = {
+            'get': ('get', ''),
+            'add': ('add', 'admin'),
+            'spend': ('spend', 'admin'),
+            'tx': ('tx', ''),
+            'getmatch': ('get', 'match'),
+            'getstory': ('get', 'story'),
+            'getcheckin': ('get', 'checkin'),
+            'addmatch': ('add', 'match'),
+            'addstory': ('add', 'story'),
+            'addcheckin': ('add', 'checkin'),
+            'txmatch': ('tx', 'match'),
+            'txstory': ('tx', 'story'),
+            'txcheckin': ('tx', 'checkin'),
+        }
+        sub = parts[1].lower() if len(parts) > 1 else ''
+        if len(parts) < 3 or sub not in xp_map:
+            return {'success': False, 'output': command_error(raw, len(raw), xp_usage)}
+        xp_user = find_user_for_admin(parts[2])
+        if not xp_user:
+            return {'success': False, 'output': '账号不存在'}
+        action, xp_source = xp_map[sub]
+        header = f"{xp_user['username']} (ID:{xp_user.get('player_id') or '-'} 注册顺序：{xp_user['id']})"
+        if action == 'get':
+            summary = battle_pass.admin_xp_summary(xp_user['id'])
+            lines = [
+                header,
+                f"赛季：{summary['season_id']}  通行证等级：Lv.{summary['level']}",
+                f"累计经验：{summary['xp_total']}（本级 {summary['xp_into_level']}/{summary['xp_per_level']}）",
+                f"黄金之路：{'已解锁' if summary['golden'] else '未解锁'}",
+                '',
+                '经验来源：',
+            ]
+            for source_key in battle_pass.XP_SOURCES:
+                if xp_source and source_key != xp_source:
+                    continue
+                item = summary['by_source'].get(source_key) or {}
+                lines.append(
+                    f"  {battle_pass.source_label(source_key)}：{int(item.get('xp') or 0)}"
+                    f"（{int(item.get('entries') or 0)} 笔）"
+                )
+            return {'success': True, 'output': '\n'.join(lines)}
+        if action == 'tx':
+            rows = battle_pass.admin_list_xp_transactions(xp_user['id'], limit=20, source=xp_source or None)
+            scope = battle_pass.source_label(xp_source) if xp_source else '全部'
+            lines = [header, '', f'最近流水（{scope}）：']
+            if not rows:
+                lines.append('暂无流水。')
+            for row in rows:
+                lines.append(
+                    f"{admin_display_time(row.get('created_at'))} "
+                    f"{battle_pass.source_label(row.get('source'))}{int(row.get('xp') or 0):+d} "
+                    f"基础={int(row.get('base_xp') or 0)} 倍率={row.get('multiplier')} "
+                    f"凭证={row.get('source_key') or '-'}"
+                )
+            return {'success': True, 'output': '\n'.join(lines)}
+        if len(parts) < 4:
+            return {'success': False, 'output': command_error(raw, len(raw), '<数量>')}
+        try:
+            amount = int(parts[3])
+        except (TypeError, ValueError):
+            return {'success': False, 'output': '数量必须是整数'}
+        if action == 'spend':
+            amount = -abs(amount)
+        xp_reason = ' '.join(parts[4:]).strip() or 'admin command'
+        result, error = battle_pass.admin_adjust_xp(
+            xp_user['id'], amount, source=xp_source or 'admin',
+            reason=xp_reason, admin_username='console',
+        )
+        if error:
+            return {'success': False, 'output': error}
+        admin_event(
+            'admin',
+            f"pass xp {sub} user={xp_user['username']}#{xp_user['id']} "
+            f"amount={amount} source={result['source']} reason={xp_reason}",
+        )
+        lines = [
+            header,
+            f"经验 {result['applied']:+d}（请求 {amount:+d}，{battle_pass.source_label(result['source'])}）",
+            f"累计经验：{result['xp_total']}  等级：Lv.{result['level_before']} → Lv.{result['level_after']}",
+        ]
+        level_delta = result['level_after'] - result['level_before']
+        if level_delta > 0:
+            lines.append(f"两条轨道各新增 {level_delta} 个可领取格子。")
+        elif level_delta < 0:
+            lines.append(f"等级下降 {abs(level_delta)} 级；已领取的格子不受影响。")
+        return {'success': True, 'output': '\n'.join(lines)}
     if cmd in ('userpass', 'passwd', 'setpass'):
         if len(parts) != 3:
             return {'success': False, 'output': command_error(raw, len(raw), '<ID|注册顺序|用户名> <新密码>')}
@@ -24970,6 +25094,35 @@ def handling_user_detail(user_id):
         admin_event('error', f'handling user detail failed: {exc}')
         log_admin_api_timing('/api/feedback/handling/users/detail', (time.perf_counter() - started) * 1000, user=user_id, error=type(exc).__name__)
         return jsonify({'success': False, 'error': '账号数据库不可用'}), 500
+
+
+@app.route('/api/feedback/handling/currency-risks')
+def handling_currency_risks():
+    started = time.perf_counter()
+    if not DB_AVAILABLE:
+        return db_unavailable_response()
+    try:
+        from currency_risk import scan as scan_currency_risks
+        day = validate_str(request.args.get('day', ''), min_len=0, max_len=10, name='day')
+        limit = validate_int(request.args.get('limit', 50), default=50, minimum=1, maximum=200, name='limit')
+
+        def _load():
+            with get_db_connection() as conn:
+                return scan_currency_risks(conn, day=day or None, limit=limit)
+
+        data = run_off_event_loop(_load)
+        log_admin_api_timing(
+            '/api/feedback/handling/currency-risks',
+            (time.perf_counter() - started) * 1000,
+            rows=len(data.get('items') or []),
+            total=data.get('total'),
+            day=data.get('day'),
+        )
+        return jsonify({'success': True, **data})
+    except Exception as exc:
+        admin_event('error', f'handling currency risks query failed: {exc}')
+        log_admin_api_timing('/api/feedback/handling/currency-risks', (time.perf_counter() - started) * 1000, error=type(exc).__name__)
+        return jsonify({'success': False, 'error': '流水数据库不可用'}), 500
 
 
 @app.route('/api/feedback/handling/matches')
