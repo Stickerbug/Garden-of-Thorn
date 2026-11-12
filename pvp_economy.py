@@ -105,6 +105,47 @@ def _settlement_input(match_id,summary):
     return mid,data,key,fingerprint
 
 
+def _award_xp_for_special_match(conn,match_id,data,award_time=None):
+    """特殊模式/不计分对局仍发通行证经验（Phelren AI 对局除外）。
+
+    2026-11-12 需求：任何非 AI 的休闲对局都要给经验，包括开了特殊模式的。
+    """
+    if bool(data.get('ai_match')) or str(data.get('match_kind') or '').lower()=='phelren':
+        return []
+    ids=list(data.get('player_ids') or [])
+    registered=[uid for uid in ids if isinstance(uid,int) and uid>0]
+    if not registered:
+        return []
+    winners=set(uid for uid in (data.get('winner_user_ids') or []) if isinstance(uid,int))
+    winner_index=data.get('winner_index')
+    teams=data.get('teams') or []
+    when=db._parse_utc_datetime(award_time) if award_time else datetime.now(timezone.utc)
+    awards=[]
+    for uid in registered:
+        won=uid in winners
+        if not won and not winners and isinstance(winner_index,int) and isinstance(teams,list) and len(teams)>winner_index:
+            try:
+                side_team=teams[winner_index]
+                won=any(ids[index]==uid for index in side_team if isinstance(index,int) and 0<=index<len(ids))
+            except Exception:
+                won=False
+        try:
+            import battle_pass as _bp
+            result=_bp.grant_match_xp(
+                conn,uid,match_id=match_id,
+                seconds=data.get('duration_seconds') or 0,
+                rounds=data.get('rounds') or 0,
+                won=won,
+                now=when.timestamp(),
+            )
+            if result.get('applied'):
+                awards.append({'user_id':uid,'xp':result['xp'],'level':result['level_after'],
+                               'base_xp':result.get('base_xp')})
+        except Exception:
+            pass
+    return awards
+
+
 def settle_conn(conn,match_id,summary,award_time=None):
     """Caller owns an IMMEDIATE transaction; all money/progress commits together."""
     data=dict(summary or {})
@@ -113,7 +154,9 @@ def settle_conn(conn,match_id,summary,award_time=None):
     if bool(data.get('ai_match')) or str(data.get('match_kind') or '').lower() == 'phelren':
         return {'awarded':[],'xp_awarded':[],'skipped':'phelren_ai_match'}
     if not data.get('valid_for_stats',data.get('valid_for_ranking',True)):
-        return {'awarded':[],'xp_awarded':[],'skipped':data.get('ranking_invalid_reason') or 'not_valid'}
+        # 不计分/特殊模式对局：荆露不发，但通行证经验照发（需求 2026-11-12）。
+        xp_awards=_award_xp_for_special_match(conn,match_id,data,award_time)
+        return {'awarded':[],'xp_awarded':xp_awards,'skipped':data.get('ranking_invalid_reason') or 'not_valid'}
     early=bool(data.get('ended_by_surrender')) and int(data.get('duration_seconds') or 0)<60
     if early and not data.get('player_ids'):
         return {'awarded':[],'xp_awarded':[],'skipped':'early_surrender'}

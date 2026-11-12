@@ -81,13 +81,15 @@
             const reward = splitReward(entry.text);
             const amount = reward.amount ? `<span class="bp-node-amount">${escapeHtml(reward.amount)}</span>` : '';
             const unit = reward.unit ? `<span class="bp-node-unit">${escapeHtml(reward.unit)}</span>` : '';
-            const icon = entry.icon ? `<img class="bp-node-icon" src="${escapeHtml(entry.icon)}" alt="" aria-hidden="true">` : '';
+            const typeLabel = entry.type ? `<span class="bp-node-type">${escapeHtml(entry.type)}</span>` : '';
+            const iconKind = entry.reward && entry.reward.kind ? String(entry.reward.kind) : '';
+            const icon = entry.icon ? `<img class="bp-node-icon${iconKind ? ' bp-node-icon-' + escapeHtml(iconKind) : ''}" src="${escapeHtml(entry.icon)}" alt="" aria-hidden="true">` : '';
             const attrs = ` data-track="${track}" data-level="${entry.level}"${entry.claimable ? ' data-claim="1"' : ''}`;
             const tag = entry.claimable ? 'button' : 'div';
-            const title = `Lv.${entry.level} · ${escapeHtml(entry.text || '')}${entry.claimed ? '（已领取）' : ''}`;
+            const title = `Lv.${entry.level} · ${escapeHtml((entry.type ? entry.type + ' ' : '') + (entry.text || ''))}${entry.claimed ? '（已领取）' : ''}`;
             return `<${tag} class="${classes.join(' ')}"${entry.claimable ? ' type="button"' : ''}${attrs} title="${title}">
                 <span class="bp-bubble"><span class="bp-bubble-lv">${entry.level}</span>${entry.level % 10 === 0 ? '<span class="bp-bubble-star">★</span>' : ''}</span>
-                <span class="bp-node-reward">${icon}${amount}${unit}</span>
+                <span class="bp-node-reward">${icon}${typeLabel}${amount}${unit}</span>
             </${tag}>`;
         }).join('');
     }
@@ -155,9 +157,10 @@
             <span>每日签到额外 保分卡 + 双倍卡</span>
         </div>`;
         const weekly = `<div class="bp-weekly">本周爬塔加成：前 ${Number(payload.story_weekly_triple_count || 3)} 次 ×3（已用 ${Number(payload.story_week_used || 0)} 次）</div>`;
-        const maxLevel = Number(payload.max_level || 100);
-        const nextHint = level >= maxLevel
-            ? '已达满级，继续升级可循环领取溢出奖励'
+        const baseMax = Number(payload.base_max_level || 100);
+        const overflowFree = String((payload.overflow_rewards || {}).free || '荆露 100');
+        const nextHint = level >= baseMax
+            ? `溢出阶段 · 再 ${Math.max(0, xpPer - xpInto)} 经验 +1 级（${overflowFree}）`
             : `距下一级还差 ${Math.max(0, xpPer - xpInto)} 经验`;
         const seasonStart = String(payload.season_start || '').slice(0, 10);
         const seasonEndRaw = String(payload.season_end || '');

@@ -8,6 +8,7 @@
     leisure_ticket: '/static/assets/leisure/tickets.svg',
     rank_shield: '/static/assets/rewards/score-insurance-card.svg',
     rank_double: '/static/assets/rewards/double-card.svg',
+    pass_xp: '/static/assets/ui-icons/pass-xp.svg',
   });
   const TEXT_ART_KINDS = new Set(['title', 'skin', 'mod', 'character', 'unlock']);
   const ALIASES = Object.freeze({
@@ -15,6 +16,7 @@
     leisure_ticket: 'leisure_ticket', ticket: 'leisure_ticket',
     rank_shield: 'rank_shield', shield: 'rank_shield',
     rank_double: 'rank_double', double: 'rank_double',
+    pass_xp: 'pass_xp', xp: 'pass_xp', exp: 'pass_xp',
     title: 'title', title_unlock: 'title',
     skin: 'skin', card_skin: 'skin',
     mod: 'mod', mod_unlock: 'mod',
@@ -22,10 +24,10 @@
     unlock: 'unlock',
   });
   const TEXT = Object.freeze({
-    zh: { heading: '获得奖励', dew: '荆露', golden_dew: '金露', leisure_ticket: '休闲门票', rank_shield: '保分卡', rank_double: '双倍卡', title: '称号', skin: '皮肤', mod: '解锁模组', character: '角色', unlock: '解锁内容', collect: '收下', skip: '跳过动画' },
-    en: { heading: 'Reward acquired', dew: 'Thorn Dew', golden_dew: 'Golden Dew', leisure_ticket: 'Leisure Ticket', rank_shield: 'Shield Card', rank_double: 'Double Card', title: 'Title', skin: 'Skin', mod: 'Mod unlocked', character: 'Character', unlock: 'Content unlocked', collect: 'Collect', skip: 'Skip animation' },
-    fr: { heading: 'Récompense obtenue', dew: 'Rosée d’épines', golden_dew: 'Rosée dorée', leisure_ticket: 'Ticket loisir', rank_shield: 'Carte Bouclier', rank_double: 'Carte Double', title: 'Titre', skin: 'Skin', mod: 'Mod déverrouillé', character: 'Personnage', unlock: 'Contenu déverrouillé', collect: 'Récupérer', skip: 'Passer l’animation' },
-    ja: { heading: '報酬を獲得', dew: 'ソーンデュー', golden_dew: 'ゴールデンデュー', leisure_ticket: 'レジャーチケット', rank_shield: '保分カード', rank_double: '倍増カード', title: '称号', skin: 'スキン', mod: 'Mod解放', character: 'キャラクター', unlock: 'コンテンツ解放', collect: '受け取る', skip: 'アニメーションをスキップ' },
+    zh: { heading: '获得奖励', dew: '荆露', golden_dew: '金露', leisure_ticket: '休闲门票', rank_shield: '保分卡', rank_double: '双倍卡', pass_xp: '通行证经验', title: '称号', skin: '皮肤', mod: '解锁模组', character: '角色', unlock: '解锁内容', collect: '收下', skip: '跳过动画' },
+    en: { heading: 'Reward acquired', dew: 'Thorn Dew', golden_dew: 'Golden Dew', leisure_ticket: 'Leisure Ticket', rank_shield: 'Shield Card', rank_double: 'Double Card', pass_xp: 'Pass XP', title: 'Title', skin: 'Skin', mod: 'Mod unlocked', character: 'Character', unlock: 'Content unlocked', collect: 'Collect', skip: 'Skip animation' },
+    fr: { heading: 'Récompense obtenue', dew: 'Rosée d’épines', golden_dew: 'Rosée dorée', leisure_ticket: 'Ticket loisir', rank_shield: 'Carte Bouclier', rank_double: 'Carte Double', pass_xp: 'XP du pass', title: 'Titre', skin: 'Skin', mod: 'Mod déverrouillé', character: 'Personnage', unlock: 'Contenu déverrouillé', collect: 'Récupérer', skip: 'Passer l’animation' },
+    ja: { heading: '報酬を獲得', dew: 'ソーンデュー', golden_dew: 'ゴールデンデュー', leisure_ticket: 'レジャーチケット', rank_shield: '保分カード', rank_double: '倍増カード', pass_xp: 'パス経験値', title: '称号', skin: 'スキン', mod: 'Mod解放', character: 'キャラクター', unlock: 'コンテンツ解放', collect: '受け取る', skip: 'アニメーションをスキップ' },
   });
   const PARTICLE_COLORS = ['#9dbb55', '#d18bcf', '#dfa07c', '#b6a4d4'];
   let queue = [];
@@ -283,6 +285,7 @@
   const watch = {
     userId: null,
     cursor: null,
+    xpCursor: null,
     leisureTickets: 0,
     rankCards: { shield: 0, double: 0 },
     inventory: { titles: [], skins: [], mods: [], characters: [] },
@@ -311,6 +314,15 @@
     });
     const ticketDelta = Math.max(0, Number(data.leisure_tickets || 0) - previous.leisureTickets);
     if (ticketDelta > 0) items.push({ kind: 'leisure_ticket', amount: ticketDelta, reason: '休闲门票到账' });
+    (Array.isArray(data.xp_rewards) ? data.xp_rewards : []).forEach((reward) => {
+      // 对局经验不播动画（结算面板已有「通行证经验 +N」）；爬塔、签到、管理调整照常。
+      if (String(reward.source_type || '') === 'match') return;
+      const id = Number(reward.id || 0);
+      const amount = Math.floor(Number(reward.amount || 0));
+      if (previous.xpCursor !== null && id > previous.xpCursor && amount > 0) {
+        items.push({ kind: 'pass_xp', amount, reason: String(reward.reason || '') });
+      }
+    });
     ['shield', 'double'].forEach((kind) => {
       const owned = Number((data.rank_cards && data.rank_cards[kind] && (Number(data.rank_cards[kind].owned || 0) + (data.rank_cards[kind].armed ? 1 : 0))) || 0);
       const delta = Math.max(0, owned - Number(previous.rankCards[kind] || 0));
@@ -344,6 +356,7 @@
   function resetWatch() {
     watch.userId = null;
     watch.cursor = null;
+    watch.xpCursor = null;
     watch.leisureTickets = 0;
     watch.rankCards = { shield: 0, double: 0 };
     watch.inventory = { titles: [], skins: [], mods: [], characters: [] };
@@ -353,7 +366,9 @@
     if (watch.inFlight) return;
     watch.inFlight = true;
     try {
-      const suffix = watch.cursor === null ? '' : `?after=${encodeURIComponent(watch.cursor)}`;
+      const suffix = watch.cursor === null
+        ? ''
+        : `?after=${encodeURIComponent(watch.cursor)}&xp_after=${encodeURIComponent(watch.xpCursor || 0)}`;
       const response = await fetch(`/api/rewards/status${suffix}`, {
         credentials: 'same-origin',
         cache: 'no-store',
@@ -366,6 +381,7 @@
       const items = rewardItemsFromSnapshot(data, watch);
       watch.userId = String(data.user_id);
       watch.cursor = Math.max(0, Number(data.dew_cursor) || 0);
+      watch.xpCursor = Math.max(0, Number(data.xp_cursor) || 0);
       watch.leisureTickets = Math.max(0, Number(data.leisure_tickets) || 0);
       ['shield', 'double'].forEach((kind) => {
         watch.rankCards[kind] = Math.max(0, Number(

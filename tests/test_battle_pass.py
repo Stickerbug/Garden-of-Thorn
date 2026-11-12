@@ -8,8 +8,10 @@ import unittest
 from datetime import datetime
 
 import battle_pass as bp
+import backgrounds
 import db
 import leisure_ticket
+import player_skins
 
 
 class BattlePassTests(unittest.TestCase):
@@ -24,6 +26,8 @@ class BattlePassTests(unittest.TestCase):
         with db.get_db_connection() as conn:
             bp.ensure_pass_schema(conn)
             leisure_ticket.ensure_ticket_columns(conn)
+            player_skins.ensure_player_skin_schema(conn)
+            backgrounds.ensure_background_schema(conn)
             conn.execute('UPDATE users SET golden_dew = 0 WHERE id = ?', (self.uid,))
             conn.commit()
 
@@ -66,10 +70,10 @@ class BattlePassTests(unittest.TestCase):
 
     def test_milestone_levels_use_explicit_table(self):
         self.assertEqual(bp.reward_for(10, bp.TRACK_FREE)['kind'], 'title')
-        self.assertEqual(bp.reward_for(10, bp.TRACK_GOLDEN)['kind'], 'card_skin')
+        self.assertEqual(bp.reward_for(10, bp.TRACK_GOLDEN)['kind'], 'player_skin')
         self.assertEqual(bp.reward_for(40, bp.TRACK_FREE)['kind'], 'golden_dew')
         self.assertEqual(bp.reward_for(40, bp.TRACK_GOLDEN)['amount'], 500)
-        self.assertEqual(bp.reward_for(100, bp.TRACK_FREE)['kind'], 'card_skin')
+        self.assertEqual(bp.reward_for(100, bp.TRACK_FREE)['kind'], 'player_skin')
         for level in range(10, 101, 10):
             self.assertIsNotNone(bp.reward_for(level, bp.TRACK_FREE))
             self.assertIsNotNone(bp.reward_for(level, bp.TRACK_GOLDEN))
@@ -167,6 +171,30 @@ class BattlePassTests(unittest.TestCase):
         self.assertIsNone(payload)
         self.assertEqual(err, '已经领取过了')
 
+    def test_pass_rewards_ignore_the_global_thorn_dew_multiplier(self):
+        with self._conn() as conn:
+            db.ensure_dew_gain_mod_table(conn)
+            conn.execute(
+                "UPDATE dew_gain_modifiers SET multiplicative = 2.5 WHERE id = 1")
+            bp._apply_xp(conn, self.uid, 100, source='test', source_key='seed-mult')
+            conn.commit()
+        before = int(self._users_row()['thorn_dew_free'] or 0)
+        with self._conn() as conn:
+            payload, err = bp.claim(conn, self.uid, bp.TRACK_FREE, 1)
+            conn.commit()
+        self.assertIsNone(err)
+        self.assertEqual(payload['reward']['amount'], 200)
+        after = int(self._users_row()['thorn_dew_free'] or 0)
+        # 通行证格子是定额奖励：全局荆露倍率（2.5x）不得放大，也不得缩水。
+        self.assertEqual(after - before, 200)
+
+        with self._conn() as conn:
+            grant = bp.grant_checkin_xp(
+                conn, self.uid, base_xp=40, checkin_date='2026-11-12')
+            conn.commit()
+        # 经验同样不吃荆露倍率，只吃黄金之路倍率（未解锁 → 1.0）。
+        self.assertEqual(grant['xp'], 40)
+
     def test_golden_track_is_locked_until_purchased(self):
         with self._conn() as conn:
             bp._apply_xp(conn, self.uid, 100, source='test', source_key='seed-100')
@@ -255,15 +283,82 @@ class BattlePassTests(unittest.TestCase):
         self.assertEqual(free[1]['icon'], '/static/assets/ui-icons/thorn-dew.svg')
         self.assertIn('/static/assets/leisure/tickets.svg', free[4]['icon'])
         self.assertEqual(free[5]['icon'], '/static/assets/ui-icons/golden-dew.svg')
-        self.assertIn('/static/assets/card-skins/front/tower_curse_ironclad.svg', free[30]['icon'])
-        self.assertIn('/static/assets/backgrounds/theme-tower-curse-dark-harbor.svg', free[60]['icon'])
+        self.assertIn('/static/assets/player-avatars/tower-curse-ironclad.svg', free[30]['icon'])
+        self.assertIn('/static/assets/ui-icons/gallery.svg', free[60]['icon'])
         golden = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_GOLDEN]['entries']}
-        self.assertIn('/static/assets/card-skins/front/tower_curse_regent.svg', golden[10]['icon'])
+        self.assertIn('/static/assets/player-avatars/tower-curse-regent.svg', golden[10]['icon'])
+
+    def test_track_entries_name_the_reward_type(self):
+        """预览要写明白奖励类型：玩家皮肤 / 卡牌皮肤 / 主题背景 / 战斗背景 / 称号。"""
+        with self._conn() as conn:
+            payload = bp.state_payload(conn, self.uid)
+            conn.commit()
+        free = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_FREE]['entries']}
+        golden = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_GOLDEN]['entries']}
+        self.assertEqual(free[1]['type'], '')
+        self.assertEqual(free[10]['type'], '称号')
+        self.assertEqual(free[30]['type'], '玩家皮肤')
+        self.assertEqual(free[60]['type'], '战斗背景')
+        self.assertEqual(golden[10]['type'], '玩家皮肤')
+        # 主题背景目前不在里程碑里，但类型标签本身要能区分（密林是主题背景）。
+        self.assertEqual(bp.reward_type_label({'kind': 'background', 'item_id': 'tower_curse_deepwood'}), '主题背景')
+
+    def test_levels_continue_past_one_hundred(self):
+        """100 级不是终点：继续升级，轨道上要出现溢出格。"""
+        with self._conn() as conn:
+            bp._apply_xp(conn, self.uid, 12500, source='test', source_key='seed-12500')
+            payload = bp.state_payload(conn, self.uid)
+            conn.commit()
+        self.assertEqual(payload['level'], 125)
+        self.assertEqual(payload['max_level'], 125)
+        self.assertEqual(payload['base_max_level'], 100)
+        self.assertEqual(len(payload['tracks'][bp.TRACK_FREE]['entries']), 125)
+        over = payload['tracks'][bp.TRACK_FREE]['entries'][100]  # 第 101 级
+        self.assertEqual(over['level'], 101)
+        self.assertEqual(over['reward']['kind'], 'dew')
+        self.assertEqual(over['reward']['amount'], 100)
+        self.assertTrue(over['reward']['overflow'])
+        self.assertEqual(payload['overflow_rewards'][bp.TRACK_GOLDEN], '50 荆露')
+
+    def test_overflow_level_can_be_claimed(self):
+        """溢出格也要能领：101 级领 100 荆露。"""
+        with self._conn() as conn:
+            bp._apply_xp(conn, self.uid, 12500, source='test', source_key='seed-12500')
+            before = conn.execute(
+                'SELECT thorn_dew_free FROM users WHERE id = ?', (self.uid,)
+            ).fetchone()['thorn_dew_free']
+            result, error = bp.claim(conn, self.uid, bp.TRACK_FREE, 101)
+            after = conn.execute(
+                'SELECT thorn_dew_free FROM users WHERE id = ?', (self.uid,)
+            ).fetchone()['thorn_dew_free']
+            conn.commit()
+        self.assertIsNone(error)
+        self.assertEqual(result['level'], 101)
+        self.assertEqual(int(after) - int(before), 100)
+
+    def test_xp_reward_updates_feed_the_reward_animation(self):
+        """长期奖励接口拿到的经验增量：正数、带来源、游标只前进。"""
+        with self._conn() as conn:
+            bp._apply_xp(conn, self.uid, 40, source='checkin', source_key='checkin:2026-11-12')
+            bp._apply_xp(conn, self.uid, 60, source='story', source_key='story:9')
+            first = bp.xp_reward_updates(conn, self.uid, 0)
+            conn.commit()
+        self.assertEqual([item['amount'] for item in first['items']], [40, 60])
+        self.assertEqual(first['items'][0]['source_type'], 'checkin')
+        self.assertEqual(first['items'][0]['reason'], '签到经验到账')
+        self.assertEqual(first['items'][1]['reason'], '爬塔经验到账')
+        self.assertEqual(first['cursor'], first['items'][-1]['id'])
+        with self._conn() as conn:
+            again = bp.xp_reward_updates(conn, self.uid, first['cursor'])
+        self.assertEqual(again['items'], [])
+        self.assertEqual(again['cursor'], first['cursor'])
 
     def test_milestone_cosmetics_resolve_to_real_catalogs(self):
         """里程碑只能发真实存在的皮肤/背景/称号，否则玩家领到的是空气。"""
         from backgrounds import get_background_definition
         from card_skins import SKIN_BY_ID
+
+        from player_skins import PLAYER_SKIN_BY_ID
 
         for level, tracks in bp.MILESTONES.items():
             for track_key, reward in tracks.items():
@@ -272,10 +367,19 @@ class BattlePassTests(unittest.TestCase):
                     self.assertIn(reward['item_id'], SKIN_BY_ID,
                                   f'{track_key} {level} 的皮肤 {reward["item_id"]} 不在目录里')
                     self.assertTrue(bp.cosmetic_name(kind, reward['item_id']))
+                elif kind == 'player_skin':
+                    self.assertIn(reward['item_id'], PLAYER_SKIN_BY_ID,
+                                  f'{track_key} {level} 的玩家皮肤 {reward["item_id"]} 不在目录里')
+                    self.assertTrue(bp.cosmetic_name(kind, reward['item_id']))
+                    self.assertTrue(bp.reward_icon_url(reward).endswith('.svg'))
                 elif kind == 'background':
-                    self.assertIsNotNone(get_background_definition('theme', reward['item_id']),
+                    background_kind, _ = bp.background_entry(reward['item_id'])
+                    self.assertIsNotNone(bp.background_entry(reward['item_id'])[1],
                                          f'{track_key} {level} 的背景 {reward["item_id"]} 不在目录里')
                     self.assertTrue(bp.cosmetic_name(kind, reward['item_id']))
+                    if reward['item_id'] == 'tower_curse_dark_harbor':
+                        self.assertEqual(background_kind, 'battle')
+                        self.assertIsNotNone(get_background_definition('battle', reward['item_id']))
                 elif kind == 'title':
                     self.assertIn(reward['item_id'], bp.PASS_TITLES,
                                   f'{track_key} {level} 的称号 {reward["item_id"]} 未登记')
@@ -315,12 +419,28 @@ class BattlePassTests(unittest.TestCase):
             result, error = bp.claim(conn, self.uid, bp.TRACK_FREE, 30)
             self.assertIsNone(error)
             owned = conn.execute(
-                'SELECT COUNT(*) AS n FROM user_card_skins WHERE user_id = ? AND skin_id = ?',
+                'SELECT COUNT(*) AS n FROM user_player_skins WHERE user_id = ? AND skin_id = ?',
                 (self.uid, 'tower_curse_ironclad'),
             ).fetchone()['n']
             conn.commit()
-        self.assertEqual(result['reward']['kind'], 'card_skin')
+        self.assertEqual(result['reward']['kind'], 'player_skin')
         self.assertEqual(owned, 1)
+
+    def test_milestones_hand_out_all_five_tower_curse_player_skins(self):
+        """五款「塔之诅咒」玩家皮肤都要在通行证里出场。"""
+        granted = {
+            reward['item_id']
+            for tracks in bp.MILESTONES.values()
+            for reward in tracks.values()
+            if reward['kind'] == 'player_skin'
+        }
+        self.assertEqual(granted, {
+            'tower_curse_ironclad',
+            'tower_curse_silent',
+            'tower_curse_defect',
+            'tower_curse_necrobinder',
+            'tower_curse_regent',
+        })
 
 
     # ---- 控制台经验指令 ----

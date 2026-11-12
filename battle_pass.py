@@ -61,6 +61,7 @@ REWARD_KIND_LABELS = {
     'ticket': '休闲花园门票',
     'title': '称号',
     'card_skin': '卡牌皮肤',
+    'player_skin': '玩家皮肤',
     'background': '背景',
 }
 
@@ -102,6 +103,10 @@ def _skin(item_id):
     return {'kind': 'card_skin', 'item_id': item_id}
 
 
+def _player_skin(item_id):
+    return {'kind': 'player_skin', 'item_id': item_id}
+
+
 def _background(item_id):
     return {'kind': 'background', 'item_id': item_id}
 
@@ -131,32 +136,33 @@ PATTERN_GOLDEN = {
     9: _shield(),
 }
 
-# 整十里程碑。卡背 = 卡牌皮肤，所以「卡背」「皮肤」都发 card_skins 条目。
-# 2026-11-11：实物发放改成「塔之诅咒」赛季素材——5 款卡牌皮肤 + 2 款主题背景 + 2 个称号，
-# 每条轨道各拿一遍（同款在不同轨道重复出现是刻意的：单轨只靠大月卡/免费轨都收不全）。
+# 整十里程碑。
+# 2026-11-12：皮肤格改发「塔之诅咒」系列玩家皮肤（大厅/对局头像），不再是卡牌皮肤；
+# 5 款玩家皮肤 + 2 款赛季背景 + 2 个称号，每条轨道各拿一遍
+# （同款在不同轨道重复出场是刻意的：只买一条轨道收不全）。
 _TITLE_FREE = 'pass_s1_free_lv10'
 _TITLE_GOLDEN = 'pass_s1_golden_lv20'
 MILESTONES = {
     10: {TRACK_FREE: _title(_TITLE_FREE),
-         TRACK_GOLDEN: _skin('tower_curse_regent')},
+         TRACK_GOLDEN: _player_skin('tower_curse_regent')},
     20: {TRACK_FREE: _dew(1000),
          TRACK_GOLDEN: _title(_TITLE_GOLDEN)},
-    30: {TRACK_FREE: _skin('tower_curse_ironclad'),
-         TRACK_GOLDEN: _skin('tower_curse_silent')},
+    30: {TRACK_FREE: _player_skin('tower_curse_ironclad'),
+         TRACK_GOLDEN: _player_skin('tower_curse_silent')},
     40: {TRACK_FREE: _gold(25),
          TRACK_GOLDEN: _dew(500)},
-    50: {TRACK_FREE: _skin('tower_curse_silent'),
-         TRACK_GOLDEN: _skin('tower_curse_defect')},
+    50: {TRACK_FREE: _player_skin('tower_curse_silent'),
+         TRACK_GOLDEN: _player_skin('tower_curse_defect')},
     60: {TRACK_FREE: _background('tower_curse_dark_harbor'),
-         TRACK_GOLDEN: _skin('tower_curse_necrobinder')},
+         TRACK_GOLDEN: _player_skin('tower_curse_necrobinder')},
     70: {TRACK_FREE: _dew(1000),
-         TRACK_GOLDEN: _skin('tower_curse_ironclad')},
-    80: {TRACK_FREE: _skin('tower_curse_defect'),
+         TRACK_GOLDEN: _player_skin('tower_curse_ironclad')},
+    80: {TRACK_FREE: _player_skin('tower_curse_defect'),
          TRACK_GOLDEN: _background('tower_curse_deepwood')},
     90: {TRACK_FREE: _gold(25),
          TRACK_GOLDEN: _dew(500)},
-    100: {TRACK_FREE: _skin('tower_curse_necrobinder'),
-          TRACK_GOLDEN: _skin('tower_curse_regent')},
+    100: {TRACK_FREE: _player_skin('tower_curse_necrobinder'),
+          TRACK_GOLDEN: _player_skin('tower_curse_regent')},
 }
 
 # 称号实物：进 title_catalog，玩家领取后可在称号列表里装备。
@@ -248,6 +254,19 @@ def reward_for(level, track):
     return reward
 
 
+def background_entry(item_id):
+    """按 id 查背景（主题/战斗两种都查），返回 (kind, definition)。"""
+    try:
+        from backgrounds import BACKGROUND_KINDS, get_background_definition
+    except Exception:
+        return None, None
+    for kind in BACKGROUND_KINDS:
+        entry = get_background_definition(kind, item_id)
+        if entry is not None:
+            return kind, entry
+    return None, None
+
+
 def cosmetic_name(kind, item_id):
     """皮肤/背景/称号的展示名；查不到就退回 id（目录未上线时不至于渲染成空白）。"""
     item_id = str(item_id or '')
@@ -259,9 +278,13 @@ def cosmetic_name(kind, item_id):
             entry = SKIN_BY_ID.get(item_id)
             if entry:
                 return str(entry.get('name') or item_id)
+        elif kind == 'player_skin':
+            from player_skins import PLAYER_SKIN_BY_ID
+            entry = PLAYER_SKIN_BY_ID.get(item_id)
+            if entry:
+                return str(entry.get('name') or item_id)
         elif kind == 'background':
-            from backgrounds import get_background_definition
-            entry = get_background_definition('theme', item_id)
+            _, entry = background_entry(item_id)
             if entry:
                 return str(entry.get('name') or item_id)
     except Exception:
@@ -271,13 +294,30 @@ def cosmetic_name(kind, item_id):
     return item_id
 
 
+def reward_type_label(reward):
+    """奖励类型标签：皮肤/背景/称号要写明白是哪一种；货币与道具返回空串（文字本身已说明）。"""
+    if not reward:
+        return ''
+    kind = str(reward.get('kind') or '')
+    if kind == 'card_skin':
+        return '卡牌皮肤'
+    if kind == 'player_skin':
+        return '玩家皮肤'
+    if kind == 'title':
+        return '称号'
+    if kind == 'background':
+        bg_kind, _ = background_entry(reward.get('item_id'))
+        return '战斗背景' if bg_kind == 'battle' else '主题背景'
+    return ''
+
+
 def reward_amount_text(level, track):
     reward = reward_for(level, track)
     if reward is None:
         return ''
     kind = reward['kind']
     amount = int(reward.get('amount') or 0)
-    if kind in ('card_skin', 'background', 'title'):
+    if kind in ('card_skin', 'player_skin', 'background', 'title'):
         return cosmetic_name(kind, reward.get('item_id'))
     label = REWARD_KIND_LABELS.get(kind, kind)
     if amount > 1:
@@ -298,13 +338,16 @@ def reward_icon_url(reward):
         except Exception:
             revision = 1
         return f'/static/assets/card-skins/front/{item_id}.svg?v={revision}'
-    if kind == 'background' and item_id:
+    if kind == 'player_skin' and item_id:
         try:
-            from backgrounds import get_background_definition
-            entry = get_background_definition('theme', item_id) or {}
-            return str(entry.get('asset_url') or '')
+            from player_skins import PLAYER_SKIN_BY_ID
+            entry = PLAYER_SKIN_BY_ID.get(item_id) or {}
+            return str(entry.get('texture_url') or '')
         except Exception:
             return ''
+    if kind == 'background':
+        # 背景原图是 1366x768 的场景图，缩到 18px 只是一块深色方块，格子统一用图形图标。
+        return '/static/assets/ui-icons/gallery.svg'
     return REWARD_ICONS.get(kind, '')
 
 
@@ -696,18 +739,27 @@ def _grant_cosmetic(conn, user_id, kind, item_id, now_text):
                    VALUES (?, ?, 'battle_pass', ?, ?)''',
                 (int(user_id), item_id, f'pass:{season_id()}', now_text),
             )
-    elif kind == 'background':
+    elif kind == 'player_skin':
         try:
-            from backgrounds import get_background_definition
-            definition = get_background_definition('theme', item_id)
+            from player_skins import PLAYER_SKIN_BY_ID
+            known = item_id in PLAYER_SKIN_BY_ID
         except Exception:
-            definition = None
+            known = False
+        if known:
+            conn.execute(
+                '''INSERT OR IGNORE INTO user_player_skins
+                   (user_id, skin_id, acquired_source, acquired_ref, acquired_at)
+                   VALUES (?, ?, 'battle_pass', ?, ?)''',
+                (int(user_id), item_id, f'pass:{season_id()}', now_text),
+            )
+    elif kind == 'background':
+        background_kind, definition = background_entry(item_id)
         if definition is not None:
             conn.execute(
                 '''INSERT OR IGNORE INTO user_backgrounds
                    (user_id, kind, background_id, acquired_source, acquired_ref, acquired_at)
-                   VALUES (?, 'theme', ?, 'battle_pass', ?, ?)''',
-                (int(user_id), item_id, f'pass:{season_id()}', now_text),
+                   VALUES (?, ?, ?, 'battle_pass', ?, ?)''',
+                (int(user_id), background_kind, item_id, f'pass:{season_id()}', now_text),
             )
 
 
@@ -762,7 +814,7 @@ def _grant_reward(conn, user_id, reward, *, now_text):
             'UPDATE users SET leisure_tickets = COALESCE(leisure_tickets, 0) + ? WHERE id = ?',
             (amount, uid),
         )
-    elif kind in ('title', 'card_skin', 'background'):
+    elif kind in ('title', 'card_skin', 'player_skin', 'background'):
         _grant_cosmetic(conn, uid, kind, item_id, now_text)
     return granted
 
@@ -841,12 +893,14 @@ def state_payload(conn, user_id, *, now=None):
 
     def _track_view(track):
         entries = []
-        for lv in range(1, PASS_MAX_LEVEL + 1):
+        visible_max = max(PASS_MAX_LEVEL, level)
+        for lv in range(1, visible_max + 1):
             reward = reward_for(lv, track)
             entries.append({
                 'level': lv,
                 'reward': reward,
                 'text': reward_amount_text(lv, track),
+                'type': reward_type_label(reward),
                 'icon': reward_icon_url(reward),
                 'unlocked': lv <= level,
                 'claimed': lv in claimed_sets[track],
@@ -871,9 +925,11 @@ def state_payload(conn, user_id, *, now=None):
         'season_end': end.isoformat(timespec='seconds'),
         'season_active': bool(active),
         'xp_per_level': XP_PER_LEVEL,
-        'max_level': PASS_MAX_LEVEL,
+        'max_level': max(PASS_MAX_LEVEL, level),
+        'base_max_level': PASS_MAX_LEVEL,
+        'overflow_rewards': {track: reward_amount_text(PASS_MAX_LEVEL + 1, track) for track in TRACKS},
         'xp_total': total,
-        'level': min(level, PASS_MAX_LEVEL),
+        'level': level,
         'level_raw': level,
         'xp_into_level': xp_into_level(total),
         'golden': golden,
@@ -943,7 +999,7 @@ def xp_summary(conn, user_id, now=None):
         'xp_per_level': XP_PER_LEVEL,
         'xp_total': total,
         'level': level,
-        'level_display': min(level, PASS_MAX_LEVEL),
+        'level_display': level,
         'xp_into_level': xp_into_level(total),
         'golden': bool(progress['golden_unlocked_at']),
         'by_source': by_source,
@@ -1014,6 +1070,43 @@ def list_xp_transactions(conn, user_id, limit=20, source=None):
     sql += ' ORDER BY created_at DESC, rowid DESC LIMIT ?'
     params.append(limit)
     return [dict(row) for row in conn.execute(sql, params).fetchall()]
+
+
+XP_REWARD_LABELS = {
+    'match': '对局经验到账',
+    'story': '爬塔经验到账',
+    'checkin': '签到经验到账',
+    'admin': '管理调整',
+}
+
+
+def xp_reward_updates(conn, user_id, after_id=0, limit=20):
+    """长期奖励接口用：游标之后的正向经验记录（按 id 递增）。"""
+    ensure_pass_schema(conn)
+    try:
+        after = max(0, int(after_id or 0))
+    except (TypeError, ValueError):
+        after = 0
+    try:
+        limit = max(1, min(50, int(limit or 20)))
+    except (TypeError, ValueError):
+        limit = 20
+    rows = conn.execute(
+        'SELECT id, source, xp FROM battle_pass_xp_ledger '
+        'WHERE user_id = ? AND id > ? AND xp > 0 ORDER BY id ASC LIMIT ?',
+        (int(user_id), after, limit),
+    ).fetchall()
+    items = [
+        {
+            'id': int(row['id']),
+            'amount': int(row['xp']),
+            'source_type': str(row['source']),
+            'reason': XP_REWARD_LABELS.get(str(row['source']), '通行证经验到账'),
+        }
+        for row in rows
+    ]
+    cursor = max([after] + [item['id'] for item in items])
+    return {'cursor': cursor, 'items': items}
 
 
 # 控制台入口：自建连接并提交（db 反向 import battle_pass，故延迟导入 db）

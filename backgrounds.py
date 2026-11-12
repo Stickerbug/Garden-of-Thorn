@@ -44,10 +44,11 @@ BACKGROUND_CATALOG = (
         'biome': '', 'description': '塔之诅咒赛季主题背景：密林。',
     },
     {
-        'kind': 'theme', 'background_id': 'tower_curse_dark_harbor', 'name': '暗港',
+        # 2026-11-12 按用户要求从主题背景改为战斗背景（对局/观战背景）。
+        'kind': 'battle', 'background_id': 'tower_curse_dark_harbor', 'name': '暗港',
         'price': 0, 'weight': 0,
         'asset_url': '/static/assets/backgrounds/theme-tower-curse-dark-harbor.svg',
-        'biome': '', 'description': '塔之诅咒赛季主题背景：暗港。',
+        'biome': '', 'description': '塔之诅咒赛季战斗背景：暗港。',
     },
 )
 BACKGROUND_BY_KEY = {

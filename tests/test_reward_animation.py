@@ -63,6 +63,30 @@ class RewardAnimationContractTests(unittest.TestCase):
         self.assertIn("? '获得'", REWARD_JS)
         self.assertIn("? '解锁'", REWARD_JS)
 
+    def test_pass_xp_uses_the_same_reveal_stage(self):
+        self.assertIn('/static/assets/ui-icons/pass-xp.svg', REWARD_JS)
+        self.assertIn("pass_xp: 'pass_xp'", REWARD_JS)
+        self.assertIn('xp_after=', REWARD_JS)
+        self.assertIn("source_type || '') === 'match'", REWARD_JS)
+        app_source = (ROOT / 'app.py').read_text(encoding='utf-8')
+        self.assertIn('battle_pass.xp_reward_updates', app_source)
+        self.assertIn("'xp_rewards'", app_source)
+        self.assertIn("'xp_cursor'", app_source)
+
+    def test_gameover_panel_shows_pass_xp_even_without_thorn_dew(self):
+        start = GAME_JS.index('function renderGameOverDew(gs = {}) {')
+        end = GAME_JS.index('function showMatchLongTermRewards', start)
+        panel = GAME_JS[start:end]
+        # 特殊模式 / 不计分对局没有荆露，但经验照发，所以经验行不能挂在荆露卡存在的前提上。
+        self.assertNotIn("if (!mine) {", panel)
+        self.assertNotIn('gs.ai_test ||', panel)
+        self.assertIn('if (xpAmount > 0)', panel)
+        self.assertIn('gameover-xp-row', panel)
+        self.assertNotIn("['1v1', '2v2'].includes(String(gs.mode", panel)
+        self.assertIn('phelren_ai_match', panel)
+        self.assertIn('本局不计入排位，不发放荆露', panel)
+        self.assertIn('本局荆露', panel)
+
     def test_animation_uses_a_light_palette(self):
         self.assertIn('--gra-bg: #f7f4ea', REWARD_CSS)
         self.assertIn('--gra-ink: #40334f', REWARD_CSS)

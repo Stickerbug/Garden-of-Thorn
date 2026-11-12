@@ -352,6 +352,15 @@
     font-variant-numeric: tabular-nums;
 }
 
+#achievements-pass-panel .bp-node-type {
+    font-size: 8.5px;
+    line-height: 1.1;
+    letter-spacing: .02em;
+    color: var(--bp-gold);
+    opacity: .85;
+    white-space: nowrap;
+}
+
 #achievements-pass-panel .bp-node-unit {
     color: var(--text-secondary);
     word-break: break-all;
@@ -369,6 +378,18 @@
     width: 32px;
     height: 32px;
     margin-bottom: 2px;
+}
+
+/* 玩家皮肤是极简徽记（六边形/星形/骷髅），比通用图标再放大一档才认得出，
+   不加底色——徽记本身就是实心色块，叠底反而缩小了字形。 */
+#achievements-pass-panel .bp-node-icon-player_skin {
+    width: 26px;
+    height: 26px;
+}
+
+#achievements-pass-panel .bp-node.milestone .bp-node-icon-player_skin {
+    width: 38px;
+    height: 38px;
 }
 
 #achievements-pass-panel .bp-node.milestone .bp-bubble {

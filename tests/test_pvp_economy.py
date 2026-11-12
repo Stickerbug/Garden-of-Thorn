@@ -83,6 +83,21 @@ def test_settlement_awards_battle_pass_xp(accounts):
     ]
 
 
+def test_special_mode_match_still_awards_battle_pass_xp(accounts):
+    # 特殊模式/不计分对局：荆露不发，但通行证经验照发（需求 2026-11-12）。
+    result=award(rounds=5,valid_for_stats=False,valid_for_ranking=False,
+                 ranking_invalid_reason='special_mode')
+    assert result['awarded']==[]
+    assert result['skipped']=='special_mode'
+    by_uid={row['user_id']:row['xp'] for row in result['xp_awarded']}
+    assert by_uid=={1:38,2:25}  # 回合 5×5=25，胜方 ×1.5 = 37.5 四舍五入 → 38
+    with db.get_db_connection() as conn:
+        rows=conn.execute('SELECT user_id,xp,source FROM battle_pass_xp_ledger ORDER BY user_id').fetchall()
+    assert [(row['user_id'],row['xp'],row['source']) for row in rows]==[
+        (1,38,'match'),(2,25,'match'),
+    ]
+
+
 def test_ai_match_awards_no_battle_pass_xp(accounts):
     # 与 Phelren 的对战不计通行证经验（也不发荆露）：结算入口直接跳过。
     result=award(rounds=6,ai_match=True,match_kind='phelren')

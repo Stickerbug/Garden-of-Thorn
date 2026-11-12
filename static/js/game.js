@@ -19586,7 +19586,7 @@ function renderAchievementCenter() {
     // 通行证页签自带赛季信息，成就进度行留着只会干扰阅读
     summary.classList.toggle('hidden', achievementActiveTab === 'pass');
     if (achievementActiveTab === 'pass' && window.gtnBattlePass) {
-        window.gtnBattlePass.ensureLoaded();
+        window.gtnBattlePass.ensureLoaded(true);
         window.gtnBattlePass.render(passPanel);
     }
     if (!currentAccount) {
@@ -40412,40 +40412,49 @@ function renderGameOverDew(gs = {}) {
     box.innerHTML = '';
     box.classList.add('hidden');
     if (!currentAccount || currentAccount.id == null) return;
-    if (gs.solo || gs.tutorial || gs.ai_test || gs.spectating || isSpectating || gs.your_id === -1) return;
-    if (!['1v1', '2v2'].includes(String(gs.mode || ''))) return;
+    if (gs.solo || gs.tutorial || gs.spectating || isSpectating || gs.your_id === -1) return;
     const summary = gs.match_summary || gs.summary || {};
     const result = summary.thorn_dew_result;
     if (!result || typeof result !== 'object') return;
     const myId = String(currentAccount.id);
     const awards = Array.isArray(result.awarded) ? result.awarded : [];
     const mine = awards.find(item => item && String(item.user_id) === myId) || null;
-    const title = UI.thorn_dew || '荆露';
-    if (!mine) {
-        if (result.skipped === 'early_surrender') {
-            box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(title)}</div>`
-                + `<div class="gameover-gr-muted">${escapeHtml(lt({
-                    zh: '开局 60 秒内投降，本局无荆露奖励',
-                    en: 'Surrendered within 60s: no Thorn Dew this match',
-                    fr: 'Abandon dans les 60 s : aucune Rosée d’épines',
-                    ja: '開始60秒以内の降参：ソーンデューなし',
-                }))}</div>`;
-            box.classList.remove('hidden');
-        }
-        return;
-    }
-    const amount = Math.max(0, Number(mine?.amount) || 0);
-    const amountText = amount > 0 ? `+${amount}` : '0';
-    // 通行证经验（2026-11-11）：本局对战经验由结算写入 xp_awarded，未登记者不会有这条。
     const xpAwards = Array.isArray(result.xp_awarded) ? result.xp_awarded : [];
     const myXp = xpAwards.find(item => item && String(item.user_id) === myId) || null;
     const xpAmount = Math.max(0, Number(myXp?.xp) || 0);
+    // 荆露行始终渲染：本局没发（AI 对局 / 特殊模式 / 投降）时显示 +0 并补一行原因，
+    // 这样每个对局结算界面都能看到本局的荆露获取情况。
+    const dewAmount = Math.max(0, Number(mine?.amount) || 0);
     const rows = [];
-    if (mine) {
-        rows.push('<div class="gameover-dew-row">'
-            + `<span>${escapeHtml(lt({ zh: '本局获得', en: 'Earned this match', fr: 'Gagné cette partie', ja: '今回の獲得' }))}</span>`
-            + `<b class="${amount > 0 ? 'positive' : ''}">${escapeHtml(amountText)}</b>`
-            + '</div>');
+    rows.push('<div class="gameover-dew-row">'
+        + `<span>${escapeHtml(lt({ zh: '本局荆露', en: 'Thorn Dew earned', fr: 'Rosée d’épines gagnée', ja: '今回のソーンデュー' }))}</span>`
+        + `<b class="${dewAmount > 0 ? 'positive' : ''}">${dewAmount > 0 ? `+${dewAmount}` : '0'}</b>`
+        + '</div>');
+    if (!mine && result.skipped) {
+        let note;
+        if (result.skipped === 'early_surrender') {
+            note = lt({
+                zh: '开局 60 秒内投降，本局无荆露奖励',
+                en: 'Surrendered within 60s: no Thorn Dew this match',
+                fr: 'Abandon dans les 60 s : aucune Rosée d’épines',
+                ja: '開始60秒以内の降参：ソーンデューなし',
+            });
+        } else if (result.skipped === 'phelren_ai_match') {
+            note = lt({
+                zh: 'AI 对局不发放荆露与通行证经验',
+                en: 'AI matches grant no Thorn Dew or pass XP',
+                fr: 'Les parties contre l’IA n’accordent ni Rosée d’épines ni XP de pass',
+                ja: 'AI対戦ではソーンデューとパス経験値は獲得できません',
+            });
+        } else {
+            note = lt({
+                zh: '本局不计入排位，不发放荆露',
+                en: 'Unranked match: no Thorn Dew',
+                fr: 'Partie non classée : aucune Rosée d’épines',
+                ja: 'ランク対象外の対局：ソーンデューなし',
+            });
+        }
+        rows.push(`<div class="gameover-gr-muted">${escapeHtml(note)}</div>`);
     }
     if (xpAmount > 0) {
         rows.push('<div class="gameover-dew-row gameover-xp-row">'
@@ -40454,8 +40463,8 @@ function renderGameOverDew(gs = {}) {
             + `<b class="positive">+${xpAmount}</b>`
             + '</div>');
     }
-    if (!rows.length) return;
-    box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(title)}</div>${rows.join('')}`;
+    const heading = UI.thorn_dew || '荆露';
+    box.innerHTML = `<div class="gameover-gr-title">${escapeHtml(heading)}</div>${rows.join('')}`;
     box.classList.remove('hidden');
 }
 

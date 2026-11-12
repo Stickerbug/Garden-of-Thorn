@@ -26993,6 +26993,11 @@ def api_rewards_status():
         after_id = None if after_raw is None else max(0, int(after_raw))
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': '奖励游标无效'}), 400
+    xp_after_raw = request.args.get('xp_after')
+    try:
+        xp_after_id = 0 if xp_after_raw is None else max(0, int(xp_after_raw))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': '奖励游标无效'}), 400
     try:
         updates = db_module.get_thorn_dew_reward_updates(user['id'], after_id)
         golden_updates = db_module.get_thorn_dew_reward_updates(
@@ -27001,6 +27006,7 @@ def api_rewards_status():
         with get_db_connection() as conn:
             ticket_balance = leisure_ticket.get_ticket_balance(conn, user['id'])
             owned_skins = card_skins.card_skin_payload(conn, user['id']).get('items') or []
+            xp_updates = battle_pass.xp_reward_updates(conn, user['id'], xp_after_id)
         title_items = (get_user_title_center(user['id']) or {}).get('items') or []
         unlocked_mods = (mod_unlocks.load_state(user['id']) or {}).get('unlocked_official') or []
         story_characters = (get_story_progress(user['id']) or {}).get('characters') or {}
@@ -27042,6 +27048,8 @@ def api_rewards_status():
             'dew_cursor': max(int(updates.get('cursor') or 0), int(golden_updates.get('cursor') or 0)),
             'dew_rewards': updates.get('items') or [],
             'golden_dew_rewards': golden_updates.get('items') or [],
+            'xp_cursor': int((xp_updates or {}).get('cursor') or 0),
+            'xp_rewards': (xp_updates or {}).get('items') or [],
             'leisure_tickets': int(ticket_balance),
             'rank_cards': db_module.rank_cards_payload(user['id']),
             'inventory': inventory,
