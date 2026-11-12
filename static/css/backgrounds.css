@@ -34,12 +34,19 @@ body[data-player-battle-background] #view-game > .battle-classic,
 body[data-player-battle-background] #view-game > .game-container { position: relative; z-index: 1; }
 #view-game { isolation: isolate; }
 #view-game > .player-battle-backdrop {
+  border-radius: inherit;
   position: absolute;
   inset: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
   user-select: none;
+}
+#view-game > .player-battle-backdrop > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .player-battle-backdrop[data-biome='garden'] { background: #20ab39; }
 .player-battle-backdrop[data-biome='desert'] { background: #c89452; }

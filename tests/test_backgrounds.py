@@ -41,7 +41,9 @@ class BackgroundInventoryTests(unittest.TestCase):
         self.assertEqual(payload['preferences'], {'theme': 'classic', 'battle': 'classic'})
         for kind in backgrounds.BACKGROUND_KINDS:
             shop = payload['shops'][kind]
-            self.assertEqual(len(shop['items']), 8 if kind == 'theme' else 6)
+            self.assertEqual(len(shop['items']), 7)
+            ids = {item['background_id'] for item in shop['items']}
+            self.assertEqual('tower_curse_dark_harbor' in ids, kind == 'battle')
             self.assertEqual(shop['owned_background_ids'], ['classic'])
             self.assertEqual(shop['equipped'], 'classic')
             self.assertEqual(shop['refresh_cost'], 700)

@@ -142,26 +142,27 @@ PATTERN_GOLDEN = {
 # （同款在不同轨道重复出场是刻意的：只买一条轨道收不全）。
 _TITLE_FREE = 'pass_s1_free_lv10'
 _TITLE_GOLDEN = 'pass_s1_golden_lv20'
+# 外观格共 10 个：五个卡牌皮肤（卡背）+ 五个玩家皮肤，各出现一次。
 MILESTONES = {
     10: {TRACK_FREE: _title(_TITLE_FREE),
-         TRACK_GOLDEN: _player_skin('tower_curse_regent')},
+         TRACK_GOLDEN: _skin('tower_curse_ironclad')},
     20: {TRACK_FREE: _dew(1000),
          TRACK_GOLDEN: _title(_TITLE_GOLDEN)},
-    30: {TRACK_FREE: _player_skin('tower_curse_ironclad'),
-         TRACK_GOLDEN: _player_skin('tower_curse_silent')},
+    30: {TRACK_FREE: _skin('tower_curse_silent'),
+         TRACK_GOLDEN: _player_skin('tower_curse_ironclad')},
     40: {TRACK_FREE: _gold(25),
          TRACK_GOLDEN: _dew(500)},
     50: {TRACK_FREE: _player_skin('tower_curse_silent'),
-         TRACK_GOLDEN: _player_skin('tower_curse_defect')},
+         TRACK_GOLDEN: _skin('tower_curse_defect')},
     60: {TRACK_FREE: _background('tower_curse_dark_harbor'),
-         TRACK_GOLDEN: _player_skin('tower_curse_necrobinder')},
+         TRACK_GOLDEN: _player_skin('tower_curse_defect')},
     70: {TRACK_FREE: _dew(1000),
-         TRACK_GOLDEN: _player_skin('tower_curse_ironclad')},
-    80: {TRACK_FREE: _player_skin('tower_curse_defect'),
+         TRACK_GOLDEN: _skin('tower_curse_necrobinder')},
+    80: {TRACK_FREE: _player_skin('tower_curse_necrobinder'),
          TRACK_GOLDEN: _background('tower_curse_deepwood')},
     90: {TRACK_FREE: _gold(25),
          TRACK_GOLDEN: _dew(500)},
-    100: {TRACK_FREE: _player_skin('tower_curse_necrobinder'),
+    100: {TRACK_FREE: _skin('tower_curse_regent'),
           TRACK_GOLDEN: _player_skin('tower_curse_regent')},
 }
 

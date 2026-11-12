@@ -70,10 +70,12 @@ class BattlePassTests(unittest.TestCase):
 
     def test_milestone_levels_use_explicit_table(self):
         self.assertEqual(bp.reward_for(10, bp.TRACK_FREE)['kind'], 'title')
-        self.assertEqual(bp.reward_for(10, bp.TRACK_GOLDEN)['kind'], 'player_skin')
+        self.assertEqual(bp.reward_for(10, bp.TRACK_GOLDEN)['kind'], 'card_skin')
         self.assertEqual(bp.reward_for(40, bp.TRACK_FREE)['kind'], 'golden_dew')
         self.assertEqual(bp.reward_for(40, bp.TRACK_GOLDEN)['amount'], 500)
-        self.assertEqual(bp.reward_for(100, bp.TRACK_FREE)['kind'], 'player_skin')
+        self.assertEqual(bp.reward_for(100, bp.TRACK_FREE)['kind'], 'card_skin')
+        self.assertEqual(bp.reward_for(30, bp.TRACK_GOLDEN)['kind'], 'player_skin')
+        self.assertEqual(bp.reward_for(100, bp.TRACK_GOLDEN)['kind'], 'player_skin')
         for level in range(10, 101, 10):
             self.assertIsNotNone(bp.reward_for(level, bp.TRACK_FREE))
             self.assertIsNotNone(bp.reward_for(level, bp.TRACK_GOLDEN))
@@ -283,10 +285,11 @@ class BattlePassTests(unittest.TestCase):
         self.assertEqual(free[1]['icon'], '/static/assets/ui-icons/thorn-dew.svg')
         self.assertIn('/static/assets/leisure/tickets.svg', free[4]['icon'])
         self.assertEqual(free[5]['icon'], '/static/assets/ui-icons/golden-dew.svg')
-        self.assertIn('/static/assets/player-avatars/tower-curse-ironclad.svg', free[30]['icon'])
+        self.assertIn('/static/assets/card-skins/front/tower_curse_silent.svg', free[30]['icon'])
         self.assertIn('/static/assets/ui-icons/gallery.svg', free[60]['icon'])
         golden = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_GOLDEN]['entries']}
-        self.assertIn('/static/assets/player-avatars/tower-curse-regent.svg', golden[10]['icon'])
+        self.assertIn('/static/assets/card-skins/front/tower_curse_ironclad.svg', golden[10]['icon'])
+        self.assertIn('/static/assets/player-avatars/tower-curse-ironclad.svg', golden[30]['icon'])
 
     def test_track_entries_name_the_reward_type(self):
         """预览要写明白奖励类型：玩家皮肤 / 卡牌皮肤 / 主题背景 / 战斗背景 / 称号。"""
@@ -297,9 +300,10 @@ class BattlePassTests(unittest.TestCase):
         golden = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_GOLDEN]['entries']}
         self.assertEqual(free[1]['type'], '')
         self.assertEqual(free[10]['type'], '称号')
-        self.assertEqual(free[30]['type'], '玩家皮肤')
+        self.assertEqual(free[30]['type'], '卡牌皮肤')
         self.assertEqual(free[60]['type'], '战斗背景')
-        self.assertEqual(golden[10]['type'], '玩家皮肤')
+        self.assertEqual(golden[10]['type'], '卡牌皮肤')
+        self.assertEqual(golden[30]['type'], '玩家皮肤')
         # 主题背景目前不在里程碑里，但类型标签本身要能区分（密林是主题背景）。
         self.assertEqual(bp.reward_type_label({'kind': 'background', 'item_id': 'tower_curse_deepwood'}), '主题背景')
 
@@ -416,30 +420,61 @@ class BattlePassTests(unittest.TestCase):
     def test_claiming_a_skin_milestone_grants_ownership(self):
         with self._conn() as conn:
             bp._apply_xp(conn, self.uid, 3000, source='test', source_key='seed-3000')
-            result, error = bp.claim(conn, self.uid, bp.TRACK_FREE, 30)
+            bp._apply_xp(conn, self.uid, 3000, source='test', source_key='seed-3000')
+            conn.execute('UPDATE users SET golden_dew = 250 WHERE id = ?', (self.uid,))
+            bp.purchase_golden(conn, self.uid)
+            result, error = bp.claim(conn, self.uid, bp.TRACK_GOLDEN, 30)
             self.assertIsNone(error)
             owned = conn.execute(
                 'SELECT COUNT(*) AS n FROM user_player_skins WHERE user_id = ? AND skin_id = ?',
                 (self.uid, 'tower_curse_ironclad'),
             ).fetchone()['n']
+            bp.claim(conn, self.uid, bp.TRACK_FREE, 30)
+            card_owned = conn.execute(
+                'SELECT COUNT(*) AS n FROM user_card_skins WHERE user_id = ? AND skin_id = ?',
+                (self.uid, 'tower_curse_silent'),
+            ).fetchone()['n']
             conn.commit()
         self.assertEqual(result['reward']['kind'], 'player_skin')
         self.assertEqual(owned, 1)
+        self.assertEqual(card_owned, 1)
 
-    def test_milestones_hand_out_all_five_tower_curse_player_skins(self):
-        """五款「塔之诅咒」玩家皮肤都要在通行证里出场。"""
-        granted = {
-            reward['item_id']
-            for tracks in bp.MILESTONES.values()
-            for reward in tracks.values()
-            if reward['kind'] == 'player_skin'
-        }
-        self.assertEqual(granted, {
+    def test_milestones_split_five_player_skins_and_five_card_skins(self):
+        """10 个外观格 = 5 个玩家皮肤 + 5 个卡牌皮肤（卡背），每款各出现一次。"""
+        expected = {
             'tower_curse_ironclad',
             'tower_curse_silent',
             'tower_curse_defect',
             'tower_curse_necrobinder',
             'tower_curse_regent',
+        }
+        player_skins = [
+            reward['item_id']
+            for tracks in bp.MILESTONES.values()
+            for reward in tracks.values()
+            if reward['kind'] == 'player_skin'
+        ]
+        card_skins = [
+            reward['item_id']
+            for tracks in bp.MILESTONES.values()
+            for reward in tracks.values()
+            if reward['kind'] == 'card_skin'
+        ]
+        self.assertEqual(len(player_skins), 5)
+        self.assertEqual(len(card_skins), 5)
+        self.assertEqual(set(player_skins), expected)
+        self.assertEqual(set(card_skins), expected)
+        # 卡背格子按用户定稿表：进阶 10、普通 30、进阶 50、进阶 70、普通 100。
+        card_levels = {
+            (track, level)
+            for level, tracks in bp.MILESTONES.items()
+            for track, reward in tracks.items()
+            if reward['kind'] == 'card_skin'
+        }
+        self.assertEqual(card_levels, {
+            (bp.TRACK_GOLDEN, 10), (bp.TRACK_FREE, 30),
+            (bp.TRACK_GOLDEN, 50), (bp.TRACK_GOLDEN, 70),
+            (bp.TRACK_FREE, 100),
         })
 
 

@@ -11,13 +11,13 @@
     { kind: 'theme', id: 'jungle', name: '丛林', asset: '', biome: 'jungle' },
     { kind: 'theme', id: 'factory', name: '工厂', asset: '', biome: 'factory' },
     { kind: 'theme', id: 'tower_curse_deepwood', name: '密林', asset: '/static/assets/backgrounds/theme-tower-curse-deepwood.svg', biome: '' },
-    { kind: 'theme', id: 'tower_curse_dark_harbor', name: '暗港', asset: '/static/assets/backgrounds/theme-tower-curse-dark-harbor.svg', biome: '' },
     { kind: 'battle', id: 'classic', name: '经典战场', asset: '', biome: '' },
     { kind: 'battle', id: 'garden', name: '花园战场', asset: '', biome: 'garden' },
     { kind: 'battle', id: 'desert', name: '沙漠战场', asset: '', biome: 'desert' },
     { kind: 'battle', id: 'ocean', name: '海洋战场', asset: '', biome: 'ocean' },
     { kind: 'battle', id: 'jungle', name: '丛林战场', asset: '', biome: 'jungle' },
     { kind: 'battle', id: 'factory', name: '工厂战场', asset: '', biome: 'factory' },
+    { kind: 'battle', id: 'tower_curse_dark_harbor', name: '暗港', asset: '/static/assets/backgrounds/theme-tower-curse-dark-harbor.svg', biome: '' },
   ]);
   const LANDMARKS = Object.freeze({
     desert: Object.freeze([
@@ -221,16 +221,29 @@
       return;
     }
     const selected = definition('battle', id);
-    if (!selected.biome) { removeBattle(); return; }
+    if (!selected.asset && !selected.biome) { removeBattle(); return; }
     if (!battleRoot) {
       battleRoot = document.createElement('div');
       battleRoot.id = 'player-battle-backdrop';
-      battleRoot.className = 'player-battle-backdrop story-seeded-backdrop';
+      battleRoot.className = 'player-battle-backdrop';
       battleRoot.setAttribute('aria-hidden', 'true');
       game.prepend(battleRoot);
     }
     document.body.dataset.playerBattleBackground = id;
-    renderBiome(battleRoot, selected.biome, id);
+    if (selected.asset) {
+      // 画好的战场大图（如「暗港」）直接铺满，不再走群系拼贴。
+      battleRoot.className = 'player-battle-backdrop';
+      battleRoot.replaceChildren();
+      delete battleRoot.dataset.biome;
+      const image = document.createElement('img');
+      image.src = selected.asset;
+      image.alt = '';
+      image.draggable = false;
+      battleRoot.append(image);
+    } else {
+      battleRoot.className = 'player-battle-backdrop story-seeded-backdrop';
+      renderBiome(battleRoot, selected.biome, id);
+    }
   }
   function applyPreferences(input) {
     preferences = {

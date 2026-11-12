@@ -58,7 +58,9 @@ class PassCosmeticBackfillTests(unittest.TestCase):
                 'SELECT kind FROM user_backgrounds WHERE user_id = ? AND background_id = ?',
                 (self.uid, 'tower_curse_dark_harbor'),
             ).fetchall()]
-        self.assertEqual(result, {'moved': 1, 'removed': 1})
+        self.assertEqual((result['moved'], result['removed']), (1, 1))
+        self.assertGreaterEqual(result['preferred'], 0)
+        self.assertGreaterEqual(result['theme_reset'], 0)
         self.assertEqual(kinds, ['battle'])
 
     def test_claimed_milestones_get_player_skins(self):
@@ -75,15 +77,39 @@ class PassCosmeticBackfillTests(unittest.TestCase):
             conn.commit()
             owned = sorted(row['skin_id'] for row in conn.execute(
                 'SELECT skin_id FROM user_player_skins WHERE user_id = ?', (self.uid,)).fetchall())
+            cards = sorted(row['skin_id'] for row in conn.execute(
+                'SELECT skin_id FROM user_card_skins WHERE user_id = ?', (self.uid,)).fetchall())
             again = backfill.backfill_claims(conn)
             conn.commit()
             owned_again = sorted(row['skin_id'] for row in conn.execute(
                 'SELECT skin_id FROM user_player_skins WHERE user_id = ?', (self.uid,)).fetchall())
-        self.assertEqual(owned, ['tower_curse_ironclad', 'tower_curse_silent'])
+        # 普通 30 现在是卡牌皮肤（静默猎手），普通 50 是玩家皮肤（静默猎手）。
+        self.assertEqual(owned, ['tower_curse_silent'])
+        self.assertEqual(cards, ['tower_curse_silent'])
         self.assertEqual(owned_again, owned)
         self.assertEqual(len(grants), 2)
         # 再跑一遍：写入是 INSERT OR IGNORE，重复执行不会多出皮肤。
         self.assertEqual(owned_again, owned)
+
+    def test_claims_from_the_old_mapping_keep_both_rewards(self):
+        """旧映射发过的玩家皮肤保留，同时按新表补上卡牌皮肤。"""
+        with db.get_db_connection() as conn:
+            conn.execute(
+                '''INSERT INTO battle_pass_claims
+                   (user_id, season_id, track, level, reward_json, claimed_at)
+                   VALUES (?, ?, ?, 10, ?, '2026-11-12')''',
+                (self.uid, bp.season_id(), bp.TRACK_GOLDEN,
+                 '{"kind": "player_skin", "item_id": "tower_curse_regent"}'),
+            )
+            conn.commit()
+            backfill.backfill_claims(conn)
+            conn.commit()
+            players = sorted(row['skin_id'] for row in conn.execute(
+                'SELECT skin_id FROM user_player_skins WHERE user_id = ?', (self.uid,)).fetchall())
+            cards = sorted(row['skin_id'] for row in conn.execute(
+                'SELECT skin_id FROM user_card_skins WHERE user_id = ?', (self.uid,)).fetchall())
+        self.assertIn('tower_curse_regent', players)
+        self.assertEqual(cards, ['tower_curse_ironclad'])
 
     def test_dry_run_writes_nothing(self):
         with db.get_db_connection() as conn:

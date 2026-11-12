@@ -206,5 +206,25 @@ setImmediate(() => {
         self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
 
 
+    def test_dark_harbor_is_a_battle_background_with_its_own_asset(self):
+        # 暗港是战斗背景（不是主题背景），只带 asset 没有 biome，
+        # 前端必须按图片铺满战场，而不是回落到经典战场。
+        source = (ROOT / 'static/js/backgrounds.js').read_text(encoding='utf-8')
+        theme_block = source[source.index("kind: 'theme'"):source.index("kind: 'battle'")]
+        self.assertNotIn("id: 'tower_curse_dark_harbor'", theme_block)
+        self.assertIn(
+            "{ kind: 'battle', id: 'tower_curse_dark_harbor', name: '暗港', "
+            "asset: '/static/assets/backgrounds/theme-tower-curse-dark-harbor.svg', biome: '' }",
+            source,
+        )
+        battle = source[source.index('function applyBattle'):source.index('async function refresh')]
+        self.assertIn('if (!selected.asset && !selected.biome) {', battle)
+        self.assertIn('const image = document.createElement(\'img\');', battle)
+        self.assertIn('battleRoot.append(image);', battle)
+        css = (ROOT / 'static/css/backgrounds.css').read_text(encoding='utf-8')
+        self.assertIn('#view-game > .player-battle-backdrop > img {', css)
+        self.assertIn('object-fit: cover;', css)
+
+
 if __name__ == '__main__':
     unittest.main()
