@@ -81,12 +81,13 @@
             const reward = splitReward(entry.text);
             const amount = reward.amount ? `<span class="bp-node-amount">${escapeHtml(reward.amount)}</span>` : '';
             const unit = reward.unit ? `<span class="bp-node-unit">${escapeHtml(reward.unit)}</span>` : '';
+            const icon = entry.icon ? `<img class="bp-node-icon" src="${escapeHtml(entry.icon)}" alt="" aria-hidden="true">` : '';
             const attrs = ` data-track="${track}" data-level="${entry.level}"${entry.claimable ? ' data-claim="1"' : ''}`;
             const tag = entry.claimable ? 'button' : 'div';
             const title = `Lv.${entry.level} · ${escapeHtml(entry.text || '')}${entry.claimed ? '（已领取）' : ''}`;
             return `<${tag} class="${classes.join(' ')}"${entry.claimable ? ' type="button"' : ''}${attrs} title="${title}">
                 <span class="bp-bubble"><span class="bp-bubble-lv">${entry.level}</span>${entry.level % 10 === 0 ? '<span class="bp-bubble-star">★</span>' : ''}</span>
-                <span class="bp-node-reward">${amount}${unit}</span>
+                <span class="bp-node-reward">${icon}${amount}${unit}</span>
             </${tag}>`;
         }).join('');
     }

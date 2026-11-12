@@ -246,6 +246,20 @@ class BattlePassTests(unittest.TestCase):
         self.assertFalse(payload['golden'])
         self.assertEqual(payload['golden_price'], 250)
 
+    def test_track_entries_carry_reward_icons(self):
+        """通行证格子上要有图标：皮肤/背景借实物素材，货币与道具用现成图标。"""
+        with self._conn() as conn:
+            payload = bp.state_payload(conn, self.uid)
+            conn.commit()
+        free = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_FREE]['entries']}
+        self.assertEqual(free[1]['icon'], '/static/assets/ui-icons/thorn-dew.svg')
+        self.assertIn('/static/assets/leisure/tickets.svg', free[4]['icon'])
+        self.assertEqual(free[5]['icon'], '/static/assets/ui-icons/golden-dew.svg')
+        self.assertIn('/static/assets/card-skins/front/tower_curse_ironclad.svg', free[30]['icon'])
+        self.assertIn('/static/assets/backgrounds/theme-tower-curse-dark-harbor.svg', free[60]['icon'])
+        golden = {entry['level']: entry for entry in payload['tracks'][bp.TRACK_GOLDEN]['entries']}
+        self.assertIn('/static/assets/card-skins/front/tower_curse_regent.svg', golden[10]['icon'])
+
     def test_milestone_cosmetics_resolve_to_real_catalogs(self):
         """里程碑只能发真实存在的皮肤/背景/称号，否则玩家领到的是空气。"""
         from backgrounds import get_background_definition

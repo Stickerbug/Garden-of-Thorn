@@ -357,6 +357,20 @@
     word-break: break-all;
 }
 
+#achievements-pass-panel .bp-node-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+    object-fit: contain;
+    margin-bottom: 1px;
+}
+
+#achievements-pass-panel .bp-node.milestone .bp-node-icon {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 2px;
+}
+
 #achievements-pass-panel .bp-node.milestone .bp-bubble {
     width: 50px;
     height: 50px;

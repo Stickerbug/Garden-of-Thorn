@@ -64,6 +64,15 @@ REWARD_KIND_LABELS = {
     'background': '背景',
 }
 
+REWARD_ICONS = {
+    'dew': '/static/assets/ui-icons/thorn-dew.svg',
+    'golden_dew': '/static/assets/ui-icons/golden-dew.svg',
+    'shield_card': '/static/assets/rewards/score-insurance-card.svg',
+    'double_card': '/static/assets/rewards/double-card.svg',
+    'ticket': '/static/assets/leisure/tickets.svg',
+    'title': '/static/assets/ui-icons/achievements.svg',
+}
+
 
 def _dew(amount):
     return {'kind': 'dew', 'amount': int(amount)}
@@ -274,6 +283,29 @@ def reward_amount_text(level, track):
     if amount > 1:
         return f'{amount} {label}'
     return label
+
+
+def reward_icon_url(reward):
+    """格子上的图标：货币/道具用现成图标，皮肤与背景直接借用实物素材。"""
+    if not reward:
+        return ''
+    kind = str(reward.get('kind') or '')
+    item_id = str(reward.get('item_id') or '')
+    if kind == 'card_skin' and item_id:
+        try:
+            from card_skins import skin_art_revision
+            revision = skin_art_revision(item_id)
+        except Exception:
+            revision = 1
+        return f'/static/assets/card-skins/front/{item_id}.svg?v={revision}'
+    if kind == 'background' and item_id:
+        try:
+            from backgrounds import get_background_definition
+            entry = get_background_definition('theme', item_id) or {}
+            return str(entry.get('asset_url') or '')
+        except Exception:
+            return ''
+    return REWARD_ICONS.get(kind, '')
 
 
 # --------------------------------------------------------------------------
@@ -815,6 +847,7 @@ def state_payload(conn, user_id, *, now=None):
                 'level': lv,
                 'reward': reward,
                 'text': reward_amount_text(lv, track),
+                'icon': reward_icon_url(reward),
                 'unlocked': lv <= level,
                 'claimed': lv in claimed_sets[track],
                 'claimable': lv <= level and lv not in claimed_sets[track] and (track == TRACK_FREE or golden),
