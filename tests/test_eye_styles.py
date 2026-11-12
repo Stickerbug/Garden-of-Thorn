@@ -155,6 +155,18 @@ class EyeStyleFrontendContractTests(unittest.TestCase):
             self.assertIn(marker, game)
         self.assertIn('尚未拥有这款眼睛', game)
 
+    def test_shop_buttons_are_rendered_after_the_busy_flag_clears(self):
+        # 曾经的 bug：loadPlayerSkinShop 在 busy=true 时渲染，按钮全部带 disabled，点不动。
+        game = (ROOT / 'static/js/game.js').read_text(encoding='utf-8')
+        start = game.index('async function loadPlayerSkinShop(')
+        end = game.index('function renderPlayerSkinShop()', start)
+        segment = game[start:end]
+        segment = segment[segment.index('playerSkinShopBusy = true;'):]
+        self.assertEqual(segment.count('renderPlayerSkinShop();'), 1)
+        self.assertLess(
+            segment.index('playerSkinShopBusy = false;'),
+            segment.index('renderPlayerSkinShop();'),
+        )
     def test_player_shop_route_helper_accepts_both_action_forms(self):
         game = (ROOT / 'static/js/game.js').read_text(encoding='utf-8')
         start = game.index('const PLAYER_SHOP_ROUTES')

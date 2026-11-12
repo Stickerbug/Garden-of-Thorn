@@ -17938,116 +17938,10 @@ html[data-ui-style="minimal"] .btn-end-turn {
   box-shadow: none;
 }
 
-.skin-avatar.is-corrupted,
-.skin-avatar.is-corrupted.skin-hit-poison,
-.skin-avatar.is-corrupted.skin-hit-fire,
-.skin-avatar.is-corrupted.is-defeated {
-  --skin-feature: #fff;
-  --skin-pupil: #111;
-  background: #BF2D29;
-  border-color: #BF2D29;
-}
-
 .skin-avatar.phelren-avatar.is-corrupted {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
-}
-
-.skin-avatar.phelren-avatar.skin-corruption-animate {
-  animation: none;
-}
-
-.skin-avatar.skin-corruption-animate {
-  animation: skinCorruptionFaceShift 1200ms cubic-bezier(.2, .78, .22, 1) both;
-}
-
-.skin-avatar.skin-corruption-animate::before {
-  opacity: 1;
-  background: radial-gradient(circle at 50% 48%, rgba(191,45,41,0.42), rgba(191,45,41,0.16) 48%, transparent 78%);
-  animation: skinCorruptionAura 1200ms ease both;
-}
-
-.skin-avatar.skin-corruption-animate .skin-eye {
-  animation: skinCorruptionFeatureShift 1200ms ease both;
-}
-
-.skin-avatar.skin-corruption-animate .skin-pupil {
-  animation: skinCorruptionPupilShift 1200ms ease both;
-}
-
-.skin-avatar.skin-corruption-animate .skin-mouth-line {
-  animation: skinCorruptionMouthShift 1200ms ease both;
-}
-
-.skin-avatar.skin-corruption-animate.is-defeated .skin-eye::before,
-.skin-avatar.skin-corruption-animate.is-defeated .skin-eye::after {
-  animation: skinCorruptionFeatureShift 1200ms ease both;
-}
-
-@keyframes skinCorruptionFaceShift {
-  0% {
-    background: var(--skin-main);
-    border-color: var(--skin-border);
-    filter: saturate(1) contrast(1);
-  }
-  35% {
-    background: color-mix(in srgb, var(--skin-main) 52%, #BF2D29 48%);
-    border-color: color-mix(in srgb, var(--skin-border) 50%, #BF2D29 50%);
-    filter: saturate(1.24) contrast(1.03);
-  }
-  72% {
-    background: #BF2D29;
-    border-color: #BF2D29;
-    filter: saturate(1.18) contrast(1.02);
-  }
-  100% {
-    background: #BF2D29;
-    border-color: #BF2D29;
-    filter: saturate(1) contrast(1);
-  }
-}
-
-@keyframes skinCorruptionAura {
-  0% {
-    opacity: 0;
-    transform: scale(0.86);
-  }
-  42% {
-    opacity: 0.55;
-    transform: scale(1.04);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.08);
-  }
-}
-
-@keyframes skinCorruptionFeatureShift {
-  0% {
-    background: #111;
-  }
-  100% {
-    background: #fff;
-  }
-}
-
-@keyframes skinCorruptionPupilShift {
-  0% {
-    background: #fff;
-  }
-  100% {
-    background: #111;
-  }
-}
-
-@keyframes skinCorruptionMouthShift {
-  0% {
-    stroke: #111;
-  }
-  100% {
-    stroke: #fff;
-  }
 }
 
 .skin-eye {
@@ -23370,4 +23264,15 @@ body.mulligan-open #modal {
   margin: 8px 0 4px;
   font-size: 16px;
   line-height: 1.4;
+}
+
+/* 腐化领域：任意玩家装备并激活腐化时，全场叠一层浅红遮罩（对所有皮肤与界面生效）。 */
+body.has-corruption-field::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  /* 中心 25% → 最外围 70%，沿半径做 smoothstep 连续加浓；渐变半径取到屏幕四角，避免出现圆形分界。 */
+  background: radial-gradient(ellipse farthest-corner at 50% 50%, rgba(191, 45, 41, 0.250) 0%, rgba(191, 45, 41, 0.253) 5%, rgba(191, 45, 41, 0.263) 10%, rgba(191, 45, 41, 0.297) 20%, rgba(191, 45, 41, 0.347) 30%, rgba(191, 45, 41, 0.408) 40%, rgba(191, 45, 41, 0.475) 50%, rgba(191, 45, 41, 0.542) 60%, rgba(191, 45, 41, 0.603) 70%, rgba(191, 45, 41, 0.644) 78%, rgba(191, 45, 41, 0.673) 85%, rgba(191, 45, 41, 0.690) 91%, rgba(191, 45, 41, 0.697) 95%, rgba(191, 45, 41, 0.699) 98%, rgba(191, 45, 41, 0.700) 100%);
+  pointer-events: none;
+  z-index: 60;
 }

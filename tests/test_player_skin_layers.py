@@ -15,6 +15,7 @@ import db
 ROOT = Path(__file__).resolve().parents[1]
 PLAYER_SKINS_JS = (ROOT / 'static/js/player-skins.js').read_text(encoding='utf-8')
 PLAYER_SKINS_CSS = (ROOT / 'static/css/player-skins.css').read_text(encoding='utf-8')
+STYLE_CSS = (ROOT / 'static/css/style.css').read_text(encoding='utf-8')
 GAME_JS = (ROOT / 'static/js/game.js').read_text(encoding='utf-8')
 STORY_JS = (ROOT / 'static/js/story.js').read_text(encoding='utf-8')
 SUIKA_JS = (ROOT / 'static/js/minigame_suika.js').read_text(encoding='utf-8')
@@ -202,6 +203,38 @@ class PlayerSkinRenderingContractTests(unittest.TestCase):
         self.assertIn('--skin-texture-rotate', PLAYER_SKINS_JS)
         self.assertIn('transform: rotate(var(--skin-texture-rotate', PLAYER_SKINS_CSS)
         self.assertIn('const textureRotate = Number(definition?.textureRotate)', SUIKA_JS)
+
+    def test_corruption_only_recolors_the_worn_skin(self):
+        # 腐化 = 只把可改色皮肤的主色换成腐化色；固定色皮肤不参与任何腐化表现。
+        renderer = source_between(GAME_JS, 'function renderSkinAvatar', 'function renderSkinPresetList')
+        self.assertIn("const SKIN_CORRUPTION_COLOR = '#BF2D29';", GAME_JS)
+        self.assertIn('const corruptionRecolor = corrupted && !isPhelren && !skinDefinition?.fixedColor;', renderer)
+        self.assertIn('corruptionRecolor ? SKIN_CORRUPTION_COLOR : skin.primary_color', renderer)
+        # 固定色皮肤连 is-corrupted 类都不加，任何旧样式都不会命中。
+        self.assertIn(
+            "corrupted && (isPhelren || corruptionRecolor) ? ' is-corrupted' : ''",
+            renderer,
+        )
+        # 旧的整块红底、白五官、光环与入场动画全部移除，只保留 Phelren 的透明帧规则。
+        self.assertNotIn('.skin-avatar.is-corrupted,', STYLE_CSS)
+        self.assertNotIn('.skin-avatar.is-corrupted.skin-has-body-art', STYLE_CSS)
+        self.assertNotIn('skin-corruption-animate', STYLE_CSS)
+        self.assertNotIn('@keyframes skinCorruption', STYLE_CSS)
+        self.assertIn('.skin-avatar.phelren-avatar.is-corrupted {', STYLE_CSS)
+
+    def test_corruption_field_tints_the_whole_screen(self):
+        # 任意玩家装备并激活腐化时，整个战斗界面叠浅红遮罩，对所有皮肤生效。
+        render = source_between(GAME_JS, 'function renderGame(data)', 'function renderGameOver(data)')
+        self.assertIn("document.body.classList.toggle('has-corruption-field'", render)
+        self.assertIn('.some(player => playerHasCorruptionEquipment(player))', render)
+        self.assertIn("document.body.classList.remove('has-corruption-field');", GAME_JS)
+        overlay = source_between(STYLE_CSS, 'body.has-corruption-field::after {', '}')
+        self.assertIn('position: fixed;', overlay)
+        self.assertIn('ellipse farthest-corner at 50% 50%', overlay)
+        self.assertIn('rgba(191, 45, 41, 0.250) 0%', overlay)
+        self.assertIn('rgba(191, 45, 41, 0.700) 100%', overlay)
+        self.assertNotIn('opacity:', overlay)
+        self.assertIn('pointer-events: none;', overlay)
 
     def test_css_keeps_texture_below_face_and_decoration_above_it(self):
         self.assertIn('.skin-avatar .skin-texture-layer', PLAYER_SKINS_CSS)

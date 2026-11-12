@@ -5772,6 +5772,8 @@ const SKIN_EYE_SHAPES = new Set(['oval', 'rectangle', 'diamond', 'hexagon', 'ang
 const SKIN_MOUTH_SHAPES = new Set(['original', 'cat', 'smirk', 'open', 'angry']);
 const PHELREN_AVATAR_KIND = 'phelren';
 const PHELREN_AVATAR_FRAME_URL = '/static/assets/player-avatars/phelren-frame.svg';
+// 腐化只改可改色皮肤的配色：把主色整体换成腐化色；固定色皮肤不参与任何腐化表现。
+const SKIN_CORRUPTION_COLOR = '#BF2D29';
 const PHELREN_AVATAR_CORRUPT_FRAME_URL = '/static/assets/player-avatars/phelren-frame-corrupted.svg';
 const DEFAULT_SKIN_LOOK = Object.freeze({ x: 0.707, y: -0.707 });
 const SKIN_LOOK_OFFSET_X_PERCENT = 38;
@@ -8063,6 +8065,8 @@ function updateTopActionButtons(viewId = activeViewId) {
 
 function showView(viewId) {
     const el = $(viewId);
+    // 离开战斗视图时立刻撤掉腐化遮罩，避免带回大厅。
+    if (viewId !== 'view-game') document.body.classList.remove('has-corruption-field');
     const sameView = activeViewId === viewId && el && !el.classList.contains('hidden');
     if (viewId !== 'view-game') closePileViewerModal();
     if (!sameView) {
@@ -20112,13 +20116,13 @@ async function loadPlayerSkinShop(force = false) {
     try {
         const data = await authRequest(playerShopApi(''), undefined, { timeoutMs: 6000 });
         playerSkinShopData = data.shop || null;
-        renderPlayerSkinShop();
     } catch (err) {
         playerSkinShopError = err.message || '读取失败';
-        renderPlayerSkinShop();
     } finally {
         playerSkinShopBusy = false;
     }
+    // 必须在 busy 复位之后再渲染，否则按钮会带着 disabled 落地，看起来全是灰的、点了没反应。
+    renderPlayerSkinShop();
 }
 
 function renderPlayerSkinShop() {
@@ -21610,8 +21614,10 @@ function renderSkinAvatar(skinInput, options = {}) {
     const avatarKind = normalizePlayerAvatarKind(options.avatarKind);
     const isPhelren = avatarKind === PHELREN_AVATAR_KIND;
     const corrupted = !!options.corrupted;
-    const corruptAnimateClass = options.animateCorruption ? ' skin-corruption-animate' : '';
-    const mainColor = isPhelren ? '#898989' : skin.primary_color;
+    const skinDefinition = isPhelren ? null : window.GTNPlayerSkins?.get(skin.skin_id);
+    const corruptionRecolor = corrupted && !isPhelren && !skinDefinition?.fixedColor;
+    const corruptAnimateClass = '';
+    const mainColor = isPhelren ? '#898989' : (corruptionRecolor ? SKIN_CORRUPTION_COLOR : skin.primary_color);
     const border = isPhelren ? '#727171' : deriveSkinBorderColor(mainColor);
     const inverted = !isPhelren && skinLuminance(mainColor) < 0.22;
     const invertedClass = inverted ? ' is-inverted' : '';
@@ -21625,7 +21631,7 @@ function renderSkinAvatar(skinInput, options = {}) {
     const pid = normalizePlayerId(options.playerId);
     const look = options.look || (pid != null ? getSkinLookForPlayerId(pid) : localSkinLook);
     const defeated = !!options.defeated;
-    const damageMood = corrupted ? '' : skinDamageMoodClasses(pid);
+    const damageMood = (corruptionRecolor || (corrupted && isPhelren)) ? '' : skinDamageMoodClasses(pid);
     const storedMouthT = pid != null ? Number(skinMouthTByPlayerId.get(pid)) : NaN;
     const mouthT = defeated ? 1 : (damageMood && Number.isFinite(storedMouthT) ? storedMouthT : 0);
     const defeatedClass = defeated ? ' is-defeated' : '';
@@ -21650,7 +21656,7 @@ function renderSkinAvatar(skinInput, options = {}) {
         ? `<img class="phelren-avatar-frame" src="${corrupted ? PHELREN_AVATAR_CORRUPT_FRAME_URL : PHELREN_AVATAR_FRAME_URL}" alt="" aria-hidden="true">`
         : '';
     return `
-        <div class="skin-avatar skin-eye-shape-${escapeHtml(eyeShape)} skin-mouth-shape-${escapeHtml(mouthShape)}${avatarKindClass}${invertedClass}${defeatedClass}${defeatEnterClass}${corrupted ? ' is-corrupted' : ''}${corruptAnimateClass}${damageMood ? ` ${damageMood}` : ''}${skinLayerClass}"${ownerAttr}${mirrorAttr} style="${style}">
+        <div class="skin-avatar skin-eye-shape-${escapeHtml(eyeShape)} skin-mouth-shape-${escapeHtml(mouthShape)}${avatarKindClass}${invertedClass}${defeatedClass}${defeatEnterClass}${corrupted && (isPhelren || corruptionRecolor) ? ' is-corrupted' : ''}${corruptAnimateClass}${damageMood ? ` ${damageMood}` : ''}${skinLayerClass}"${ownerAttr}${mirrorAttr} style="${style}">
             ${frame}${skinLayers}
             <div class="skin-face">
                 ${eyeArt}
@@ -33012,6 +33018,9 @@ function renderGame(data) {
     const opp2 = gs.opponent2 || {};
     const teammate = gs.teammate || {};
     const is2v2 = gs.mode === '2v2';
+    // 腐化领域：任意一方（自己/队友/对手）装备并激活腐化时，全场叠浅红遮罩。
+    document.body.classList.toggle('has-corruption-field', [you, opp, opp2, teammate]
+        .some(player => playerHasCorruptionEquipment(player)));
     const myTurn = isMyTurn();
     debugLog('[RENDER] renderGame: phase=', gs.phase, 'current_player=', gs.current_player, 'playerId=', playerId, 'myTurn=', myTurn, 'is2v2=', is2v2);
 
@@ -40470,6 +40479,7 @@ function showMatchLongTermRewards(gs = {}) {
 }
 
 function renderGameOver(data) {
+    document.body.classList.remove('has-corruption-field');
     const gs = preserveGameOverLogState(data || gameState, gameState) || {};
     const finalLog = Array.isArray(gs.log) ? gs.log.slice() : [];
     resetMatchRuntimeState({ clearGameState: false });
