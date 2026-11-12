@@ -245,14 +245,15 @@ class PlayerSkinRenderingContractTests(unittest.TestCase):
         self.assertIn('.skin-avatar .skin-decoration-layer {\n  z-index: 3;', PLAYER_SKINS_CSS)
 
 
-    def test_fixed_color_body_art_skins_do_not_rotate_with_the_cursor(self):
-        # 固定色 / 整身贴图皮肤（塔之诅咒系列）不能因为藏眼睛而整只随鼠标旋转，
-        # 否则立绘会被转成歪的；只有没有整身贴图的头像才保持「转头看鼠标」。
-        selector = '.skin-avatar.skin-hide-eyes:not(.skin-has-body-art) {'
+    def test_eyeless_skins_rotate_towards_the_cursor(self):
+        # 所有藏眼睛的皮肤（包括整身贴图的塔之诅咒系列）都要随鼠标转向；
+        # 不能按 skin-has-body-art 排除，否则整类皮肤都会失去旋转。
+        selector = '.skin-avatar.skin-hide-eyes {'
         self.assertIn(selector, PLAYER_SKINS_CSS)
-        self.assertNotIn('.skin-avatar.skin-hide-eyes {', PLAYER_SKINS_CSS)
+        self.assertNotIn(':not(.skin-has-body-art)', PLAYER_SKINS_CSS)
         rule = source_between(PLAYER_SKINS_CSS, selector, '}')
         self.assertIn('rotate(var(--skin-look-rotate, 0deg))', rule)
+        self.assertIn('transform-origin: 50% 50%;', rule)
 
 
 if __name__ == '__main__':

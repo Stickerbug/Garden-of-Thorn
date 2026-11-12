@@ -51,8 +51,8 @@
   display: none;
 }
 
-/* 只有「藏眼睛且没有整身贴图」的头像才整只转向鼠标；固定色整身贴图皮肤保持直立。 */
-.skin-avatar.skin-hide-eyes:not(.skin-has-body-art) {
+/* 藏眼睛的头像整只转向鼠标（整身贴图皮肤同样适用），默认视线右上 45° 时为 0°。 */
+.skin-avatar.skin-hide-eyes {
   transform: rotate(var(--skin-look-rotate, 0deg));
   transform-origin: 50% 50%;
 }
