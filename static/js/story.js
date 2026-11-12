@@ -1201,6 +1201,11 @@
         portrait.replaceChildren(avatar);
     }
 
+    function storySkinIdFromAvatar(avatar) {
+        const preset = Array.from(avatar?.classList || []).find(name => name.startsWith('skin-preset-'));
+        return preset ? preset.slice('skin-preset-'.length) : '';
+    }
+
     function updateStorySkinEyeTracking(clientX, clientY) {
         const avatar = $('story-player-portrait')?.querySelector('.skin-avatar');
         if (!avatar) return;
@@ -1225,7 +1230,7 @@
         avatar.style.setProperty('--skin-eye-art-y', `${(lookY * eyeLook.y).toFixed(3)}%`);
         avatar.style.setProperty(
             '--skin-look-rotate',
-            `${(window.GTNPlayerSkins?.lookRotation({ x: lookX, y: lookY }) || 0).toFixed(2)}deg`,
+            `${(window.GTNPlayerSkins?.lookRotation({ x: lookX, y: lookY }, storySkinIdFromAvatar(avatar)) || 0).toFixed(2)}deg`,
         );
     }
 

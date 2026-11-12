@@ -21392,10 +21392,10 @@ function normalizeSkinLook(raw) {
     };
 }
 
-function skinLookCssVars(rawLook, mirrorX = false) {
+function skinLookCssVars(rawLook, mirrorX = false, skinId = '') {
     const look = normalizeSkinLook(rawLook);
     const lookX = mirrorX ? -look.x : look.x;
-    const rotation = window.GTNPlayerSkins?.lookRotation({ x: lookX, y: look.y }) || 0;
+    const rotation = window.GTNPlayerSkins?.lookRotation({ x: lookX, y: look.y }, skinId) || 0;
     const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
     return `--skin-look-x:${(lookX * SKIN_LOOK_OFFSET_X_PERCENT).toFixed(1)}%;--skin-look-y:${(look.y * SKIN_LOOK_OFFSET_Y_PERCENT).toFixed(1)}%;--skin-look-rotate:${rotation.toFixed(2)}deg;--skin-eye-art-x:${(lookX * eyeLook.x).toFixed(3)}%;--skin-eye-art-y:${(look.y * eyeLook.y).toFixed(3)}%`;
 }
@@ -21434,6 +21434,12 @@ function setSkinLookForPlayerId(id, look, { local = false } = {}) {
     return normalized;
 }
 
+function skinIdFromAvatarElement(avatar) {
+    if (!avatar || !avatar.classList) return '';
+    const preset = Array.from(avatar.classList).find(name => name.startsWith('skin-preset-'));
+    return preset ? preset.slice('skin-preset-'.length) : '';
+}
+
 function applySkinLookVarsToAvatar(avatar, look) {
     if (!avatar || !avatar.style) return;
     const normalized = normalizeSkinLook(look);
@@ -21443,7 +21449,7 @@ function applySkinLookVarsToAvatar(avatar, look) {
     const eyeLook = window.GTNEyeStyles?.lookOffset || { x: 3.192, y: 6.048 };
     avatar.style.setProperty('--skin-eye-art-x', `${(lookX * eyeLook.x).toFixed(3)}%`);
     avatar.style.setProperty('--skin-eye-art-y', `${(normalized.y * eyeLook.y).toFixed(3)}%`);
-    const rotation = window.GTNPlayerSkins?.lookRotation({ x: lookX, y: normalized.y }) || 0;
+    const rotation = window.GTNPlayerSkins?.lookRotation({ x: lookX, y: normalized.y }, skinIdFromAvatarElement(avatar)) || 0;
     avatar.style.setProperty('--skin-look-rotate', `${rotation.toFixed(2)}deg`);
 }
 
@@ -21647,7 +21653,7 @@ function renderSkinAvatar(skinInput, options = {}) {
     const defeatedRotate = 10 + (hashStringToHue(defeatedSeed) % 341);
     const mirrorLookX = !!options.mirrorLookX;
     const faceStyle = isPhelren ? '' : (window.GTNPlayerSkins?.faceStyle(skin.skin_id) || '');
-    const style = `--skin-main:${escapeHtml(mainColor)};--skin-border:${escapeHtml(border)};--skin-defeat-rotate:${defeatedRotate}deg;${faceStyle}${skinLookCssVars(look, mirrorLookX)}`;
+    const style = `--skin-main:${escapeHtml(mainColor)};--skin-border:${escapeHtml(border)};--skin-defeat-rotate:${defeatedRotate}deg;${faceStyle}${skinLookCssVars(look, mirrorLookX, skin.skin_id)}`;
     const ownerAttr = pid != null
         ? ` data-player-id="${pid}"`
         : ` data-look-owner="${escapeHtml(options.lookOwner || 'local')}"`;

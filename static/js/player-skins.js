@@ -88,6 +88,7 @@
       id: 'centipede_head',
       names: { zh: '蜈蚣头', en: 'Centipede Head', fr: 'Tête de mille-pattes', ja: 'ムカデの頭' },
       texture: '/static/assets/player-avatars/centipede-head.svg',
+      lookRotateOffset: 45,
       decoration: '',
       bodyArt: true,
       fixedColor: true,
@@ -99,6 +100,7 @@
       id: 'desert_centipede_head',
       names: { zh: '沙漠蜈蚣头', en: 'Desert Centipede Head', fr: 'Tête de mille-pattes du désert', ja: '砂漠ムカデの頭' },
       texture: '/static/assets/player-avatars/desert-centipede-head.svg',
+      lookRotateOffset: 45,
       decoration: '',
       bodyArt: true,
       fixedColor: true,
@@ -110,6 +112,7 @@
       id: 'evil_centipede_head',
       names: { zh: '邪恶蜈蚣头', en: 'Evil Centipede Head', fr: 'Tête de mille-pattes maléfique', ja: '邪悪なムカデの頭' },
       texture: '/static/assets/player-avatars/evil-centipede-head.svg',
+      lookRotateOffset: 45,
       decoration: '',
       bodyArt: true,
       fixedColor: true,
@@ -229,12 +232,14 @@
     return Number.isFinite(rotate) && rotate ? `--skin-face-transform:rotate(${rotate}deg);` : '';
   }
 
-  function lookRotation(look) {
+  function lookRotation(look, skinValue) {
     const x = Number(look?.x);
     const y = Number(look?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y) || Math.hypot(x, y) < 0.001) return 0;
-    // 默认视线是右上 45°，该位置旋转为 0，其他方向绕头像中心旋转。
-    return Math.atan2(y, x) * 180 / Math.PI + 45;
+    // 默认 0° 就是正右方；只有贴图本身横转 90° 的蜈蚣系列额外补 45°，
+    // 让它们在默认视线（右上 45°）时正好回到正位。
+    const offset = Number(get(skinValue).lookRotateOffset) || 0;
+    return Math.atan2(y, x) * 180 / Math.PI + offset;
   }
 
   window.GTNPlayerSkins = Object.freeze({

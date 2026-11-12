@@ -56,6 +56,12 @@ class PlayerSkinConfigTests(unittest.TestCase):
 
 
 @unittest.skipIf(NODE is None, '需要 Node.js 检查共享玩家皮肤目录')
+def skin_block(skin_id):
+    marker = "id: '%s'," % skin_id
+    start = PLAYER_SKINS_JS.index(marker)
+    end = PLAYER_SKINS_JS.index("id: '", start + len(marker))
+    return PLAYER_SKINS_JS[start:end]
+
 class PlayerSkinCatalogTests(unittest.TestCase):
     def test_shared_catalog_and_layer_markup(self):
         script = (
@@ -255,6 +261,19 @@ class PlayerSkinRenderingContractTests(unittest.TestCase):
         self.assertIn('rotate(var(--skin-look-rotate, 0deg))', rule)
         self.assertIn('transform-origin: 50% 50%;', rule)
 
+
+    def test_only_centipede_skins_shift_the_rotation_origin(self):
+        # 常规头像 0° 就是正右方；只有横着画的蜈蚣系列补 45°，让默认视线回到正位。
+        self.assertIn('function lookRotation(look, skinValue)', PLAYER_SKINS_JS)
+        self.assertIn('const offset = Number(get(skinValue).lookRotateOffset) || 0;', PLAYER_SKINS_JS)
+        self.assertIn('Math.atan2(y, x) * 180 / Math.PI + offset;', PLAYER_SKINS_JS)
+        self.assertNotIn('* 180 / Math.PI + 45;', PLAYER_SKINS_JS)
+        for skin_id in ('centipede_head', 'desert_centipede_head', 'evil_centipede_head'):
+            self.assertIn('lookRotateOffset: 45,', skin_block(skin_id))
+        self.assertNotIn('lookRotateOffset', skin_block('faceless'))
+        self.assertIn('skinLookCssVars(look, mirrorLookX, skin.skin_id)', GAME_JS)
+        self.assertIn('skinIdFromAvatarElement(avatar)', GAME_JS)
+        self.assertIn('lookRotation(PLAYER_LOOK, playerSkin.id)', SUIKA_JS)
 
 if __name__ == '__main__':
     unittest.main()

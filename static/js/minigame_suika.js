@@ -452,7 +452,7 @@ function drawPlayerBall(target, x, y, radius) {
   const diameter = radius * 2;
 
   target.save();
-  const lookRotation = definition?.hideEyes ? (window.GTNPlayerSkins?.lookRotation(PLAYER_LOOK) || 0) : 0;
+  const lookRotation = definition?.hideEyes ? (window.GTNPlayerSkins?.lookRotation(PLAYER_LOOK, playerSkin.id) || 0) : 0;
   if (lookRotation) {
     target.translate(x, y);
     target.rotate(lookRotation * Math.PI / 180);
@@ -830,7 +830,7 @@ function updatePlayerPreviews() {
     avatar.style.setProperty('--skin-feature', inverted ? '#ffffff' : '#111111');
     avatar.style.setProperty('--skin-pupil', inverted ? '#111111' : '#ffffff');
     avatar.style.setProperty('--skin-face-transform', `rotate(${isPhelren ? 0 : faceRotate}deg)`);
-    avatar.style.setProperty('--skin-look-rotate', `${(window.GTNPlayerSkins?.lookRotation(PLAYER_LOOK) || 0).toFixed(2)}deg`);
+    avatar.style.setProperty('--skin-look-rotate', `${(window.GTNPlayerSkins?.lookRotation(PLAYER_LOOK, playerSkin.id) || 0).toFixed(2)}deg`);
     avatar.style.setProperty('--skin-eye-art-x', `${(PLAYER_LOOK.x * eyeLook.x).toFixed(3)}%`);
     avatar.style.setProperty('--skin-eye-art-y', `${(PLAYER_LOOK.y * eyeLook.y).toFixed(3)}%`);
     avatar.querySelectorAll('.skin-texture-layer, .skin-decoration-layer, .skin-eye-art, .skin-mouth-art').forEach((layer) => layer.remove());
