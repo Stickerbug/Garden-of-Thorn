@@ -1,0 +1,380 @@
+import hashlib
+import random
+
+from story_content import initial_story_player
+from story_content_model import STORY_CONTENT_FINGERPRINT
+
+
+STORY_SCHEMA_VERSION = 9
+STORY_CONTENT_VERSION = f'story-redesign-10-{STORY_CONTENT_FINGERPRINT[:12]}'
+STORY_FLOOR_COUNT = 16
+
+# Rules contract version.  Increment ONLY when a change can alter an active
+# run's generation, validation, or settlement semantics.  Text, names, images,
+# rarity and other presentation-only content changes must NOT bump it.
+# When you bump it, add an entry to STORY_RULES_CHANGELOG explaining whether the
+# new version is display/action compatible with the previous one; incompatible
+# changes preserve old runs but require the player's explicit replacement.
+STORY_RULES_VERSION = 1
+STORY_RULES_CHANGELOG = {
+    1: {
+        'compatible_with': None,
+        'note': 'Initial rules contract after separating presentation from rules versioning.',
+    },
+}
+
+STORY_STAGES = (
+    {'stage': 1, 'biomes': ('garden', 'desert', 'ocean')},
+    {'stage': 2, 'biomes': ('jungle',)},
+    {'stage': 3, 'biomes': ('factory',)},
+)
+
+_NORMAL_ROOM_WEIGHTS = (
+    ('shop', 1),
+    ('rest', 1),
+    ('elite', 4),
+    ('event', 4),
+    ('combat', 6),
+)
+
+_HARD_ROOM_WEIGHTS = (
+    ('shop', 2),
+    ('rest', 2),
+    ('elite', 9),
+    ('event', 6),
+    ('combat', 12),
+)
+
+_NO_ADJACENT_ROOM_TYPES = frozenset({'shop', 'rest', 'elite'})
+
+
+def _seed_int(seed, namespace=''):
+    digest = hashlib.sha256(f'{seed}:{namespace}'.encode('utf-8')).digest()
+    return int.from_bytes(digest[:16], 'big')
+
+
+def _weighted_choice(rng, values):
+    total = sum(weight for _, weight in values)
+    pick = rng.uniform(0, total)
+    cursor = 0
+    for value, weight in values:
+        cursor += weight
+        if pick <= cursor:
+            return value
+    return values[-1][0]
+
+
+def story_floor_count(stage, difficulty):
+    diff = str(difficulty).lower()
+    if int(stage) == 3 and diff == 'lunatic':
+        return 17
+    return STORY_FLOOR_COUNT
+
+
+def _floor_widths(rng, floor_count):
+    widths = [1]
+    for floor in range(2, floor_count):
+        if floor == 15:
+            widths.append(3)
+            continue
+        if floor >= 16:
+            widths.append(1)
+            continue
+        widths.append(rng.randint(3, 7))
+    widths.append(1)
+    return widths
+
+
+def _node_x(index, width):
+    return round((index + 1) / (width + 1), 6)
+
+
+def _random_partition(total, parts, rng, max_size=None):
+    """Split total ordered items into non-empty contiguous groups."""
+    sizes = [1] * parts
+    for _ in range(total - parts):
+        candidates = [
+            index for index, size in enumerate(sizes)
+            if max_size is None or size < max_size
+        ]
+        sizes[rng.choice(candidates)] += 1
+    return sizes
+
+
+def _would_cross(candidate, edges, previous_order, next_order):
+    source_index = previous_order[candidate[0]]
+    target_index = next_order[candidate[1]]
+    return any(
+        (source_index - previous_order[source_id])
+        * (target_index - next_order[target_id]) < 0
+        for source_id, target_id in edges
+    )
+
+
+def _connect_floors(rng, previous_nodes, next_nodes):
+    previous_order = {node['id']: index for index, node in enumerate(previous_nodes)}
+    next_order = {node['id']: index for index, node in enumerate(next_nodes)}
+    outgoing = {node['id']: set() for node in previous_nodes}
+    edges = set()
+
+    # Partition each ordered floor into contiguous groups. This covers every
+    # node while guaranteeing that the base routes cannot cross.
+    if len(next_nodes) >= len(previous_nodes):
+        group_sizes = _random_partition(
+            len(next_nodes),
+            len(previous_nodes),
+            rng,
+        )
+        target_cursor = 0
+        for parent, group_size in zip(previous_nodes, group_sizes):
+            for target in next_nodes[target_cursor:target_cursor + group_size]:
+                edge = (parent['id'], target['id'])
+                edges.add(edge)
+                outgoing[parent['id']].add(target['id'])
+            target_cursor += group_size
+    else:
+        group_sizes = _random_partition(len(previous_nodes), len(next_nodes), rng)
+        parent_cursor = 0
+        for target, group_size in zip(next_nodes, group_sizes):
+            for parent in previous_nodes[parent_cursor:parent_cursor + group_size]:
+                edge = (parent['id'], target['id'])
+                edges.add(edge)
+                outgoing[parent['id']].add(target['id'])
+            parent_cursor += group_size
+
+    # Optional alternate routes may share a node, but may not invert the
+    # left-to-right ordering of any existing connection.
+    for parent in previous_nodes:
+        if len(outgoing[parent['id']]) >= 2 or rng.random() >= 0.42:
+            continue
+        candidates = [
+            target for target in next_nodes
+            if target['id'] not in outgoing[parent['id']]
+            and not _would_cross(
+                (parent['id'], target['id']),
+                edges,
+                previous_order,
+                next_order,
+            )
+        ]
+        if not candidates:
+            continue
+        target = min(candidates, key=lambda node: (abs(node['x'] - parent['x']), rng.random()))
+        edge = (parent['id'], target['id'])
+        edges.add(edge)
+        outgoing[parent['id']].add(target['id'])
+
+    return [
+        {'from': parent_id, 'to': target_id}
+        for parent_id, target_id in sorted(
+            edges,
+            key=lambda edge: (previous_order[edge[0]], next_order[edge[1]]),
+        )
+    ]
+
+
+def _assign_story_room_types(floors, edges, rng, room_weights):
+    nodes = {
+        node['id']: node
+        for floor in floors
+        for node in floor['nodes']
+    }
+    incoming = {node_id: [] for node_id in nodes}
+    outgoing = {node_id: [] for node_id in nodes}
+    for edge in edges:
+        source = nodes[edge['from']]
+        target = nodes[edge['to']]
+        incoming[target['id']].append(source)
+        outgoing[source['id']].append(target)
+
+    for floor in floors:
+        floor_number = int(floor['floor'])
+        previous_type = None
+        for node in floor['nodes']:
+            if node.get('type'):
+                previous_type = node['type']
+                continue
+            choices = tuple(
+                item for item in room_weights
+                if floor_number > 6 or item[0] != 'elite'
+            )
+            blocked = {
+                parent.get('type')
+                for parent in incoming[node['id']]
+                if parent.get('type') in _NO_ADJACENT_ROOM_TYPES
+            }
+            blocked.update(
+                child.get('type')
+                for child in outgoing[node['id']]
+                if child.get('type') in _NO_ADJACENT_ROOM_TYPES
+            )
+            if previous_type in _NO_ADJACENT_ROOM_TYPES:
+                blocked.add(previous_type)
+            eligible = tuple(item for item in choices if item[0] not in blocked)
+            node['type'] = _weighted_choice(rng, eligible or choices)
+            previous_type = node['type']
+
+
+def generate_story_map(seed, stage=1, biome='garden', difficulty='normal'):
+    stage = int(stage)
+    biome = str(biome or 'garden')
+    difficulty = str(difficulty or 'normal')
+    map_difficulty = 'normal' if difficulty == 'easy' else difficulty
+    rng = random.Random(_seed_int(seed, f'map:{stage}:{biome}:{map_difficulty}'))
+    room_rng = random.Random(_seed_int(seed, f'map-rooms:{stage}:{biome}:{map_difficulty}'))
+    floor_count = story_floor_count(stage, difficulty)
+    widths = _floor_widths(rng, floor_count)
+    # GS-276：仅第一阶段第一层是赐福房（宽1）；后续阶段第一层改为 5 个
+    # 普通房间、全部可选，玩家任选一个开始（对齐塔1的阶段开局）
+    if stage > 1:
+        widths[0] = 5
+    floors = []
+    room_weights = (
+        _HARD_ROOM_WEIGHTS
+        if difficulty in ('hard', 'lunatic')
+        else _NORMAL_ROOM_WEIGHTS
+    )
+
+    for floor, width in enumerate(widths, start=1):
+        if floor == 1:
+            room_types = ['blessing'] * width if stage == 1 else [None] * width
+        elif floor == 2:
+            room_types = ['combat'] * width
+        elif floor == 9:
+            room_types = ['chest'] * width
+        elif floor == 15:
+            room_types = ['rest'] * width
+        elif floor >= 16:
+            room_types = ['boss'] * width
+        else:
+            room_types = [None] * width
+
+        nodes = []
+        for index, room_type in enumerate(room_types):
+            nodes.append({
+                'id': f's{stage}-f{floor:02d}-n{index}',
+                'floor': floor,
+                'index': index,
+                'x': _node_x(index, width),
+                'type': room_type,
+                'status': 'locked',
+            })
+        floors.append({'floor': floor, 'width': width, 'nodes': nodes})
+
+    edges = []
+    for index in range(len(floors) - 1):
+        edges.extend(_connect_floors(rng, floors[index]['nodes'], floors[index + 1]['nodes']))
+
+    _assign_story_room_types(floors, edges, room_rng, room_weights)
+
+    floors[0]['nodes'][0]['status'] = 'current'
+    return {
+        'stage': stage,
+        'biome': biome,
+        'difficulty': difficulty,
+        'floor_count': floor_count,
+        'floors': floors,
+        'edges': edges,
+    }
+
+
+def generate_boss_rush_map(seed, block=1, biome='garden', difficulty='normal'):
+    """Generate one fixed single-route stage of the three-stage Boss Rush."""
+    block = max(1, int(block))
+    biome = str(biome or 'garden')
+    difficulty = str(difficulty or 'normal')
+    room_types = (
+        'blessing', 'boss', 'rest', 'chest', 'boss', 'rest',
+        'chest', 'boss', 'rest', 'chest', 'shop',
+    )
+    floor_offset = (block - 1) * len(room_types)
+    floors = []
+    edges = []
+    previous_id = None
+
+    for local_floor, room_type in enumerate(room_types, start=1):
+        global_floor = floor_offset + local_floor
+        node_id = f'br-b{block:03d}-f{global_floor:04d}'
+        node = {
+            'id': node_id,
+            'floor': global_floor,
+            'index': 0,
+            'x': 0.5,
+            'type': room_type,
+            'status': 'locked',
+        }
+        floors.append({'floor': global_floor, 'width': 1, 'nodes': [node]})
+        if previous_id:
+            edges.append({'from': previous_id, 'to': node_id})
+        previous_id = node_id
+
+    return {
+        'stage': block,
+        'biome': biome,
+        'difficulty': difficulty,
+        'mode': 'boss_rush',
+        'floor_offset': floor_offset,
+        'floor_count': floor_offset + len(room_types),
+        'floors': floors,
+        'edges': edges,
+    }
+
+
+def build_initial_story_state(seed, character_id='common_flower'):
+    character_id = str(character_id or 'common_flower')
+    story_map = generate_story_map(
+        seed,
+        stage=1,
+        biome='garden',
+        difficulty='normal',
+    )
+    first_node = story_map['floors'][0]['nodes'][0]
+    state = {
+        'schema_version': STORY_SCHEMA_VERSION,
+        'content_version': STORY_CONTENT_VERSION,
+        'rules_version': STORY_RULES_VERSION,
+        'journey_seed': seed,
+        'character_id': character_id,
+        'phase': 'journey_setup',
+        'stage': 1,
+        'biome': 'garden',
+        'difficulty': 'normal',
+        'journey_mode': 'standard',
+        'current_floor': 1,
+        'current_node_id': first_node['id'],
+        'available_stages': list(STORY_STAGES),
+        'map': story_map,
+        'player': initial_story_player(character_id),
+        'combat': None,
+        'room': {
+            'type': 'journey_setup',
+            'stage': 1,
+            'biomes': list(STORY_STAGES[0]['biomes']),
+            'difficulties': ['easy', 'normal', 'hard', 'lunatic'],
+            'modes': ['standard', 'boss_rush'],
+        },
+        'reward': None,
+        'rng_counter': 0,
+        'rng_version': 2,
+        'rng_streams': {},
+        'normal_battles': 0,
+        'stage_normal_battles': 0,
+        'event_miss_streak': 0,
+        'rare_card_pity_offset': -0.05,
+        'encounter_history': {
+            'elite': {},
+            'event': [],
+        },
+        'journey_route': [],
+        'past_maps': [],
+        'shop_removals': 0,
+        'shop_upgrades': 0,
+        'completed': False,
+        'last_events': [],
+        'recovery_checkpoint': None,
+        'floor_entry_checkpoint': None,
+        'presentation_event_counter': 0,
+        'flags': {},
+    }
+    state['players'] = [state['player']]
+    return state

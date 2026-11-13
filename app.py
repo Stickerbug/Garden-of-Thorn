@@ -71,6 +71,7 @@ import eye_styles
 import mouth_styles
 import solo_local_bundle
 import backgrounds
+import story_local
 import feedback_attachments
 import minigame_2048
 import minigame_2048_service
@@ -23736,6 +23737,70 @@ def api_story_run_get():
         raise
 
 
+@app.route('/api/story/run/local/start', methods=['POST'])
+def api_story_local_start():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    character_id = str(data.get('character_id') or 'common_flower')[:32]
+    payload, status = run_off_event_loop(story_local.start_run, user_id, character_id)
+    return jsonify(payload), status
+
+
+@app.route('/api/story/run/local/checkpoint', methods=['POST'])
+def api_story_local_checkpoint():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    run_id = str(data.get('run_id') or '')
+    if not run_id:
+        return jsonify({'error': 'run_id_required'}), 400
+    payload, status = run_off_event_loop(story_local.submit_checkpoint, user_id, run_id, data)
+    return jsonify(payload), status
+
+
+@app.route('/api/story/run/local/resume', methods=['POST'])
+def api_story_local_resume():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    run_id = str(data.get('run_id') or '')
+    if not run_id:
+        return jsonify({'error': 'run_id_required'}), 400
+    payload, status = run_off_event_loop(story_local.resume_run, user_id, run_id)
+    return jsonify(payload), status
+
+
+@app.route('/api/story/run/local/finish', methods=['POST'])
+def api_story_local_finish():
+    user_id, _, error = _require_account_json()
+    if error:
+        return error
+    data = request.get_json(silent=True) or {}
+    run_id = str(data.get('run_id') or '')
+    if not run_id:
+        return jsonify({'error': 'run_id_required'}), 400
+    payload, status = run_off_event_loop(story_local.finish_run, user_id, run_id)
+    return jsonify(payload), status
+
+
+@app.route('/api/story/run/local/metrics', methods=['GET'])
+def api_story_local_metrics():
+    user_id = session.get('user_id')
+    if not user_id or not feedback_is_staff(user_id):
+        return jsonify({'error': 'permission_denied'}), 403
+    data = request.args or {}
+    try:
+        hours = int(data.get('hours') or 24)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'invalid_hours'}), 400
+    payload = run_off_event_loop(story_local.metrics_snapshot, hours)
+    return jsonify(payload)
+
+
 @app.route('/api/story/run', methods=['POST'])
 def api_story_run_create():
     user_id, _, error = _require_account_json()
@@ -25123,6 +25188,34 @@ def handling_currency_risks():
         admin_event('error', f'handling currency risks query failed: {exc}')
         log_admin_api_timing('/api/feedback/handling/currency-risks', (time.perf_counter() - started) * 1000, error=type(exc).__name__)
         return jsonify({'success': False, 'error': '流水数据库不可用'}), 500
+
+
+@app.route('/api/feedback/handling/story-checkpoints')
+def handling_story_checkpoints():
+    started = time.perf_counter()
+    if not DB_AVAILABLE:
+        return db_unavailable_response()
+    try:
+        day = validate_str(request.args.get('day', ''), min_len=0, max_len=10, name='day')
+        limit = validate_int(request.args.get('limit', 50), default=50, minimum=1, maximum=200, name='limit')
+
+        def _load():
+            items = db_module.list_story_checkpoint_failures(limit=limit, day=day or None)
+            summary = db_module.story_checkpoint_failure_summary(day=day or None)
+            return {'items': items, 'counts': summary.get('by_reason') or {}, 'total': summary.get('total') or 0}
+
+        data = run_off_event_loop(_load)
+        log_admin_api_timing(
+            '/api/feedback/handling/story-checkpoints',
+            (time.perf_counter() - started) * 1000,
+            rows=len(data.get('items') or []),
+            total=data.get('total'),
+        )
+        return jsonify({'success': True, **data})
+    except Exception as exc:
+        admin_event('error', f'handling story checkpoints query failed: {exc}')
+        log_admin_api_timing('/api/feedback/handling/story-checkpoints', (time.perf_counter() - started) * 1000, error=type(exc).__name__)
+        return jsonify({'success': False, 'error': '校验数据库不可用'}), 500
 
 
 @app.route('/api/feedback/handling/matches')

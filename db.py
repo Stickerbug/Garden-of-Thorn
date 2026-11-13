@@ -18221,3 +18221,300 @@ def set_user_card_skin(user_id, skin_id):
         payload = _cs.card_skin_payload(conn, uid)
         conn.commit()
     return payload, None
+
+# ---------------------------------------------------------------------------
+# Local (browser-side) story runs: checkpoints and idempotent floor rewards.
+# ---------------------------------------------------------------------------
+
+STORY_LOCAL_RUN_COLUMNS = (
+    ('local_mode', 'ALTER TABLE story_runs ADD COLUMN local_mode INTEGER NOT NULL DEFAULT 0'),
+    ('last_verified_floor', 'ALTER TABLE story_runs ADD COLUMN last_verified_floor INTEGER NOT NULL DEFAULT 0'),
+    ('last_verified_seq', 'ALTER TABLE story_runs ADD COLUMN last_verified_seq INTEGER NOT NULL DEFAULT 0'),
+    ('checkpoint_seq', 'ALTER TABLE story_runs ADD COLUMN checkpoint_seq INTEGER NOT NULL DEFAULT 0'),
+    ('state_digest', "ALTER TABLE story_runs ADD COLUMN state_digest TEXT NOT NULL DEFAULT ''"),
+    ('suspicion_score', 'ALTER TABLE story_runs ADD COLUMN suspicion_score INTEGER NOT NULL DEFAULT 0'),
+    ('state_mutated_by_admin', 'ALTER TABLE story_runs ADD COLUMN state_mutated_by_admin INTEGER NOT NULL DEFAULT 0'),
+)
+
+
+def ensure_story_local_schema(conn=None):
+    """Create the tables/columns used by browser-side story runs."""
+    own = conn is None
+    if own:
+        conn = get_db_connection()
+    try:
+        columns = {row['name'] for row in conn.execute('PRAGMA table_info(story_runs)').fetchall()}
+        for name, ddl in STORY_LOCAL_RUN_COLUMNS:
+            if name not in columns:
+                conn.execute(ddl)
+        conn.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS story_run_checkpoints (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                seq INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                floor INTEGER NOT NULL DEFAULT 0,
+                action_count INTEGER NOT NULL DEFAULT 0,
+                actions_json TEXT NOT NULL,
+                client_digest TEXT NOT NULL DEFAULT '',
+                server_digest TEXT NOT NULL DEFAULT '',
+                prev_digest TEXT NOT NULL DEFAULT '',
+                chain_digest TEXT NOT NULL DEFAULT '',
+                verify_status TEXT NOT NULL DEFAULT 'pending',
+                verify_reason TEXT NOT NULL DEFAULT '',
+                verify_ms INTEGER NOT NULL DEFAULT 0,
+                state_json TEXT,
+                created_at TEXT NOT NULL,
+                UNIQUE(run_id, seq)
+            )
+            '''
+        )
+        conn.execute(
+            'CREATE INDEX IF NOT EXISTS idx_story_run_checkpoints_run '
+            'ON story_run_checkpoints(run_id, seq)'
+        )
+        conn.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS story_run_rewards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                floor INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                amount INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                UNIQUE(run_id, floor, kind)
+            )
+            '''
+        )
+        conn.execute(
+            '''
+            CREATE TABLE IF NOT EXISTS story_checkpoint_failures (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id TEXT NOT NULL,
+                user_id INTEGER NOT NULL,
+                seq INTEGER NOT NULL,
+                floor INTEGER NOT NULL DEFAULT 0,
+                kind TEXT NOT NULL DEFAULT '',
+                reason TEXT NOT NULL DEFAULT '',
+                client_digest TEXT NOT NULL DEFAULT '',
+                server_digest TEXT NOT NULL DEFAULT '',
+                action_count INTEGER NOT NULL DEFAULT 0,
+                actions_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL
+            )
+            '''
+        )
+        conn.execute(
+            'CREATE INDEX IF NOT EXISTS idx_story_checkpoint_failures_created '
+            'ON story_checkpoint_failures(created_at)'
+        )
+        if own:
+            conn.commit()
+    finally:
+        if own:
+            conn.close()
+
+
+def record_story_checkpoint_failure(
+    conn,
+    *,
+    run_id,
+    user_id,
+    seq,
+    reason,
+    floor=0,
+    kind='',
+    client_digest='',
+    server_digest='',
+    actions=None,
+):
+    """Log one rejected checkpoint so staff can review it later."""
+    conn.execute(
+        '''
+        INSERT INTO story_checkpoint_failures
+            (run_id, user_id, seq, floor, kind, reason, client_digest,
+             server_digest, action_count, actions_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            str(run_id), int(user_id), int(seq or 0), int(floor or 0), str(kind or ''),
+            str(reason or '')[:80], str(client_digest or ''), str(server_digest or ''),
+            len(actions or []),
+            json.dumps(actions or [], ensure_ascii=False, separators=(',', ':')),
+            utc_iso(utc_now_dt()),
+        ),
+    )
+
+
+def list_story_checkpoint_failures(limit=50, day=None):
+    """Recent rejected checkpoints with usernames, newest first."""
+    sql = [
+        'SELECT f.*, u.username FROM story_checkpoint_failures f',
+        'LEFT JOIN users u ON u.id = f.user_id',
+    ]
+    params = []
+    if day:
+        sql.append("WHERE substr(f.created_at, 1, 10) = ?")
+        params.append(str(day))
+    sql.append('ORDER BY f.id DESC LIMIT ?')
+    params.append(int(limit))
+    with closing(get_db_connection()) as conn:
+        rows = conn.execute(' '.join(sql), params).fetchall()
+    items = []
+    for row in rows:
+        item = dict(row)
+        item['username'] = item.get('username') or f"#{item['user_id']}"
+        try:
+            actions = json.loads(item.pop('actions_json') or '[]')
+        except (TypeError, ValueError):
+            actions = []
+        item['action_count'] = len(actions) if actions else int(item.get('action_count') or 0)
+        items.append(item)
+    return items
+
+
+def story_checkpoint_failure_summary(day=None):
+    """Counts of rejected checkpoints, overall and by reason."""
+    sql = "SELECT reason, COUNT(*) AS n FROM story_checkpoint_failures"
+    params = []
+    if day:
+        sql += " WHERE substr(created_at, 1, 10) = ?"
+        params.append(str(day))
+    sql += " GROUP BY reason ORDER BY n DESC"
+    with closing(get_db_connection()) as conn:
+        rows = conn.execute(sql, params).fetchall()
+    by_reason = {str(row['reason'] or 'unknown'): int(row['n']) for row in rows}
+    return {'total': sum(by_reason.values()), 'by_reason': by_reason}
+
+
+def _story_checkpoint_payload(row):
+    if row is None:
+        return None
+    payload = dict(row)
+    try:
+        payload['actions'] = json.loads(payload.pop('actions_json') or '[]')
+    except (TypeError, ValueError):
+        payload['actions'] = []
+    raw_state = payload.pop('state_json', None)
+    try:
+        payload['state'] = json.loads(raw_state) if raw_state else None
+    except (TypeError, ValueError):
+        payload['state'] = None
+    return payload
+
+
+def commit_story_checkpoint(
+    conn,
+    *,
+    run_id,
+    user_id,
+    seq,
+    kind,
+    floor,
+    actions,
+    client_digest,
+    prev_digest='',
+    chain_digest='',
+    verify_status='pending',
+    verify_reason='',
+    server_digest='',
+    verify_ms=0,
+    state=None,
+    verified_floor=None,
+    action_count=None,
+):
+    """Insert one checkpoint (idempotent per ``run_id``+``seq``).
+
+    Returns ``(checkpoint_payload, status)`` where status is ``'stored'``,
+    ``'duplicate'`` (same seq already present) or ``'run_missing'``.
+    """
+    now = utc_iso(utc_now_dt())
+    run = conn.execute(
+        'SELECT id, status FROM story_runs WHERE id = ? AND user_id = ? LIMIT 1',
+        (run_id, int(user_id)),
+    ).fetchone()
+    if run is None:
+        return None, 'run_missing'
+    existing = conn.execute(
+        'SELECT * FROM story_run_checkpoints WHERE run_id = ? AND seq = ? LIMIT 1',
+        (run_id, int(seq)),
+    ).fetchone()
+    if existing is not None:
+        return _story_checkpoint_payload(existing), 'duplicate'
+    count = int(action_count if action_count is not None else len(actions or []))
+    state_json = None
+    if state is not None:
+        state_json = json.dumps(state, ensure_ascii=False, separators=(',', ':'))
+    conn.execute(
+        '''
+        INSERT INTO story_run_checkpoints
+            (run_id, user_id, seq, kind, floor, action_count, actions_json,
+             client_digest, server_digest, prev_digest, chain_digest,
+             verify_status, verify_reason, verify_ms, state_json, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''',
+        (
+            run_id, int(user_id), int(seq), str(kind or 'floor'), int(floor or 0),
+            count,
+            json.dumps(actions or [], ensure_ascii=False, separators=(',', ':')),
+            str(client_digest or ''), str(server_digest or ''), str(prev_digest or ''),
+            str(chain_digest or ''), str(verify_status or 'pending'),
+            str(verify_reason or '')[:120], int(verify_ms or 0), state_json, now,
+        ),
+    )
+    conn.execute(
+        'UPDATE story_runs SET checkpoint_seq = ?, updated_at = ? WHERE id = ? AND user_id = ?',
+        (int(seq), now, run_id, int(user_id)),
+    )
+    if verify_status == 'verified':
+        floor_value = int(verified_floor if verified_floor is not None else floor or 0)
+        conn.execute(
+            '''
+            UPDATE story_runs
+               SET last_verified_floor = CASE WHEN last_verified_floor < ? THEN ? ELSE last_verified_floor END,
+                   last_verified_seq = CASE WHEN last_verified_seq < ? THEN ? ELSE last_verified_seq END,
+                   state_digest = ?,
+                   local_mode = 1
+             WHERE id = ? AND user_id = ?
+            ''',
+            (floor_value, floor_value, int(seq), int(seq), str(server_digest or ''), run_id, int(user_id)),
+        )
+    row = conn.execute(
+        'SELECT * FROM story_run_checkpoints WHERE run_id = ? AND seq = ? LIMIT 1',
+        (run_id, int(seq)),
+    ).fetchone()
+    return _story_checkpoint_payload(row), 'stored'
+
+
+def latest_story_checkpoint(run_id, verified_only=True):
+    """Newest checkpoint for a run, optionally only verified ones."""
+    sql = 'SELECT * FROM story_run_checkpoints WHERE run_id = ?'
+    if verified_only:
+        sql += " AND verify_status = 'verified'"
+    sql += ' ORDER BY seq DESC LIMIT 1'
+    with closing(get_db_connection()) as conn:
+        row = conn.execute(sql, (str(run_id),)).fetchone()
+    return _story_checkpoint_payload(row)
+
+
+def list_story_checkpoints(run_id, limit=50):
+    with closing(get_db_connection()) as conn:
+        rows = conn.execute(
+            'SELECT * FROM story_run_checkpoints WHERE run_id = ? ORDER BY seq DESC LIMIT ?',
+            (str(run_id), int(limit)),
+        ).fetchall()
+    return [_story_checkpoint_payload(row) for row in rows]
+
+
+def record_story_run_reward(conn, run_id, floor, kind, amount):
+    """Idempotent reward row: returns True when this call created it."""
+    cursor = conn.execute(
+        '''
+        INSERT OR IGNORE INTO story_run_rewards (run_id, floor, kind, amount, created_at)
+        VALUES (?, ?, ?, ?, ?)
+        ''',
+        (str(run_id), int(floor), str(kind), int(amount), utc_iso(utc_now_dt())),
+    )
+    return cursor.rowcount > 0

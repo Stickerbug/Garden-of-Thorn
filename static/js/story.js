@@ -13,6 +13,10 @@
     const STORY_COOP_DEMO = new URLSearchParams(location.search).get('coopdemo') === '1'
         || localStorage.getItem('gtv_coop_demo') === '1';
     if (STORY_COOP_DEMO) { try { localStorage.setItem('gtv_coop_demo', '1'); } catch (quotaErr) { /* 配额满：URL 参数仍可识别 */ } }
+    const STORY_LOCAL_MODE = new URLSearchParams(location.search).get('local') === '1';
+    if (STORY_LOCAL_MODE) { try { sessionStorage.setItem('gtv_story_local', '1'); } catch (quotaErr) { /* 隐私模式忽略 */ } }
+    const storyLocalActive = () => STORY_LOCAL_MODE
+        || Boolean(window.GtnStoryLocal && window.GtnStoryLocal.isActive());
     const storyRunApiUrl = () => {
         if (!STORY_COOP_DEMO) return '/api/story/run';
         const seat = storyCoopDemoSeat();
@@ -7022,8 +7026,47 @@
         }
     }
 
+    async function localStoryAction(actionType, payload = {}) {
+        actionInFlight = true;
+        document.body.dataset.actionInFlight = 'true';
+        updateStoryManualSaveControls();
+        updateStorySurrenderControl();
+        try {
+            const previousPhase = String(activeRun?.state?.phase || '');
+            const result = await window.GtnStoryLocal.apply(actionType, payload);
+            const nextRun = result.run;
+            const enteringCombat = previousPhase !== 'combat'
+                && String(nextRun?.state?.phase || '') === 'combat';
+            const entranceRun = enteringCombat
+                ? createStoryCombatEntranceRun(nextRun, result.events)
+                : null;
+            if (entranceRun) {
+                storyCombatEntranceAnimating = true;
+                renderRun(entranceRun);
+                await storyNextPaint();
+            }
+            try {
+                await playStoryEventSequence(result.events, nextRun, actionType);
+            } finally {
+                storyCombatEntranceAnimating = false;
+                renderRun(nextRun);
+            }
+            return result;
+        } catch (error) {
+            showToast(error.message || t.requestFailed);
+            return null;
+        } finally {
+            actionInFlight = false;
+            delete document.body.dataset.actionInFlight;
+            renderStoryPersistentHud(activeRun);
+            updateStoryManualSaveControls();
+            updateStorySurrenderControl();
+        }
+    }
+
     async function storyAction(actionType, payload = {}) {
         if (!activeRun || actionInFlight) return null;
+        if (storyLocalActive()) return localStoryAction(actionType, payload);
         actionInFlight = true;
         document.body.dataset.actionInFlight = 'true';
         updateStoryManualSaveControls();
@@ -15690,6 +15733,18 @@
                 storyContent = contentPayload.content || {};
                 contentVersion = contentPayload.content_version || '';
                 ingestStoryDiscoveryPayload(contentPayload);
+            }
+            if (STORY_LOCAL_MODE && window.GtnStoryLocal) {
+                const started = await window.GtnStoryLocal.start(selectedStoryCharacterId);
+                renderRun({
+                    id: started.run.id,
+                    seed: started.run.seed,
+                    state: started.state,
+                    state_version: 1,
+                    content_version: started.run.content_version,
+                    created_at: new Date().toISOString(),
+                });
+                return;
             }
             const payload = await requestJson(storyRunApiUrl(), {
                 method: 'POST',

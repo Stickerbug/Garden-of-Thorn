@@ -311,6 +311,8 @@ textarea { resize: vertical; }
   padding-top: 10px;
 }
 .hd-currency-risk { border-left: 3px solid rgba(229, 57, 53, 0.55); }
+.hd-story-check { border-left: 3px solid rgba(255, 152, 0, .6); }
+
 
 /* 徽章 */
 .hd-badge {

@@ -128,7 +128,8 @@ function handlingPageVisible() {
 /* ── 状态 ─────────────────────────────────────── */
 const state = {
   tab: 'reports',
-  reports: [], users: [], matches: [], riskMatches: [], currencyRisks: [], currencyRiskDay: '', currencyRiskCounts: {}, clusters: [], ipBans: [], moderationRecords: [],
+  reports: [], users: [], matches: [], riskMatches: [], currencyRisks: [], currencyRiskDay: '', currencyRiskCounts: {},
+  storyCheckpoints: [], storyCheckpointCounts: {}, storyCheckpointTotal: 0, clusters: [], ipBans: [], moderationRecords: [],
   selected: { reportId: null, userId: null, matchId: null, clusterKey: null, moderationKey: '', ip: null },
   loadedOnce: {},
   totals: {},
@@ -394,18 +395,23 @@ async function loadRiskMatches() {
   if (state.inFlight.risk) return;
   state.inFlight.risk = true;
   try {
-    const [data, currency] = await Promise.all([
+    const [data, currency, checkpoints] = await Promise.all([
       api('/api/feedback/handling/matches?risk=risk&limit=30'),
       // 流水异常是独立数据源，失败不应挡住对局风险列表。
       api('/api/feedback/handling/currency-risks?limit=50').catch(() => ({ items: [], counts: {} })),
+      // 爬塔本地模式校验失败同样独立，接口不可用时不影响其它风险数据。
+      api('/api/feedback/handling/story-checkpoints?limit=20').catch(() => ({ items: [], counts: {}, total: 0 })),
     ]);
     state.riskMatches = data.items || [];
     state.totals.risk = data.total || state.riskMatches.length;
     state.currencyRisks = (currency && currency.items) || [];
     state.currencyRiskCounts = (currency && currency.counts) || {};
     state.currencyRiskDay = (currency && currency.day) || '';
+    state.storyCheckpoints = (checkpoints && checkpoints.items) || [];
+    state.storyCheckpointCounts = (checkpoints && checkpoints.counts) || {};
+    state.storyCheckpointTotal = (checkpoints && checkpoints.total) || 0;
     state.loadedOnce.risk = true;
-    setText('summary', `风险对局 ${state.riskMatches.length}/${state.totals.risk} · 货币异常 ${state.currencyRisks.length}`);
+    setText('summary', `风险对局 ${state.riskMatches.length}/${state.totals.risk} · 货币异常 ${state.currencyRisks.length} · 爬塔校验 ${state.storyCheckpointTotal}`);
     renderList();
   } finally {
     state.inFlight.risk = false;
@@ -534,6 +540,46 @@ function renderCurrencyRiskGroup(list) {
   if (state.riskMatches.length) list.appendChild(el('div', 'hd-section-label', '对局风险'));
 }
 
+const STORY_CHECK_REASON_LABELS = {
+  mismatch: '摘要不符',
+  invalid_action: '非法动作',
+  engine_error: '引擎异常',
+  chain_mismatch: '链不一致',
+  actions_not_list: '请求格式错误',
+  action_limit: '动作过多',
+  action_not_object: '请求格式错误',
+  action_type_missing: '请求格式错误',
+  action_payload_invalid: '请求格式错误',
+};
+
+function storyCheckReasonText(reason) {
+  return STORY_CHECK_REASON_LABELS[reason] || (reason ? String(reason) : '校验失败');
+}
+
+function renderStoryCheckpointItem(item) {
+  const row = el('div', 'hd-item hd-story-check');
+  const title = el('div', 'hd-item-title');
+  title.appendChild(el('strong', '', partyName(item.username, item.user_id)));
+  title.appendChild(badge('danger', storyCheckReasonText(item.reason)));
+  row.appendChild(title);
+  const floor = Number(item.floor) || 0;
+  const actions = Number(item.action_count) || 0;
+  row.appendChild(el('div', 'hd-item-sub', `第 ${floor} 层 · seq ${item.seq} · ${actions} 个动作 · ${item.kind || 'floor'}`));
+  const meta = el('div', 'hd-item-sub mono', `${fmtTime(item.created_at)} · 客户端 ${(item.client_digest || '').slice(0, 18)}…`);
+  row.appendChild(meta);
+  row.addEventListener('click', () => selectUser({ id: item.user_id, username: item.username }));
+  return row;
+}
+
+function renderStoryCheckpointGroup(list) {
+  const counts = state.storyCheckpointCounts || {};
+  const parts = Object.entries(counts)
+    .map(([reason, count]) => `${storyCheckReasonText(reason)} ${count}`)
+    .join(' · ');
+  list.appendChild(el('div', 'hd-section-label', `爬塔校验失败${parts ? `（${parts}）` : ''}`));
+  state.storyCheckpoints.forEach((item) => list.appendChild(renderStoryCheckpointItem(item)));
+}
+
 function renderList() {
   const list = $('list');
   if (!list) return;
@@ -541,7 +587,8 @@ function renderList() {
   const tab = state.tab;
   const items = itemsOf(tab);
   const hasCurrency = tab === 'risk' && state.currencyRisks.length > 0;
-  if (!items.length && !hasCurrency) {
+  const hasStoryChecks = tab === 'risk' && state.storyCheckpoints.length > 0;
+  if (!items.length && !hasCurrency && !hasStoryChecks) {
     const hints = {
       reports: '暂无举报',
       users: '暂无玩家，输入条件后点击搜索',
@@ -555,6 +602,7 @@ function renderList() {
     return;
   }
   if (hasCurrency) renderCurrencyRiskGroup(list);
+  if (hasStoryChecks) renderStoryCheckpointGroup(list);
   items.forEach((item) => list.appendChild(renderItem(tab, item)));
 }
 
