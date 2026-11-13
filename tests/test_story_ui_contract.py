@@ -1486,3 +1486,18 @@ def test_story_blind_masks_piles_and_removes_damage_predictions():
     # 引擎侧：失明时不计算/不下发手牌伤害预测。
     assert "if not bool(combat.get('blind_active')):" in STORY_ENGINE
     assert "combat['damage_predictions'] = predictions" in STORY_ENGINE
+
+
+def test_optional_active_discard_selection_window_is_not_short_circuited():
+    """2026-11-14：可选张数（exact 为假）的主动丢弃不能因为手牌少于请求上限就跳过选择窗。"""
+    assert 'const exactDiscard = Boolean(effect.exact);' in STORY_JS
+    assert (
+        'if (exactDiscard && source.length <= requested && !laterNeedsWindow) return null;'
+        in STORY_JS
+    )
+    assert 'if (source.length === 0 && !laterNeedsWindow) return null;' in STORY_JS
+    assert (
+        "if effect_type == 'active_discard' and exact and len(cards) <= requested:"
+        in STORY_ENGINE
+    )
+    assert "if not selected and effect.get('exact'):" in STORY_ENGINE

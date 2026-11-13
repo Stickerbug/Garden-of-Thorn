@@ -1506,77 +1506,60 @@ def test_blade_triggers_on_first_hit_even_when_fully_blocked():
     assert not enemy3.get('vulnerable')
 
 
-def test_active_discard_auto_discards_all_when_hand_insufficient_or_exact():
-    """2026-10-24：丢弃X张牌——剩余手牌不足/刚好等于X时可直接打出且不弹选择窗，
-    结算时直接丢弃全部剩余手牌。"""
+def test_exact_active_discard_auto_discards_all_when_hand_insufficient_or_exact():
+    """2026-10-24：固定张数的主动丢弃（exact=True，如火把）在剩余手牌不足或刚好
+    等于丢弃数时直接打出、不弹选择窗，结算时丢弃剩余手牌。
+    2026-11-14：可选张数（exact=False，如附魔护身符/魔法酸）不再走这条快捷路径。"""
     from story_content import STORY_CARDS
 
-    assert 'active_discard' in {
-        effect.get('type')
-        for effect in STORY_CARDS['enchanted_amulet'].get('effects') or ()
-    }
+    torch_effects = [
+        effect for effect in STORY_CARDS['torch'].get('effects') or ()
+        if effect.get('type') == 'active_discard'
+    ]
+    assert torch_effects and torch_effects[0].get('exact') is True
+    amulet_effects = [
+        effect for effect in STORY_CARDS['enchanted_amulet'].get('effects') or ()
+        if effect.get('type') == 'active_discard'
+    ]
+    assert amulet_effects and not amulet_effects[0].get('exact')
 
-    # 1) 剩余2张 = 丢弃2张（附魔护身符）：不弹窗，全部丢弃。
-    state = _started_state('discard-exact')
+    # 1) 没有其他手牌：照常打出，不弹窗。
+    state = _started_state('discard-none')
     _start_combat(
-        state, {'type': 'combat'}, 'discard-exact', [],
+        state, {'type': 'combat'}, 'discard-none', [],
         encounter_override=[{'def_id': 'cactus'}],
     )
     combat = state['combat']
-    amulet = _new_card(state, 'enchanted_amulet')
-    extra1 = _new_card(state, 'rose')
-    extra2 = _new_card(state, 'rose')
-    combat['hand'] = [amulet, extra1, extra2]
+    torch = _new_card(state, 'torch')
+    combat['hand'] = [torch]
     state, events = apply_story_action(
         state, 'play_card',
-        {'card_instance_id': amulet['instance_id']},
-        'discard-exact',
+        {'card_instance_id': torch['instance_id']},
+        'discard-none',
     )
     combat = state['combat']
     assert not combat.get('pending_card_choice')
-    hand_ids = [card['instance_id'] for card in combat['hand']]
-    assert extra1['instance_id'] not in hand_ids
-    assert extra2['instance_id'] not in hand_ids
 
-    # 2) 剩余1张 < 丢弃2张：同样直接全弃。
-    state = _started_state('discard-insufficient')
+    # 2) 刚好 1 张其他手牌：不弹窗，直接全弃。
+    state = _started_state('discard-torch-exact')
     _start_combat(
-        state, {'type': 'combat'}, 'discard-insufficient', [],
+        state, {'type': 'combat'}, 'discard-torch-exact', [],
         encounter_override=[{'def_id': 'cactus'}],
     )
     combat = state['combat']
-    amulet = _new_card(state, 'enchanted_amulet')
+    torch = _new_card(state, 'torch')
     extra = _new_card(state, 'rose')
-    combat['hand'] = [amulet, extra]
+    combat['hand'] = [torch, extra]
     state, events = apply_story_action(
         state, 'play_card',
-        {'card_instance_id': amulet['instance_id']},
-        'discard-insufficient',
+        {'card_instance_id': torch['instance_id']},
+        'discard-torch-exact',
     )
     combat = state['combat']
     assert not combat.get('pending_card_choice')
-    # 附魔护身符丢弃后抽等量的牌——手牌里只应剩新抽的牌，被弃的 extra 不在。
     assert extra['instance_id'] not in [card['instance_id'] for card in combat['hand']]
 
-    # 3) 剩余0张：照常打出，无事发生。
-    state = _started_state('discard-empty')
-    _start_combat(
-        state, {'type': 'combat'}, 'discard-empty', [],
-        encounter_override=[{'def_id': 'cactus'}],
-    )
-    combat = state['combat']
-    amulet = _new_card(state, 'enchanted_amulet')
-    combat['hand'] = [amulet]
-    state, events = apply_story_action(
-        state, 'play_card',
-        {'card_instance_id': amulet['instance_id']},
-        'discard-empty',
-    )
-    combat = state['combat']
-    assert not combat.get('pending_card_choice')
-    assert combat['hand'] == []
-
-    # 4) 剩余充足（exact 卡：火把丢弃1张，手上有2张其他牌）：仍需选择。
+    # 3) 2 张其他手牌：必须选择。
     state = _started_state('discard-more')
     _start_combat(
         state, {'type': 'combat'}, 'discard-more', [],
@@ -1596,24 +1579,84 @@ def test_active_discard_auto_discards_all_when_hand_insufficient_or_exact():
     else:
         raise AssertionError('手牌充足时丢弃牌仍应要求选择')
 
-    # 5) exact 卡剩余刚好等于丢弃数（火把+1张其他牌）：不弹窗直接全弃。
-    state = _started_state('discard-torch-exact')
+
+def test_optional_active_discard_keeps_its_selection_window_with_a_small_hand():
+    """2026-11-14：可选张数的主动丢弃（魔法酸/附魔护身符 exact=False）不能因为
+    手牌数小于请求上限就整手强制丢弃；必须开选择窗，空选择就是弃 0 张。"""
+    # 护身符「最多 2 张」也是可选张数：手牌只有 1 张其他牌时仍要开窗。
+    state = _started_state('optional-discard-amulet')
     _start_combat(
-        state, {'type': 'combat'}, 'discard-torch-exact', [],
+        state, {'type': 'combat'}, 'optional-discard-amulet', [],
         encounter_override=[{'def_id': 'cactus'}],
     )
     combat = state['combat']
-    torch = _new_card(state, 'torch')
+    combat['opening_redraw_pending'] = False
+    amulet = _new_card(state, 'enchanted_amulet')
     extra = _new_card(state, 'rose')
-    combat['hand'] = [torch, extra]
-    state, events = apply_story_action(
+    combat['hand'] = [amulet, extra]
+    spec = story_engine._repeated_card_selection_spec(
+        combat, amulet, story_engine._card_values(amulet),
+    )
+    assert spec is not None, '可选张数的主动丢弃必须保留选择窗'
+    assert spec['minimum'] == 0
+    assert spec['maximum'] >= 1
+
+    # 魔法酸：手牌 2 张（少于请求上限 99）时空选择打出，一张都不该丢。
+    state = _started_state('optional-discard-window')
+    _start_combat(
+        state, {'type': 'combat'}, 'optional-discard-window', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    combat['opening_redraw_pending'] = False
+    combat['draw_pile'] = []
+    combat['discard_pile'] = []
+    acid = _new_card(state, 'magic_acid')
+    extra = _new_card(state, 'rose')
+    combat['hand'] = [acid, extra]
+    combat['elixir'] = 10
+
+    spec = story_engine._repeated_card_selection_spec(
+        combat, acid, story_engine._card_values(acid),
+    )
+    assert spec is not None, '魔法酸必须保留选择窗'
+    assert spec['minimum'] == 0
+    assert spec['maximum'] >= 1
+
+    state, _events = apply_story_action(
         state, 'play_card',
-        {'card_instance_id': torch['instance_id']},
-        'discard-torch-exact',
+        {'card_instance_id': acid['instance_id']},
+        'optional-discard-window',
     )
     combat = state['combat']
     assert not combat.get('pending_card_choice')
-    assert extra['instance_id'] not in [card['instance_id'] for card in combat['hand']]
+    assert extra['instance_id'] in [card['instance_id'] for card in combat['hand']]
+
+    # 明确选了一张：只丢选中的那张，再抽回等量的牌（抽牌堆有牌时不回手原牌）。
+    state = _started_state('optional-discard-selected')
+    _start_combat(
+        state, {'type': 'combat'}, 'optional-discard-selected', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    combat['opening_redraw_pending'] = False
+    acid = _new_card(state, 'magic_acid')
+    extra = _new_card(state, 'rose')
+    filler = _new_card(state, 'rose')
+    combat['hand'] = [acid, extra]
+    combat['draw_pile'] = [filler]
+    combat['discard_pile'] = []
+    combat['elixir'] = 10
+    state, _events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': acid['instance_id'], 'selected_card_ids': [extra['instance_id']]},
+        'optional-discard-selected',
+    )
+    combat = state['combat']
+    hand_ids = [card['instance_id'] for card in combat['hand']]
+    assert extra['instance_id'] not in hand_ids
+    assert filler['instance_id'] in hand_ids
+    assert extra['instance_id'] in [card['instance_id'] for card in combat['discard_pile']]
 
 
 def test_single_biome_stage_boss_goes_straight_to_next_map():

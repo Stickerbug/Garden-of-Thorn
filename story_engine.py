@@ -3548,10 +3548,11 @@ def _validate_card_selections(combat, card, values, payload):
             ])
             if effect_type == 'choose_exile' and available == 0:
                 required = 0
-            elif effect_type == 'active_discard' and available < maximum:
+            elif effect_type == 'active_discard' and exact and available < maximum:
                 required = available
             elif (
                 effect_type == 'active_discard'
+                and exact
                 and available == maximum
                 and not selected
             ):
@@ -3612,9 +3613,11 @@ def _repeated_card_selection_spec(combat, card, values):
                 effect_type in ('copy_hand_card', 'make_card_free')
                 or bool(effect.get('exact'))
             )
-            if effect_type == 'active_discard' and len(cards) <= requested:
-                # 2026-10-24：剩余手牌不足/刚好等于丢弃数——重复结算也不开窗，
-                # 空选择由 active_discard 结算分支兜底全弃。
+            if effect_type == 'active_discard' and exact and len(cards) <= requested:
+                # 2026-10-24：固定张数的主动丢弃，剩余手牌不足/刚好等于丢弃数——
+                # 重复结算也不开窗，空选择由 active_discard 结算分支兜底全弃。
+                # 2026-11-14：可选张数的牌（如魔法酸 exact=False）必须保留选择窗，
+                # 不能因为手牌数小于请求上限就整手强制丢弃。
                 return {
                     'possible': True,
                     'payload_key': 'selected_card_ids',
@@ -4797,9 +4800,10 @@ def _resolve_effect(state, card, values, effect, targets, payload, seed, events,
             _notify_exiled(state, selected_card, events, seed)
     elif effect_type == 'active_discard':
         selected = _selected_cards(combat, payload, card)
-        if not selected:
-            # 2026-10-24：剩余手牌不足/刚好等于丢弃数时不弹选择窗，
-            # 直接丢弃全部剩余手牌（与 draw_then_discard 同口径）。
+        if not selected and effect.get('exact'):
+            # 2026-10-24：固定张数的主动丢弃，剩余手牌不足/刚好等于丢弃数时不弹
+            # 选择窗，直接丢弃全部剩余手牌（与 draw_then_discard 同口径）。
+            # 2026-11-14：可选张数（exact=False）空选择就是「弃 0 张」，不兜底全弃。
             candidates = [
                 item for item in combat['hand']
                 if item is not card and 'sublime' not in _card_tags(_card_values(item))

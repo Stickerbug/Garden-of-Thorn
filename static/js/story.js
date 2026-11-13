@@ -8729,15 +8729,19 @@
         for (const [effectIndex, effect] of effects.entries()) {
             const type = String(effect?.type || '');
             if (type === 'active_discard') {
-                // 2026-10-24：剩余手牌不足/刚好等于丢弃数——不弹选择窗，
-                // 直接打出（服务端结算分支丢弃全部剩余手牌）。
+                // 2026-10-24：固定张数的主动丢弃，剩余手牌不足/刚好等于丢弃数——
+                // 不弹选择窗，直接打出（服务端结算分支丢弃全部剩余手牌）。
+                // 2026-11-14：可选张数的牌（如魔法酸 exact 为假）必须弹窗让玩家
+                // 自己选 0..N 张，不能因为手牌少于请求上限就整手强制丢弃。
                 const source = (combat.hand || []).filter((item) => isStoryCardChoiceCandidate(item, card));
                 const requested = Math.max(1, Number(effect.amount || 1));
+                const exactDiscard = Boolean(effect.exact);
                 const laterNeedsWindow = effects.slice(effectIndex + 1).some((other) => (
                     ['choose_exile', 'copy_hand_card', 'make_card_free', 'active_discard', 'recover_exiled', 'discard_to_draw_top']
                         .includes(String(other?.type || ''))
                 ));
-                if (source.length <= requested && !laterNeedsWindow) return null;
+                if (source.length === 0 && !laterNeedsWindow) return null;
+                if (exactDiscard && source.length <= requested && !laterNeedsWindow) return null;
             }
             if (['choose_exile', 'copy_hand_card', 'make_card_free', 'active_discard'].includes(type)) {
                 const exact = ['copy_hand_card', 'make_card_free'].includes(type) || Boolean(effect.exact);
