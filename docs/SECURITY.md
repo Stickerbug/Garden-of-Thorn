@@ -33,6 +33,7 @@ proxy_set_header X-Forwarded-For $remote_addr;
 - `ADMIN_CONSOLE_PASSWORD_HASH`
 - `BETA_ACCESS_KEY_HASH`
 - `CARD_EXPORTER_PASSWORD_HASH`（可选；未设置时导出器使用 `BETA_ACCESS_KEY_HASH`）
+这些哈希集中放在权限 `0600` 的 `/etc/gtn/credentials.env`，由 systemd drop-in（如 `/etc/systemd/system/gtn-release.service.d/10-credentials.conf` 的 `EnvironmentFile=`）加载；`/etc/gtn/release.env` 只放版本标识，部署脚本改写它时不会连带抹掉凭据。启动日志出现 `... is not configured` 说明对应入口退化成进程内随机哈希，任何密码都无法登录。
 
 缺少这些值时，应用会生成仅本进程有效的随机值：已知源码默认密码不会
 生效，但会话会在重启后失效，对应管理入口也无法登录。禁止把明文密码或
