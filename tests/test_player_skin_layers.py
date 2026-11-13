@@ -59,7 +59,9 @@ class PlayerSkinConfigTests(unittest.TestCase):
 def skin_block(skin_id):
     marker = "id: '%s'," % skin_id
     start = PLAYER_SKINS_JS.index(marker)
-    end = PLAYER_SKINS_JS.index("id: '", start + len(marker))
+    end = PLAYER_SKINS_JS.find("id: '", start + len(marker))
+    if end == -1:  # 最后一个皮肤后面没有下一个 id
+        end = PLAYER_SKINS_JS.index('  ].map(', start)
     return PLAYER_SKINS_JS[start:end]
 
 class PlayerSkinCatalogTests(unittest.TestCase):
@@ -270,7 +272,13 @@ class PlayerSkinRenderingContractTests(unittest.TestCase):
         self.assertNotIn('* 180 / Math.PI + 45;', PLAYER_SKINS_JS)
         for skin_id in ('centipede_head', 'desert_centipede_head', 'evil_centipede_head'):
             self.assertIn('lookRotateOffset: 45,', skin_block(skin_id))
-        self.assertNotIn('lookRotateOffset', skin_block('faceless'))
+        # 塔之诅咒五款整身立绘以「鼠标正上方 = 立正」为正位，补 90°。
+        for skin_id in ('tower_curse_ironclad', 'tower_curse_silent', 'tower_curse_defect',
+                        'tower_curse_necrobinder', 'tower_curse_regent'):
+            self.assertIn('lookRotateOffset: 90,', skin_block(skin_id))
+        # 其余「藏眼睛」皮肤（无脸、邪眼）同样以正上方为 0°。
+        for skin_id in ('faceless', 'nazar'):
+            self.assertIn('lookRotateOffset: 90,', skin_block(skin_id))
         self.assertIn('skinLookCssVars(look, mirrorLookX, skin.skin_id)', GAME_JS)
         self.assertIn('skinIdFromAvatarElement(avatar)', GAME_JS)
         self.assertIn('lookRotation(PLAYER_LOOK, playerSkin.id)', SUIKA_JS)

@@ -30,6 +30,7 @@
       decoration: '',
       bodyArt: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
     {
@@ -73,6 +74,7 @@
       bodyArt: true,
       fixedColor: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
     {
@@ -129,6 +131,7 @@
       bodyArt: true,
       fixedColor: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
     {
@@ -139,6 +142,7 @@
       bodyArt: true,
       fixedColor: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
     {
@@ -149,6 +153,7 @@
       bodyArt: true,
       fixedColor: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
     {
@@ -159,6 +164,7 @@
       bodyArt: true,
       fixedColor: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
     {
@@ -169,6 +175,7 @@
       bodyArt: true,
       fixedColor: true,
       hideEyes: true,
+      lookRotateOffset: 90,
       hideMouth: true,
     },
   ].map((item) => Object.freeze({
