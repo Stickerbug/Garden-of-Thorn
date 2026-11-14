@@ -1684,3 +1684,72 @@ def test_single_biome_stage_boss_goes_straight_to_next_map():
         assert not state.get('room')
         assert any(event.get('type') == 'stage_started' for event in events)
         assert state['map']['floors'][0]['nodes'][0]['id']
+
+
+def test_rebound_from_loyalty_book_still_exiles_self_exiling_cards():
+    """2026-11-14：忠诚附魔书给牌加回转后，自带放逐的牌（如竹子）放逐优先，不回手牌。"""
+    state = _started_state('loyalty-exile-priority')
+    _start_combat(
+        state, {'type': 'combat'}, 'loyalty-exile-priority', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    combat['opening_redraw_pending'] = False
+    combat['draw_pile'] = []
+    combat['discard_pile'] = []
+    combat['exile_pile'] = []
+    bamboo = _new_card(state, 'bamboo')
+    bamboo['modifiers'] = {
+        'enchantment_rebound': True,
+        'enchantment_labels': {'rebound': 'loyalty'},
+    }
+    combat['hand'] = [bamboo]
+    combat['elixir'] = 10
+    target = combat['enemies'][0]
+
+    state, _events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': bamboo['instance_id'], 'target_id': target['id']},
+        'loyalty-exile-priority',
+    )
+
+    combat = state['combat']
+    assert bamboo['instance_id'] in [
+        card['instance_id'] for card in combat['exile_pile']
+    ]
+    assert bamboo['instance_id'] not in [
+        card['instance_id'] for card in combat['hand']
+    ]
+
+
+def test_rebound_without_exile_still_returns_the_card_to_hand():
+    """回转本身仍然生效：没有放逐的牌（如玫瑰）打完回到手牌。"""
+    state = _started_state('loyalty-rebound-hand')
+    _start_combat(
+        state, {'type': 'combat'}, 'loyalty-rebound-hand', [],
+        encounter_override=[{'def_id': 'cactus'}],
+    )
+    combat = state['combat']
+    combat['opening_redraw_pending'] = False
+    combat['draw_pile'] = []
+    combat['discard_pile'] = []
+    combat['exile_pile'] = []
+    orange = _new_card(state, 'rose')
+    orange['modifiers'] = {'enchantment_rebound': True}
+    combat['hand'] = [orange]
+    combat['elixir'] = 10
+    target = combat['enemies'][0]
+
+    state, _events = apply_story_action(
+        state, 'play_card',
+        {'card_instance_id': orange['instance_id'], 'target_id': target['id']},
+        'loyalty-rebound-hand',
+    )
+
+    combat = state['combat']
+    assert orange['instance_id'] in [
+        card['instance_id'] for card in combat['hand']
+    ]
+    assert orange['instance_id'] not in [
+        card['instance_id'] for card in combat['exile_pile']
+    ]

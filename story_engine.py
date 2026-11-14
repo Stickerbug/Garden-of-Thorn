@@ -5570,10 +5570,12 @@ def _destination_for_card(values, card):
         return 'equipment'
     if modifiers.get('force_exile'):
         return 'exile_pile'
-    if modifiers.get('enchantment_rebound') or 'rebound' in tags:
-        return 'hand'
+    # 2026-11-14：放逐优先于回转——自带放逐的牌（如竹子）被忠诚附魔书加上回转后
+    # 仍应进放逐区，不能因为回转先判定就留在手牌里无限复用。
     if 'exile' in tags and not modifiers.get('remove_exile'):
         return 'exile_pile'
+    if modifiers.get('enchantment_rebound') or 'rebound' in tags:
+        return 'hand'
     if values.get('script') == 'return_draw_top':
         return 'draw_pile'
     return 'discard_pile'
