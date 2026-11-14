@@ -2117,6 +2117,12 @@ def _draw_cards(state, count, seed, events, autoplay_depth=0, card_filter=None):
                 'machine_learning_draw',
             )
         _on_card_drawn(state, card, seed, events, autoplay_depth)
+        if state.get('combat') is not combat:
+            # 2026-11-14：抽到「就绪」牌会立即自动打出，可能直接结束这场战斗
+            # （最后一名敌人死亡 / 玩家死亡）。此时 state['combat'] 已被清空，
+            # 继续写这场已经结束的战斗会 AttributeError（线上 /api/story/run/action
+            # 500 的来源，见 feedback 线程「结束回合后无法继续」）。
+            break
         # 魔法更快（表15 轨道使）：自己回合内每抽1张牌，旋转轨道一次。
         if combat.get('turn') == 'player' and (_orbit(combat).get('petals') or []):
             for _, draw_effect in _equipment_effects(combat, 'orbit_on_draw'):
@@ -2127,7 +2133,7 @@ def _draw_cards(state, count, seed, events, autoplay_depth=0, card_filter=None):
                     events,
                     source='orbit_on_draw',
                 )
-    if drawn:
+    if drawn and state.get('combat') is combat:
         _record_cards_drawn(state, drawn, events)
         events.append({'type': 'draw', 'count': len(drawn), 'card_instance_ids': drawn})
     return drawn
@@ -9183,6 +9189,10 @@ def _turn_boundary(state, seed, events, extra=False, advance_round=True):
         turn_draw += _relic_amount(state, 'easy_tiger')
     turn_draw += int(combat.pop('next_turn_draw_delta', 0) or 0)
     _draw_cards(state, turn_draw, seed, events)
+    if state.get('combat') is not combat:
+        # 2026-11-14：这一抽可能已经结束战斗（就绪牌自动打出），别再用旧的
+        # combat 继续设置抽牌阶段标记 / 遗物效果。
+        return
     if _has_relic(state, 'nimble') and combat.get('turn_kind') != 'extra':
         count = min(_relic_amount(state, 'nimble'), len(combat.get('hand', [])))
         if count:

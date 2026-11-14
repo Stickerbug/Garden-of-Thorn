@@ -1753,3 +1753,71 @@ def test_rebound_without_exile_still_returns_the_card_to_hand():
     assert orange['instance_id'] not in [
         card['instance_id'] for card in combat['exile_pile']
     ]
+
+
+def test_drawing_a_ready_card_that_ends_the_combat_does_not_crash():
+    """抽到「就绪」牌自动打出并结束战斗时，掷牌记录不能再写已清空的战斗。
+
+    线上修复前的表现：结束回合 → _turn_boundary → _draw_cards → _on_card_drawn
+    自动打出最后一张牌击杀敌人 → 战斗走 _complete_current_node 把
+    state['combat'] 置 None → _record_cards_drawn 再取 state['combat'] 抛
+    AttributeError，/api/story/run/action 返回 500，这一局永久卡在战斗中。
+    """
+    seed = 'draw-ready-ends-combat'
+    state = _started_state(seed)
+    _start_combat(
+        state,
+        {'type': 'combat'},
+        seed,
+        [],
+        encounter_override=[{'def_id': 'cicada'}],
+    )
+    combat = state['combat']
+    combat['turn'] = 'player'
+    combat['elixir'] = 99
+    combat['hand'] = []
+    combat['enemies'][0]['health'] = 4
+    # 事件战斗的胜利结算直接完成节点（会把 state['combat'] 清空），
+    # 正是线上 500 的那条路径。
+    combat['event_resolution'] = 'fight_help_spider'
+    missile = _new_card(state, 'missile')
+    combat['draw_pile'] = [missile]
+    events = []
+
+    drawn = story_engine._draw_cards(state, 1, seed, events)
+
+    assert drawn == [missile['instance_id']]
+    assert state['combat'] is None
+    assert state['phase'] == 'map'
+    assert any(event.get('type') == 'card_played' for event in events)
+    assert not any(event.get('type') == 'draw' for event in events)
+
+
+def test_ending_the_turn_survives_a_ready_card_finishing_the_combat():
+    """结束回合抽牌触发就绪牌完成节点时，结束回合不能抛异常。"""
+    seed = 'end-turn-ready-finishes'
+    state = _started_state(seed)
+    _start_combat(
+        state,
+        {'type': 'combat'},
+        seed,
+        [],
+        encounter_override=[{'def_id': 'cicada'}],
+    )
+    combat = state['combat']
+    combat['turn'] = 'player'
+    combat['elixir'] = 99
+    combat['hand'] = []
+    combat['enemies'][0]['health'] = 4
+    combat['event_resolution'] = 'fight_help_spider'
+    # 抽牌从牌堆尾部取，牌堆只放这一张，保证回合开始必定抽到。
+    combat['draw_pile'] = [_new_card(state, 'missile')]
+    combat['discard_pile'] = []
+    events = []
+
+    story_engine._end_turn(state, seed, events)
+
+    assert state['combat'] is None
+    assert state['phase'] == 'map'
+    assert any(event.get('type') == 'combat_victory' for event in events)
+    assert any(event.get('type') == 'node_completed' for event in events)
