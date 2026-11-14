@@ -21689,13 +21689,17 @@ function updateSkinEyeShapeOptions() {
     const select = $('skin-eye-shape');
     if (!select) return;
     const owned = currentAccount ? eyeStyleOwnedIds : BASE_EYE_SHAPES;
+    /* 2026-11-14：拥有列表还没回来（null）时不能把选中项当成「未拥有」——
+       否则刷新后进入皮肤界面，已保存的眼睛会被就地重置成 oval。等
+       /api/eye-styles 返回后再按真实拥有列表收窄。 */
+    const known = Array.isArray(owned);
     [...select.options].forEach((option) => {
         if (!window.GTNEyeStyles?.get(option.value)) return;
-        const allowed = Array.isArray(owned) && owned.includes(option.value);
-        option.disabled = !allowed;
-        option.title = allowed ? '' : '尚未拥有这款眼睛';
+        const allowed = known && owned.includes(option.value);
+        option.disabled = known ? !allowed : false;
+        option.title = !known || allowed ? '' : '尚未拥有这款眼睛';
     });
-    if (select.selectedIndex >= 0 && select.options[select.selectedIndex].disabled) select.value = 'oval';
+    if (known && select.selectedIndex >= 0 && select.options[select.selectedIndex].disabled) select.value = 'oval';
 }
 async function loadEyeStyleOwnership(force = false) {
     const uid = currentAccount?.id ?? null;
@@ -21738,13 +21742,16 @@ function updateSkinMouthShapeOptions() {
     const select = $('skin-mouth-shape');
     if (!select) return;
     const owned = currentAccount ? mouthStyleOwnedIds : BASE_MOUTH_SHAPES;
+    /* 2026-11-14：同眼睛——拥有列表未知时保留当前选中，不能让刷新后的嘴型
+       被重置回 original。 */
+    const known = Array.isArray(owned);
     [...select.options].forEach((option) => {
         if (!window.GTNMouthStyles?.get(option.value)) return;
-        const allowed = Array.isArray(owned) && owned.includes(option.value);
-        option.disabled = !allowed;
-        option.title = allowed ? '' : '尚未拥有这款嘴型';
+        const allowed = known && owned.includes(option.value);
+        option.disabled = known ? !allowed : false;
+        option.title = !known || allowed ? '' : '尚未拥有这款嘴型';
     });
-    if (select.selectedIndex >= 0 && select.options[select.selectedIndex].disabled) select.value = 'original';
+    if (known && select.selectedIndex >= 0 && select.options[select.selectedIndex].disabled) select.value = 'original';
 }
 async function loadMouthStyleOwnership(force = false) {
     const uid = currentAccount?.id ?? null;
