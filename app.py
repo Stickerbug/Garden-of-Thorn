@@ -11887,6 +11887,17 @@ ADMIN_COMMAND_TREE = {
             'message': {'summary': '向所有对局发送控制台消息', 'usage': 'game message <内容>'},
         },
     },
+    'maintenance': {
+        'summary': '更新维护公告（页面顶部横幅 + 聊天广播）',
+        'usage': 'maintenance notice <秒数> <内容>',
+        'children': {
+            'notice': {
+                'summary': '在页面最顶端显示公告并广播',
+                'usage': 'maintenance notice <秒数> <内容>',
+                'internal_parts': ['maintenancenotice'],
+            },
+        },
+    },
     'lobby': {
         'summary': '大厅、聊天与广播',
         'usage': 'lobby <chat|broadcast> ...',
@@ -14426,6 +14437,61 @@ def zh_phase(value):
     }.get(value, value)
 
 
+_MAINTENANCE_NOTICE_LOCK = threading.Lock()
+_MAINTENANCE_NOTICE = {'message': '', 'started_at': 0.0, 'expires_at': 0.0, 'sequence': 0}
+
+
+def maintenance_notice_payload(notice, now=None):
+    """把内部公告状态投影成客户端载荷（纯函数，便于测试）。"""
+    current = time.time() if now is None else float(now)
+    message = str((notice or {}).get('message') or '')
+    expires_at = float((notice or {}).get('expires_at') or 0.0)
+    started_at = float((notice or {}).get('started_at') or 0.0)
+    active = bool(message) and expires_at > current
+    remaining = 0
+    if active:
+        remaining = int(max(0.0, expires_at - current) + 0.999)
+    return {
+        'active': active,
+        'message': message if active else '',
+        'started_at': started_at,
+        'expires_at': expires_at,
+        'seconds_remaining': remaining,
+        'sequence': int((notice or {}).get('sequence') or 0),
+    }
+
+
+def current_maintenance_notice():
+    with _MAINTENANCE_NOTICE_LOCK:
+        snapshot = dict(_MAINTENANCE_NOTICE)
+    return maintenance_notice_payload(snapshot)
+
+
+def set_maintenance_notice(message, seconds, actor='adminconsole'):
+    """在页面最顶端挂一条公告，并把同样的文案发进聊天广播。"""
+    msg = str(message or '').strip()[:500]
+    if not msg:
+        raise ValueError('公告内容不能为空')
+    try:
+        duration = int(seconds)
+    except (TypeError, ValueError):
+        raise ValueError('公告时长必须是整数秒')
+    duration = max(5, min(duration, 3600))
+    now = time.time()
+    with _MAINTENANCE_NOTICE_LOCK:
+        _MAINTENANCE_NOTICE.update({
+            'message': msg,
+            'started_at': now,
+            'expires_at': now + duration,
+            'sequence': int(_MAINTENANCE_NOTICE.get('sequence') or 0) + 1,
+        })
+        snapshot = dict(_MAINTENANCE_NOTICE)
+    payload = maintenance_notice_payload(snapshot, now=now)
+    socketio.emit('maintenance_banner', payload)
+    sent = send_system_broadcast(msg)
+    admin_event('admin', f'maintenance notice {duration}s: {msg} ({actor})')
+    return {'notice': payload, 'sent': sent}
+
 def send_system_broadcast(message):
     msg = str(message or '').strip()[:500]
     if not msg:
@@ -14467,6 +14533,13 @@ def send_system_broadcast(message):
     emit_lobby_chat_history_payloads(lobby_history_payloads)
     socketio.emit('server_broadcast', {'message': f'[系统]{msg}'})
     return sent
+
+
+@app.route('/api/maintenance/notice', methods=['GET'])
+def api_maintenance_notice():
+    response = jsonify(current_maintenance_notice())
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 
 def _resolve_content_card(token):
@@ -16532,6 +16605,26 @@ def execute_admin_command(line, _internal=False, actor='adminconsole'):
                 admin_event('error', f'achievement backfill failed: {exc}')
                 return {'success': False, 'output': f'成就补发失败：{exc}'}
         return {'success': False, 'output': command_error(raw, len(parts[0]) + 1, 'data achievementbackfill <preview|confirm>')}
+    if cmd == 'maintenancenotice':
+        if len(parts) < 3:
+            return {'success': False, 'output': command_error(raw, len(raw), 'maintenance notice <秒数> <内容>')}
+        try:
+            seconds = int(parts[1])
+        except ValueError:
+            return {'success': False, 'output': command_error(raw, len(raw), '<秒数>')}
+        message = ' '.join(parts[2:]).strip()
+        if not message:
+            return {'success': False, 'output': command_error(raw, len(raw), '<内容>')}
+        try:
+            notice_result = set_maintenance_notice(message, seconds, actor=actor)
+        except ValueError as exc:
+            return {'success': False, 'output': str(exc)}
+        notice = notice_result['notice']
+        return {
+            'success': True,
+            'output': f"已显示顶部公告（{notice['seconds_remaining']} 秒）：{notice['message']}（广播 {notice_result['sent']} 人）",
+            'notice': notice,
+        }
     if cmd == 'broadcast':
         msg = ' '.join(parts[1:]).strip()
         if not msg:

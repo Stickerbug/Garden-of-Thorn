@@ -85,6 +85,7 @@
 <style nonce="{{ csp_nonce }}">
 #app { visibility: hidden; }
 </style>
+<link rel="stylesheet" href="/static/css/maintenance-banner.css?v={{ static_version|default('dev')|urlencode }}">
 </head>
 <body{% if beta_mode|default(false) %} class="beta-mode"{% endif %}>
 <div id="app">
@@ -1537,5 +1538,6 @@
     <script src="/static/js/season-settlement.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/keybindings.js?v={{ static_version|default('dev')|urlencode }}"></script>
     <script src="/static/js/community.js?v={{ static_version|default('dev')|urlencode }}"></script>
+<script src="/static/js/maintenance-banner.js?v={{ static_version|default('dev')|urlencode }}"></script>
 </body>
 </html>

@@ -1,0 +1,65 @@
+/* 更新维护公告：固定在屏幕最顶端，覆盖在所有视图之上。 */
+.gtn-maintenance-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2147482000;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px 14px;
+    box-sizing: border-box;
+    min-height: 40px;
+    padding: 8px 18px;
+    background: linear-gradient(180deg, rgba(186, 28, 42, 0.97), rgba(110, 12, 22, 0.97));
+    border-bottom: 1px solid rgba(255, 214, 102, 0.55);
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
+    color: #ffe9c9;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: 0.02em;
+    text-align: center;
+    pointer-events: none;
+    -webkit-text-size-adjust: 100%;
+}
+
+.gtn-maintenance-banner[hidden] {
+    display: none;
+}
+
+.gtn-maintenance-banner.is-visible {
+    animation: gtn-maintenance-slide-in 240ms ease-out;
+}
+
+.gtn-maintenance-message {
+    max-width: min(960px, 92vw);
+    white-space: normal;
+    word-break: break-word;
+}
+
+.gtn-maintenance-clock {
+    color: #ffd666;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+@keyframes gtn-maintenance-slide-in {
+    from {
+        transform: translateY(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 640px) {
+    .gtn-maintenance-banner {
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+}

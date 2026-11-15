@@ -8,6 +8,7 @@
 # 可调环境变量（仅演练时才改时长）：
 #   GTN_NOTICE_MESSAGE   广播文案
 #   GTN_NOTICE_WAIT_SECONDS  广播后等待秒数（默认 300）
+#   GTN_NOTICE_BANNER_SECONDS 顶部公告持续秒数（默认 WAIT+120，覆盖重启窗口）
 #   GTN_PORT             应用端口（默认 5000）
 set -euo pipefail
 
@@ -15,6 +16,7 @@ ARCHIVE=${1:?用法: bash gtn_update.sh <archive.tar.gz> <git-sha>}
 SHA=${2:?用法: bash gtn_update.sh <archive.tar.gz> <git-sha>}
 NOTICE=${GTN_NOTICE_MESSAGE:-五分钟后更新，请大家尽快结束对局}
 WAIT=${GTN_NOTICE_WAIT_SECONDS:-300}
+BANNER_SECONDS=${GTN_NOTICE_BANNER_SECONDS:-$((WAIT + 120))}
 PORT=${GTN_PORT:-5000}
 
 RELEASE=/opt/gtn-release
@@ -38,7 +40,9 @@ if [ ! -f "$STAGE/app.py" ]; then
     echo "解包后找不到 app.py，中止（发布包前缀应为 gtn/）" >&2
     exit 1
 fi
-if [ -z "$BROADCAST_SCRIPT" ]; then
+# 优先用发布包里的广播工具：它和即将上线的服务端命令格式一致，
+# 线上旧版的 gtn_broadcast.py 可能还不认识 --seconds。
+if [ -f "$STAGE/scripts/gtn_broadcast.py" ]; then
     BROADCAST_SCRIPT=$STAGE/scripts/gtn_broadcast.py
 fi
 if [ ! -f "$BROADCAST_SCRIPT" ]; then
@@ -48,8 +52,8 @@ fi
 "$RELEASE/venv/bin/python" -m py_compile "$STAGE/app.py"
 echo "[2/6] 暂存目录编译校验通过"
 
-echo "[3/6] 全服广播：$NOTICE"
-"$RELEASE/venv/bin/python" "$BROADCAST_SCRIPT" --base-url "http://127.0.0.1:${PORT}" "$NOTICE"
+echo "[3/6] 全服广播 + 顶部公告（${BANNER_SECONDS} 秒）：$NOTICE"
+"$RELEASE/venv/bin/python" "$BROADCAST_SCRIPT" --base-url "http://127.0.0.1:${PORT}" --seconds "$BANNER_SECONDS" "$NOTICE"
 
 echo "[4/6] 等待 ${WAIT} 秒后切换服务（请勿中断本脚本）"
 sleep "$WAIT"

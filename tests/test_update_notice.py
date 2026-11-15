@@ -1,4 +1,4 @@
-"""更新前广播机制的契约测试（2026-11-15 起的发布纪律）。"""
+"""更新前「广播 + 顶部公告 + 等满 5 分钟」的契约测试（2026-11-15 起的发布纪律）。"""
 from __future__ import annotations
 
 import importlib.util
@@ -34,9 +34,19 @@ class BroadcastToolTests(unittest.TestCase):
         )
         self.assertEqual(self.module.DEFAULT_WAIT_SECONDS, 300)
 
-    def test_command_line_targets_the_existing_broadcast_command(self):
+    def test_command_line_shows_the_top_banner_and_broadcasts(self):
         self.assertEqual(
             self.module.build_command_line('五分钟后更新，请大家尽快结束对局'),
+            'maintenance notice 420 五分钟后更新，请大家尽快结束对局',
+        )
+        self.assertEqual(
+            self.module.build_command_line('演练公告', 90),
+            'maintenance notice 90 演练公告',
+        )
+
+    def test_old_servers_still_get_a_plain_broadcast(self):
+        self.assertEqual(
+            self.module.build_fallback_command_line('五分钟后更新，请大家尽快结束对局'),
             'lobby broadcast 五分钟后更新，请大家尽快结束对局',
         )
 
@@ -71,7 +81,7 @@ class BroadcastToolTests(unittest.TestCase):
         finally:
             self.module.sys.stdout = original
         self.assertEqual(code, 0)
-        self.assertEqual(out.getvalue().strip(), 'lobby broadcast 测试公告')
+        self.assertEqual(out.getvalue().strip(), 'maintenance notice 420 测试公告')
 
 
 class UpdateScriptTests(unittest.TestCase):
@@ -88,6 +98,15 @@ class UpdateScriptTests(unittest.TestCase):
         self.assertIn('GTN_NOTICE_WAIT_SECONDS:-300', self.text)
         self.assertIn('sleep "$WAIT"', self.text)
         self.assertIn('五分钟后更新，请大家尽快结束对局', self.text)
+
+    def test_banner_outlives_the_wait_and_the_restart(self):
+        self.assertIn('GTN_NOTICE_BANNER_SECONDS:-$((WAIT + 120))', self.text)
+        self.assertIn('--seconds "$BANNER_SECONDS"', self.text)
+
+    def test_uses_the_broadcast_tool_from_the_incoming_bundle(self):
+        # 线上旧版的广播脚本可能还不支持 --seconds，必须优先用新包里的那份。
+        self.assertIn('if [ -f "$STAGE/scripts/gtn_broadcast.py" ]; then', self.text)
+        self.assertIn('BROADCAST_SCRIPT=$STAGE/scripts/gtn_broadcast.py', self.text)
 
     def test_staging_unpacks_with_the_gtn_prefix_and_compiles_first(self):
         self.assertIn('--strip-components=1', self.text)

@@ -2,7 +2,8 @@
 """运维工具：给全服发一条系统广播。
 
 实现方式：用服务端的 SECRET_KEY 现场签发一个短期「管理控制台会话」cookie，
-再调用既有的 ``POST /api/adminconsole/command`` 执行 ``broadcast <内容>``。
+再调用既有的 ``POST /api/adminconsole/command`` 执行
+``maintenance notice <秒数> <内容>``（页面顶部横幅 + 聊天广播）。
 不新增任何公网入口，也不需要把管理台密码写进脚本。
 
 用法（在服务器上用 release 的 venv 运行）::
@@ -10,8 +11,8 @@
     /opt/gtn-release/venv/bin/python scripts/gtn_broadcast.py \
         "五分钟后更新，请大家尽快结束对局"
 
-    # 广播成功后等 300 秒再返回，供部署脚本「广播 → 整 5 分钟后切换」
-    ... --wait 300
+    # 公告挂 7 分钟，广播成功后等 300 秒再返回，供部署脚本「广播 → 整 5 分钟后切换」
+    ... --seconds 420 --wait 300
 
 SECRET_KEY 读取顺序：环境变量 → --pid 的 /proc/<pid>/environ → systemd 主进程。
 脚本不会打印 SECRET_KEY 本身。
@@ -30,6 +31,7 @@ import urllib.request
 
 DEFAULT_NOTICE = '五分钟后更新，请大家尽快结束对局'
 DEFAULT_WAIT_SECONDS = 300
+DEFAULT_BANNER_SECONDS = 420
 DEFAULT_BASE_URL = 'http://127.0.0.1:5000'
 SESSION_TTL_SECONDS = 600
 _COOKIE_NAME = 'session'
@@ -84,8 +86,13 @@ def read_secret_key(pid: int | None = None) -> str:
     return secret
 
 
-def build_command_line(message: str) -> str:
-    # 管理台命令树里广播挂在 lobby 组下：`lobby broadcast <内容>`。
+def build_command_line(message: str, seconds: int = DEFAULT_BANNER_SECONDS) -> str:
+    # 服务端会同时把文案发进聊天，并在页面最顶端挂一条带倒计时的横幅。
+    return f'maintenance notice {int(seconds)} {message}'
+
+
+def build_fallback_command_line(message: str) -> str:
+    # 旧版服务端没有 maintenance 命令时退回纯聊天广播。
     return f'lobby broadcast {message}'
 
 
@@ -152,6 +159,7 @@ def parse_args(argv=None):
     parser.add_argument('--base-url', default=DEFAULT_BASE_URL)
     parser.add_argument('--pid', type=int, default=None, help='从该进程环境读 SECRET_KEY')
     parser.add_argument('--wait', type=float, default=0.0, help='广播成功后等待的秒数')
+    parser.add_argument('--seconds', type=int, default=DEFAULT_BANNER_SECONDS, help='顶部横幅持续时间（秒）')
     parser.add_argument('--dry-run', action='store_true', help='只打印将要执行的命令')
     return parser.parse_args(argv)
 
@@ -159,7 +167,7 @@ def parse_args(argv=None):
 def main(argv=None) -> int:
     args = parse_args(argv)
     message = (args.message or '').strip() or DEFAULT_NOTICE
-    line = build_command_line(message)
+    line = build_command_line(message, args.seconds)
     if args.dry_run:
         print(line)
         return 0
@@ -169,9 +177,14 @@ def main(argv=None) -> int:
     cookie = build_session_cookie(secret_key, csrf_token=csrf_token)
     result = post_command(args.base_url, cookie, csrf_token, line)
     ok = bool(result.get('success'))
+    if not ok:
+        # 兼容还没升级到带 maintenance 命令的旧版本。
+        result = post_command(args.base_url, cookie, csrf_token, build_fallback_command_line(message))
+        ok = bool(result.get('success'))
     print(json.dumps({
         'ok': ok,
         'output': result.get('output', ''),
+        'banner_seconds': int(args.seconds),
         'broadcast_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
     }, ensure_ascii=False))
     if not ok:

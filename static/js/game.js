@@ -18566,8 +18566,11 @@ function connectSocket(serverUrl, options = {}) {
         phase = 'lobby';
         showView('view-lobby');
     });
-    bindSocketEvent('server_broadcast', (data) => {
-        flashStatus(data.message || '', 4000);
+    bindSocketEvent('server_broadcast', (data) => {
+        flashStatus(data.message || '', 4000);
+    });
+    bindSocketEvent('maintenance_banner', (data) => {
+        if (window.GtnMaintenanceBanner) window.GtnMaintenanceBanner.show(data);
     });
     bindSocketEvent('solo_paused', () => {
         clearPendingSoloFallback();
