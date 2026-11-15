@@ -10,9 +10,12 @@
     });
 
     // 合作引擎演示通道（?coopdemo=1）：run 读写改走 /api/coop-demo/*。
-    const STORY_COOP_DEMO = new URLSearchParams(location.search).get('coopdemo') === '1'
-        || localStorage.getItem('gtv_coop_demo') === '1';
-    if (STORY_COOP_DEMO) { try { localStorage.setItem('gtv_coop_demo', '1'); } catch (quotaErr) { /* 配额满：URL 参数仍可识别 */ } }
+    // 2026-11-15：只认 URL 参数，不再把模式写进 localStorage。旧版会把这个
+    // 标记永久留在浏览器里：普通账号刷新进 /story 仍被当成演示模式，点开始
+    // 旅程时 POST 到只支持 GET 的 /api/coop-demo/run 拿到 405，故事模式就此
+    // 打不开。这里顺手清掉历史遗留的标记，把受害浏览器恢复成普通模式。
+    const STORY_COOP_DEMO = new URLSearchParams(location.search).get('coopdemo') === '1';
+    try { localStorage.removeItem('gtv_coop_demo'); } catch (quotaErr) { /* 隐私模式忽略 */ }
     const STORY_LOCAL_MODE = new URLSearchParams(location.search).get('local') === '1';
     if (STORY_LOCAL_MODE) { try { sessionStorage.setItem('gtv_story_local', '1'); } catch (quotaErr) { /* 隐私模式忽略 */ } }
     const storyLocalActive = () => STORY_LOCAL_MODE
@@ -12350,8 +12353,8 @@
         document.body.appendChild(dlg);
         const msg = (t) => { $('coop-demo-lobby-msg').textContent = t || ''; };
         const enterRoom = (seat) => {
-            // localStorage 可能配额超限（回放缓存等占满）——URL 参数已足够识别模式。
-            try { localStorage.setItem('gtv_coop_demo', '1'); } catch (quotaErr) { /* 忽略 */ }
+            // 演示模式只靠 URL 参数存活（刷新/后退都带着它），不写 localStorage——
+            // 否则同一浏览器换普通账号登录后仍会被粘在演示模式里。
             try { sessionStorage.setItem('gtv_coop_demo_seat', String(seat)); } catch (quotaErr) { /* 忽略 */ }
             dlg.close();
             location.href = `/story?coopdemo=1&seat=${seat}`;
@@ -15723,6 +15726,12 @@
             renderRun(runPayload.run || null);
         } catch (error) {
             if (error.message === 'AUTH_REQUIRED') return;
+            if (STORY_COOP_DEMO && error.status === 403) {
+                // 普通账号带着 ?coopdemo=1 进来时演示接口 403：立刻退回普通故事模式，
+                // 不要把「载入失败」留在屏幕上（2026-11-15）。
+                window.location.replace('/story');
+                return;
+            }
             showView('story-empty');
             showToast(error.message);
         }
@@ -15737,6 +15746,18 @@
                 storyContent = contentPayload.content || {};
                 contentVersion = contentPayload.content_version || '';
                 ingestStoryDiscoveryPayload(contentPayload);
+            }
+            if (STORY_COOP_DEMO) {
+                // 演示模式没有单人 run：先让服务端建一局演示，再按席位重新载入。
+                // 旧实现把 POST 直接打到只支持 GET 的 /api/coop-demo/run，稳定
+                // 405，测试人员因此也开不了演示局（2026-11-15 修复）。
+                const hosted = await requestJson('/api/coop-demo/host', {
+                    method: 'POST',
+                    body: '{}',
+                });
+                const seat = Number(hosted && hosted.seat) || 0;
+                window.location.href = `/story?coopdemo=1&seat=${seat}`;
+                return;
             }
             if (STORY_LOCAL_MODE && window.GtnStoryLocal) {
                 const started = await window.GtnStoryLocal.start(selectedStoryCharacterId);
@@ -15761,7 +15782,14 @@
             ingestStoryDiscoveryPayload(payload);
             renderRun(payload.run || null);
         } catch (error) {
-            if (error.message !== 'AUTH_REQUIRED') showToast(error.message);
+            if (error.message === 'AUTH_REQUIRED') return;
+            if (STORY_COOP_DEMO && error.status === 403) {
+                // 手动拼 ?coopdemo=1 的普通账号：别把人留在打不开的演示模式里。
+                showToast(error.message);
+                window.location.replace('/story');
+                return;
+            }
+            showToast(error.message);
         } finally {
             if (button) button.disabled = false;
         }

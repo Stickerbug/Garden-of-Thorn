@@ -1501,3 +1501,18 @@ def test_optional_active_discard_selection_window_is_not_short_circuited():
         in STORY_ENGINE
     )
     assert "if not selected and effect.get('exact'):" in STORY_ENGINE
+
+
+def test_story_coop_demo_mode_does_not_stick_to_the_browser():
+    """2026-11-15：?coopdemo=1 只活在 URL 上。旧版把它写进 localStorage，普通账号
+    刷新后仍被当成演示模式，点开始旅程 POST 到只支持 GET 的 /api/coop-demo/run
+    拿 405，故事模式再也打不开（线上玩家『不想取名』复现）。"""
+    assert (
+        "const STORY_COOP_DEMO = new URLSearchParams(location.search).get('coopdemo') === '1';"
+        in STORY_JS
+    )
+    assert "localStorage.getItem('gtv_coop_demo')" not in STORY_JS
+    assert "localStorage.setItem('gtv_coop_demo', '1')" not in STORY_JS
+    assert "try { localStorage.removeItem('gtv_coop_demo'); } catch (quotaErr)" in STORY_JS
+    assert "const hosted = await requestJson('/api/coop-demo/host', {" in STORY_JS
+    assert "window.location.href = `/story?coopdemo=1&seat=${seat}`;" in STORY_JS
