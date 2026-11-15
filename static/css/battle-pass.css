@@ -482,6 +482,38 @@
     filter: none;
 }
 
+/* 2026-11-15：5 金露 → 100 经验（与「解锁黄金之路」并排，弱化一档以免抢主按钮）。 */
+#achievements-pass-panel .bp-buy-xp {
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 214, 102, .55);
+    background: rgba(255, 214, 102, .12);
+    color: var(--bp-gold-strong);
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+#achievements-pass-panel .bp-buy-xp:hover {
+    background: rgba(255, 214, 102, .22);
+}
+
+#achievements-pass-panel .bp-buy-xp[disabled] {
+    opacity: .45;
+    cursor: default;
+    background: rgba(255, 214, 102, .06);
+}
+
+#achievements-pass-panel .bp-notice {
+    margin: 6px 0 2px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: rgba(255, 214, 102, .12);
+    border: 1px solid rgba(255, 214, 102, .35);
+    color: var(--bp-gold-strong);
+    font-size: 12px;
+}
+
 #achievements-pass-panel .bp-retry {
     margin-top: 8px;
     padding: 4px 10px;

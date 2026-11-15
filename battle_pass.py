@@ -26,6 +26,9 @@ PASS_SEASON_ID = 'S1'
 PASS_MAX_LEVEL = 100
 XP_PER_LEVEL = 100
 GOLDEN_PRICE_GOLDEN_DEW = 250
+# 2026-11-15：金露兑换经验（固定 5 金露 → 100 经验；不叠加黄金之路 ×1.5）。
+XP_BUY_GOLDEN_DEW = 5
+XP_BUY_AMOUNT = 100
 
 MATCH_XP_CAP = 40
 MATCH_XP_SECONDS_DIVISOR = 10
@@ -701,6 +704,58 @@ def purchase_golden(conn, user_id, *, now=None):
     return {'golden_dew': after, 'price': GOLDEN_PRICE_GOLDEN_DEW}, None
 
 
+def buy_xp(conn, user_id, *, now=None, source_key=''):
+    """5 金露兑换 100 经验；返回 (payload, error)。
+
+    固定汇率，不叠加黄金之路的 ×1.5——玩家付的是付费货币，换到的是确定数值。
+    每次兑换写一条独立 source_key，重复调用是独立购买而不是幂等重放。
+    """
+    ensure_pass_schema(conn)
+    uid = int(user_id)
+    _, _, season_open = season_bounds(now)
+    if not season_open:
+        return None, '赛季已结束，无法兑换经验'
+    row = conn.execute('SELECT golden_dew FROM users WHERE id = ?', (uid,)).fetchone()
+    if row is None:
+        return None, '账号不存在'
+    balance = int(row['golden_dew'] or 0)
+    if balance < XP_BUY_GOLDEN_DEW:
+        return None, '金露不足'
+    after = balance - XP_BUY_GOLDEN_DEW
+    now_text = _now_iso(now)
+    conn.execute('UPDATE users SET golden_dew = ? WHERE id = ?', (after, uid))
+    conn.execute(
+        '''INSERT INTO user_currency_transactions (
+               user_id, currency, free_delta, paid_delta, reason, source_type, source_id,
+               balance_free_after, balance_paid_after, admin_username, created_at)
+           VALUES (?, 'golden_dew', ?, 0, ?, 'battle_pass', ?, ?, 0, '', ?)''',
+        (
+            uid, -XP_BUY_GOLDEN_DEW, '通行证 · 金露兑换经验',
+            f'pass:{season_id()}', after, now_text,
+        ),
+    )
+    key = str(source_key or '').strip() or (
+        f'golden_xp:{season_id()}:{now_text}:{uuid.uuid4().hex}'
+    )
+    result = _apply_xp(
+        conn, uid, XP_BUY_AMOUNT,
+        source='golden', source_key=key, multiplier=1.0, now=now,
+    )
+    if not result.get('applied'):
+        # 台账冲突（理论上不会发生）：把金露退回去，避免白扣。
+        conn.execute('UPDATE users SET golden_dew = ? WHERE id = ?', (balance, uid))
+        return None, '兑换失败，请重试'
+    return {
+        'golden_dew': after,
+        'cost': XP_BUY_GOLDEN_DEW,
+        'xp_gained': int(result['xp']),
+        'xp_total': int(result['xp_total']),
+        'xp_before': int(result['xp_total']) - int(result['xp']),
+        'level_before': int(result['level_before']),
+        'level_after': int(result['level_after']),
+    }, None
+
+
 def _claimed_levels(conn, user_id, track):
     rows = conn.execute(
         'SELECT level FROM battle_pass_claims WHERE user_id = ? AND season_id = ? AND track = ?',
@@ -935,6 +990,8 @@ def state_payload(conn, user_id, *, now=None):
         'xp_into_level': xp_into_level(total),
         'golden': golden,
         'golden_price': GOLDEN_PRICE_GOLDEN_DEW,
+        'xp_buy_cost': XP_BUY_GOLDEN_DEW,
+        'xp_buy_amount': XP_BUY_AMOUNT,
         'golden_perks': {
             'xp_multiplier': GOLDEN_XP_MULTIPLIER,
             'dew_multiplier': GOLDEN_DEW_MULTIPLIER,
@@ -956,12 +1013,13 @@ def state_payload(conn, user_id, *, now=None):
 # 管理端：经验查询与调整（控制台 account xp ...）
 # --------------------------------------------------------------------------
 
-XP_SOURCES = ('match', 'story', 'checkin', 'admin')
+XP_SOURCES = ('match', 'story', 'checkin', 'golden', 'admin')
 
 XP_SOURCE_LABELS = {
     'match': '对局经验',
     'story': '爬塔经验',
     'checkin': '签到经验',
+    'golden': '金露兑换',
     'admin': '管理调整',
 }
 

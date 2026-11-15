@@ -27272,6 +27272,39 @@ def api_battle_pass_purchase():
         return jsonify({'success': False, 'error': '解锁失败'}), 500
 
 
+@app.route('/api/battle-pass/buy-xp', methods=['POST'])
+def api_battle_pass_buy_xp():
+    if not DB_AVAILABLE:
+        return jsonify({'success': False, 'error': DB_INIT_ERROR}), 503
+    user = _current_account_user()
+    if not user:
+        return jsonify({'success': False, 'error': '请先登录账号'}), 401
+    uid = int(user.get('id'))
+    try:
+        with get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            purchase, error = battle_pass.buy_xp(conn, uid)
+            if error:
+                conn.rollback()
+                return jsonify({'success': False, 'error': error})
+            conn.commit()
+            payload = battle_pass.state_payload(conn, uid)
+        fresh = get_user_by_id(uid) or user
+        _set_account_session(fresh)
+        return jsonify({
+            'success': True,
+            **payload,
+            'purchase': purchase,
+            'user': auth_user_payload(fresh),
+        })
+    except sqlite3.OperationalError as exc:
+        admin_event('error', f'battle pass buy xp failed: {exc}')
+        return jsonify({'success': False, 'error': '后台暂时不可用，请稍后再试'}), 503
+    except Exception as exc:
+        admin_event('error', f'battle pass buy xp failed: {exc}')
+        return jsonify({'success': False, 'error': '兑换失败'}), 500
+
+
 @app.route('/api/battle-pass/claim', methods=['POST'])
 def api_battle_pass_claim():
     if not DB_AVAILABLE:

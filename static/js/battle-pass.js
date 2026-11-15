@@ -11,6 +11,8 @@
         error: '',
         claiming: false,
         purchasing: false,
+        buyingXp: false,
+        notice: '',
     };
 
     function escapeHtml(value) {
@@ -39,6 +41,15 @@
         return data || {};
     }
 
+    function ensureSuccess(data, fallback) {
+        // 通行证接口的业务错误沿用 200 + success:false（/purchase 起就这样），
+        // 这里统一翻成异常，避免按钮按下后既无提示又没生效。
+        if (data && data.success === false) {
+            throw new Error((data && data.error) || fallback);
+        }
+        return data || {};
+    }
+
     function applyPayload(data) {
         if (!data || !data.tracks) return;
         state.payload = data;
@@ -50,6 +61,7 @@
         if (!force && state.payload) return;
         state.loading = true;
         state.error = '';
+        state.notice = '';
         renderPanel();
         try {
             const data = await request(API_BASE);
@@ -150,6 +162,10 @@
         const golden = payload.golden
             ? '<span class="bp-golden-on">黄金之路已解锁</span>'
             : `<button class="bp-buy" type="button" data-bp-buy="1"${affordable ? '' : ' disabled'}>解锁黄金之路 · ${price} 金露</button>`;
+        const buyXpCost = Number(payload.xp_buy_cost || 5);
+        const buyXpAmount = Number(payload.xp_buy_amount || 100);
+        const canBuyXp = Number(payload.golden_dew || 0) >= buyXpCost;
+        const buyXpButton = `<button class="bp-buy-xp" type="button" data-bp-buy-xp="1"${canBuyXp ? '' : ' disabled'} title="花费 ${buyXpCost} 金露兑换 ${buyXpAmount} 点通行证经验">${buyXpCost} 金露 → ${buyXpAmount} 经验</button>`;
         const perks = `<div class="bp-perks">
             <span>荆露 ×${payload.golden_perks.dew_multiplier}</span>
             <span>经验 ×${payload.golden_perks.xp_multiplier}</span>
@@ -175,8 +191,9 @@
             <div class="bp-season">
                 <div class="bp-head">
                     <div class="bp-head-title"><span class="bp-season-chip">S1</span>荆棘之路 · 黄金之路</div>
-                    <div class="bp-golden-row">${golden}<span class="bp-balance">金露 ${Number(payload.golden_dew || 0)}</span></div>
+                    <div class="bp-golden-row">${golden}${buyXpButton}<span class="bp-balance">金露 ${Number(payload.golden_dew || 0)}</span></div>
                 </div>
+                ${state.notice ? `<div class="bp-notice">${escapeHtml(state.notice)}</div>` : ''}
                 <div class="bp-level-row">
                     <div class="bp-head-level">Lv.<strong>${level}</strong></div>
                     <div class="bp-bar"><div class="bp-bar-fill" style="width:${pct}%"></div></div>
@@ -233,12 +250,46 @@
         if (!window.confirm(`确认花费 ${price} 金露解锁黄金之路？`)) return;
         state.purchasing = true;
         try {
-            const data = await request(`${API_BASE}/purchase`, { method: 'POST', body: '{}' });
+            const data = ensureSuccess(
+                await request(`${API_BASE}/purchase`, { method: 'POST', body: '{}' }),
+                '解锁失败',
+            );
             applyPayload(data);
         } catch (err) {
             state.error = String(err && err.message ? err.message : err);
         } finally {
             state.purchasing = false;
+            renderPanel();
+        }
+    }
+
+    async function buyXp() {
+        if (state.buyingXp) return;
+        const payload = state.payload || {};
+        const cost = Number(payload.xp_buy_cost || 5);
+        const amount = Number(payload.xp_buy_amount || 100);
+        if (Number(payload.golden_dew || 0) < cost) {
+            state.notice = '金露不足';
+            renderPanel();
+            return;
+        }
+        if (!window.confirm(`确认花费 ${cost} 金露兑换 ${amount} 点通行证经验？`)) return;
+        state.buyingXp = true;
+        try {
+            const data = ensureSuccess(
+                await request(`${API_BASE}/buy-xp`, { method: 'POST', body: '{}' }),
+                '兑换失败',
+            );
+            applyPayload(data);
+            const purchase = data.purchase || {};
+            const beforeLevel = Number(purchase.level_before != null ? purchase.level_before : (data.level || 0));
+            const afterLevel = Number(purchase.level_after != null ? purchase.level_after : beforeLevel);
+            state.notice = `已用 ${cost} 金露兑换 ${amount} 经验（Lv.${beforeLevel} → Lv.${afterLevel}）`;
+        } catch (err) {
+            state.error = String(err && err.message ? err.message : err);
+            state.notice = '';
+        } finally {
+            state.buyingXp = false;
             renderPanel();
         }
     }
@@ -254,6 +305,10 @@
         const allBtn = target.closest('.bp-claim-all');
         if (allBtn) {
             claimAll(allBtn.dataset.track);
+            return;
+        }
+        if (target.closest('[data-bp-buy-xp="1"]')) {
+            buyXp();
             return;
         }
         if (target.closest('.bp-buy')) {
