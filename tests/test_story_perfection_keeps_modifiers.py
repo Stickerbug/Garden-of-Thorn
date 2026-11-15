@@ -99,3 +99,52 @@ def test_perfection_enchants_starter_per_character():
         )
         assert expected in [c.get('def_id') for c in state['player']['deck']]
         assert expected in STORY_CARDS
+
+
+def _resolve_perfection(state, amulet):
+    _queue_deck_operation(
+        state,
+        'enchant_amulet',
+        'perfection',
+        1,
+        [amulet['instance_id']],
+    )
+    state, _events = apply_story_action(
+        state,
+        'resolve_deck_operation',
+        {'selected_card_ids': [amulet['instance_id']]},
+        SEED,
+    )
+    transformed = next(
+        card for card in state['player']['deck']
+        if card.get('instance_id') == amulet['instance_id']
+    )
+    return state, transformed
+
+
+def test_perfection_keeps_the_upgrade_of_the_starter_card():
+    """2026-11-15：升级过的护身符附魔后仍是升级版（25 伤害），不能掉回未升级。"""
+    from story_engine import _card_values
+
+    state, amulet = _state_with_amulet()
+    amulet['upgraded'] = True
+
+    _state, transformed = _resolve_perfection(state, amulet)
+
+    assert transformed['def_id'] == 'enchanted_amulet'
+    assert transformed.get('upgraded') is True
+    assert _card_values(transformed)['effects'][0]['amount'] == 25
+
+
+def test_perfection_keeps_tags_the_card_already_carried(monkeypatch):
+    """2026-11-15：附魔只是换定义，牌上已有的【永恒】等标签必须保留。"""
+    from story_content import STORY_CARDS
+    from story_engine import _card_has_tag
+
+    monkeypatch.setitem(STORY_CARDS['amulet'], 'tags', ('eternal',))
+    state, amulet = _state_with_amulet()
+
+    _state, transformed = _resolve_perfection(state, amulet)
+
+    assert transformed['def_id'] == 'enchanted_amulet'
+    assert _card_has_tag(transformed, 'eternal')

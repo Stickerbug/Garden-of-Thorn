@@ -11652,12 +11652,23 @@ def _resolve_deck_operation(state, payload, seed, events):
             enchanted_def = _PERFECTION_ENCHANT_MAP.get(previous_def)
             if not enchanted_def:
                 _fail('INVALID_ENCHANT_TARGET', '致臻化境只能选择初始牌（护身符/魔法基本/更快）')
-            card['def_id'] = enchanted_def
             # 反馈 #183：转化是「同一张牌换定义」，牌上的修饰（例如 [钟爱]、附魔）
             # 必须保留——之前这里把 modifiers 整段丢掉，钟爱标记会凭空消失。
-            # 升级状态随附魔版重置（附魔版有自己的数值曲线）。
-            card['upgraded'] = False
-            card.pop('upgrade_level', None)
+            # 2026-11-15：升级状态与牌上已有的标签同样跟着牌走——升级过的初始牌
+            # 附魔之后仍是升级版；【永恒】等标签不能因为附魔版定义没写就消失。
+            previous_tags = tuple(_card_tags(_card_values(card)))
+            card['def_id'] = enchanted_def
+            dropped_tags = [
+                tag for tag in previous_tags
+                if tag not in _card_tags(_card_values(card))
+            ]
+            if dropped_tags:
+                modifiers = card.setdefault('modifiers', {})
+                extra_tags = list(modifiers.get('extra_tags') or ())
+                for tag in dropped_tags:
+                    if tag not in extra_tags:
+                        extra_tags.append(tag)
+                modifiers['extra_tags'] = extra_tags
             events.append({
                 'type': 'card_transformed',
                 'card_instance_id': card['instance_id'],
