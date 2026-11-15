@@ -38,6 +38,7 @@ const GTN_BETA_STORAGE_EXACT_KEYS = new Set([
     'gtn_show_english_card_names',
     'gtn_show_hand_order',
     'gtn_show_card_images',
+    'gtn_fast_reward_animation',
     'gtn_home_ui',
     'gtn_landscape_mode',
     'gtn_lock_aspect_ratio',
@@ -95,6 +96,7 @@ const GTN_COOKIE_FALLBACK_KEYS = new Set([
     'gtn_show_english_card_names',
     'gtn_show_hand_order',
     'gtn_show_card_images',
+    'gtn_fast_reward_animation',
     'gtn_home_ui',
     'gtn_landscape_mode',
     'gtn_lock_aspect_ratio',
@@ -2672,6 +2674,9 @@ if (localStorage.getItem('gtn_lang') !== currentLang) localStorage.setItem('gtn_
 let showEnglishCardNames = localStorage.getItem('gtn_show_english_card_names') !== '0';
 let showHandOrder = localStorage.getItem('gtn_show_hand_order') === '1';
 let showCardImages = localStorage.getItem('gtn_show_card_images') !== '0';
+/* 设置·外观「加快物品获取动画」：勾选后物品获取演出速度翻倍（时长减半）。 */
+let fastRewardAnimation = localStorage.getItem('gtn_fast_reward_animation') === '1';
+window.GTN_REWARD_ANIM_FAST = fastRewardAnimation;
 /* #242：触控兼容——开启后双击卡牌/术语 = 右键（打开/关闭介绍）。 */
 let touchDblclickIntro = localStorage.getItem('gtn_touch_dblclick_intro') === '1';
 
@@ -7146,6 +7151,18 @@ function applyShowCardImages(value) {
     localStorage.setItem('gtn_show_card_images', showCardImages ? '1' : '0');
     updateCardImageSettingInput();
     refreshVisibleCardDisplays();
+}
+
+function updateFastRewardAnimationSettingInput() {
+    const input = $('settings-fast-reward-animation');
+    if (input) input.checked = fastRewardAnimation;
+    window.GTN_REWARD_ANIM_FAST = fastRewardAnimation;
+}
+
+function applyFastRewardAnimation(value) {
+    fastRewardAnimation = !!value;
+    localStorage.setItem('gtn_fast_reward_animation', fastRewardAnimation ? '1' : '0');
+    updateFastRewardAnimationSettingInput();
 }
 
 function refreshVisibleCardDisplays() {
@@ -18566,8 +18583,8 @@ function connectSocket(serverUrl, options = {}) {
         phase = 'lobby';
         showView('view-lobby');
     });
-    bindSocketEvent('server_broadcast', (data) => {
-        flashStatus(data.message || '', 4000);
+    bindSocketEvent('server_broadcast', (data) => {
+        flashStatus(data.message || '', 4000);
     });
     bindSocketEvent('maintenance_banner', (data) => {
         if (window.GtnMaintenanceBanner) window.GtnMaintenanceBanner.show(data);
@@ -43216,6 +43233,11 @@ async function init() {
     if (cardImagesToggle) {
         cardImagesToggle.checked = showCardImages;
         cardImagesToggle.addEventListener('change', (e) => applyShowCardImages(e.target.checked));
+    }
+    const fastRewardAnimationToggle = $('settings-fast-reward-animation');
+    if (fastRewardAnimationToggle) {
+        fastRewardAnimationToggle.checked = fastRewardAnimation;
+        fastRewardAnimationToggle.addEventListener('change', (e) => applyFastRewardAnimation(e.target.checked));
     }
     const ownSkinsToggle = $('settings-show-own-skins');
     if (ownSkinsToggle) {

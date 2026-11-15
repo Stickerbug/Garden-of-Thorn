@@ -147,7 +147,14 @@
   .gra-collect { margin-top: 14px; padding: 9px 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .gra-overlay, .gra-wipe, .gra-art-wrap, .gra-char, .gra-collect { animation: none !important; transition: none !important; }
+  /* 设置·外观「加快物品获取动画」：整体播放速度翻倍（时长减半）。 */
+.gra-overlay.is-fast .gra-wipe { animation-duration: .33s; }
+.gra-overlay.is-fast .gra-wipe-two { animation-delay: .04s; }
+.gra-overlay.is-fast .gra-wipe-three { animation-delay: .08s; }
+.gra-overlay.is-fast .gra-art-wrap { animation-duration: .35s; animation-delay: .11s; }
+.gra-overlay.is-fast .gra-char { animation-duration: .21s; }
+
+.gra-overlay, .gra-wipe, .gra-art-wrap, .gra-char, .gra-collect { animation: none !important; transition: none !important; }
   .gra-wipe, .gra-particles { display: none; }
   .gra-art-wrap, .gra-char { clip-path: none; }
   .gra-collect, .gra-collect.is-ready { opacity: 1; pointer-events: auto; transform: none; }

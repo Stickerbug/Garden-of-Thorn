@@ -45,6 +45,21 @@
     return TEXT[value] ? value : 'zh';
   }
 
+  // 设置·外观「加快物品获取动画」：勾选后整段演出时长减半（播放速度翻倍）。
+  // game.js 把偏好放进 window.GTN_REWARD_ANIM_FAST，直接读存储只是兜底。
+  function fastAnimation() {
+    if (typeof window !== 'undefined' && window.GTN_REWARD_ANIM_FAST) return true;
+    try {
+      return window.localStorage.getItem('gtn_fast_reward_animation') === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function scaledDuration(ms) {
+    return fastAnimation() ? Math.round(ms / 2) : ms;
+  }
+
   function normalizeItems(input) {
     const list = Array.isArray(input) ? input : [input];
     const output = [];
@@ -79,7 +94,7 @@
     Array.from(text).forEach((char, index) => {
       const span = el('span', 'gra-char', char);
       span.setAttribute('aria-hidden', 'true');
-      span.style.setProperty('--gra-char-delay', `${delayStart + index * 0.035}s`);
+      span.style.setProperty('--gra-char-delay', `${scaledDuration((delayStart + index * 0.035) * 1000) / 1000}s`);
       root.appendChild(span);
     });
     return root;
@@ -179,7 +194,7 @@
       // 在关闭过程中新到的奖励不会复用旧舞台，直接开启下一场。
       if (active === null && queue.length) show(queue.splice(0));
     };
-    session.closeTimer = window.setTimeout(finish, reducedMotion() ? 0 : 460);
+    session.closeTimer = window.setTimeout(finish, reducedMotion() ? 0 : scaledDuration(460));
   }
 
   function next(session) {
@@ -228,8 +243,8 @@
       collect.classList.add('is-ready');
       collect.focus({ preventScroll: true });
     };
-    session.readyTimer = window.setTimeout(reveal, reducedMotion() ? 40 : 1450);
-    if (session.auto) session.autoTimer = window.setTimeout(() => next(session), reducedMotion() ? 1800 : 3400);
+    session.readyTimer = window.setTimeout(reveal, reducedMotion() ? 40 : scaledDuration(1450));
+    if (session.auto) session.autoTimer = window.setTimeout(() => next(session), reducedMotion() ? 1800 : scaledDuration(3400));
   }
 
   function show(input, options = {}) {
@@ -245,6 +260,7 @@
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
     root.setAttribute('aria-label', TEXT[lang()].heading);
+    if (fastAnimation()) root.classList.add('is-fast');
     root.appendChild(el('canvas', 'gra-particles'));
     ['one', 'two', 'three'].forEach((name) => root.appendChild(el('div', `gra-wipe gra-wipe-${name}`)));
     const skip = el('button', 'gra-skip', TEXT[lang()].skip);
