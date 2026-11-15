@@ -356,6 +356,26 @@ class BattlePassTests(unittest.TestCase):
             again = bp.xp_reward_updates(conn, self.uid, first['cursor'])
         self.assertEqual(again['items'], [])
         self.assertEqual(again['cursor'], first['cursor'])
+    def test_xp_updates_without_a_cursor_do_not_replay_history(self):
+        """首次进主页没有游标时只给最新游标，历史记录不会被当成新奖励回放。"""
+        with self._conn() as conn:
+            for index in range(25):
+                bp._apply_xp(
+                    conn, self.uid, 10, source='checkin',
+                    source_key=f'checkin:probe-{index}',
+                )
+            baseline = bp.xp_reward_updates(conn, self.uid, None)
+            latest_id = int(conn.execute(
+                'SELECT MAX(id) FROM battle_pass_xp_ledger WHERE user_id = ?',
+                (self.uid,),
+            ).fetchone()[0])
+            conn.commit()
+        self.assertEqual(baseline['items'], [])
+        self.assertEqual(baseline['cursor'], latest_id)
+        with self._conn() as conn:
+            after_baseline = bp.xp_reward_updates(conn, self.uid, baseline['cursor'])
+        self.assertEqual(after_baseline['items'], [])
+
 
     def test_milestone_cosmetics_resolve_to_real_catalogs(self):
         """里程碑只能发真实存在的皮肤/背景/称号，否则玩家领到的是空气。"""

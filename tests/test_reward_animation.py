@@ -356,5 +356,31 @@ class RewardStatusApiTests(unittest.TestCase):
             self.assertIn('common_flower', {item['id'] for item in inventory['characters']})
 
 
+
+    def test_status_baseline_never_replays_old_xp_rewards(self):
+        """刚打开页面（没有游标）不能把历史经验记录当新奖励播动画。"""
+        import battle_pass as bp_module
+        with db.get_db_connection() as conn:
+            for index in range(25):
+                bp_module._apply_xp(
+                    conn, self.user['id'], 10, source='checkin',
+                    source_key=f'checkin:probe-{index}',
+                )
+            latest_id = int(conn.execute(
+                'SELECT MAX(id) FROM battle_pass_xp_ledger WHERE user_id = ?',
+                (self.user['id'],),
+            ).fetchone()[0])
+            conn.commit()
+        with mock.patch.object(app, '_current_account_user', return_value=self.user):
+            baseline = self.client.get('/api/rewards/status').get_json()
+            self.assertEqual(baseline['xp_rewards'], [])
+            self.assertEqual(baseline['xp_cursor'], latest_id)
+            replay = self.client.get(
+                f"/api/rewards/status?after={baseline['dew_cursor']}"
+                f"&xp_after={baseline['xp_cursor']}"
+            ).get_json()
+            self.assertEqual(replay['xp_rewards'], [])
+            self.assertEqual(replay['xp_cursor'], baseline['xp_cursor'])
+
 if __name__ == '__main__':
     unittest.main()

@@ -27088,7 +27088,7 @@ def api_rewards_status():
         return jsonify({'success': False, 'error': '奖励游标无效'}), 400
     xp_after_raw = request.args.get('xp_after')
     try:
-        xp_after_id = 0 if xp_after_raw is None else max(0, int(xp_after_raw))
+        xp_after_id = None if xp_after_raw is None else max(0, int(xp_after_raw))
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': '奖励游标无效'}), 400
     try:

@@ -1082,8 +1082,20 @@ XP_REWARD_LABELS = {
 
 
 def xp_reward_updates(conn, user_id, after_id=0, limit=20):
-    """长期奖励接口用：游标之后的正向经验记录（按 id 递增）。"""
+    """长期奖励接口用：游标之后的正向经验记录（按 id 递增）。
+
+    after_id 为 None 表示客户端还没有游标（刚打开页面）：只回报最新游标，
+    不回放历史记录。否则历史记录会在每批 20 条的翻页边界被当成新奖励，
+    每次进主页都重播一遍动画。
+    """
     ensure_pass_schema(conn)
+    if after_id is None:
+        row = conn.execute(
+            'SELECT COALESCE(MAX(id), 0) FROM battle_pass_xp_ledger '
+            'WHERE user_id = ? AND xp > 0',
+            (int(user_id),),
+        ).fetchone()
+        return {'cursor': int(row[0] or 0), 'items': []}
     try:
         after = max(0, int(after_id or 0))
     except (TypeError, ValueError):
