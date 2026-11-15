@@ -664,6 +664,10 @@ class GameEngine2v2(GameEngine):
             ps.weakness = max(0, ps.weakness - 1)
             if ps.weakness == 0:
                 self.log_msg(f"{self.pn(player_id)}的虚弱效果消失")
+        # Nazar: 自己回合结束时层数-1（与 1v1 同一约定，2026-10-18 设计）。
+        # 2026-11-15：2v2 的 _end_player_turn 是独立实现，此前漏了这段，
+        # 导致邪眼在 2v2 永远不衰减。共享方法见 game_engine._decay_nazar_turn_end。
+        self._decay_nazar_turn_end(player_id)
         # Bleed: halve at end of turn
         if ps.bleed > 0:
             ps.bleed = max(0, ps.bleed // 2)

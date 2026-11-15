@@ -7104,6 +7104,20 @@ class GameEngine(reality_events.RealityEngineMixin):
     def _add_nazar_status_value(self, player_id: int, amount: int):
         self._set_nazar_status_value(player_id, self._nazar_status_value(player_id) + int(amount or 0))
 
+    def _decay_nazar_turn_end(self, player_id: int) -> None:
+        """邪眼：自己回合结束时层数-1（1v1 与 2v2 共用同一约定）。
+
+        2026-10-18 起 1v1 在 ``_end_player_turn`` 里内联这段；2v2 的
+        ``_end_player_turn`` 是独立实现，2026-11-15 之前漏掉了它，导致
+        邪眼在 2v2 永远不消失。抽成共享方法，避免两边再次漂移。
+        """
+        nazar_layers = self._nazar_status_value(player_id)
+        if nazar_layers <= 0:
+            return
+        self._set_nazar_status_value(player_id, nazar_layers - 1)
+        if nazar_layers - 1 <= 0:
+            self.log_msg(f"{self.pn(player_id)}的邪眼效果消失")
+
     def _status_alias_declaration(self, key) -> dict:
         """The ``status_aliases`` block matching *key* (role/canonical/alias)."""
         from engine_runtime_support import status_alias_declaration
@@ -14999,11 +15013,7 @@ class GameEngine(reality_events.RealityEngineMixin):
             if ps.weakness == 0:
                 self.log_msg(f"{self.pn(player_id)}的虚弱效果消失")
         # Nazar: 自己回合结束时层数-1（2026-10-18 设计）。
-        nazar_layers = self._nazar_status_value(player_id)
-        if nazar_layers > 0:
-            self._set_nazar_status_value(player_id, nazar_layers - 1)
-            if nazar_layers - 1 <= 0:
-                self.log_msg(f"{self.pn(player_id)}的邪眼效果消失")
+        self._decay_nazar_turn_end(player_id)
         # Bleed: halve at end of turn.
         if ps.bleed > 0:
             ps.bleed = max(0, ps.bleed // 2)
