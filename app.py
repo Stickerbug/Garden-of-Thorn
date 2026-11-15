@@ -41214,12 +41214,14 @@ def api_minigame_suika_sync():
                 source=source,
                 play_mode=_leisure_play_mode_for(identity[0]),
                 game_over=bool(payload.get('game_over')),
+                full_log=bool(payload.get('full_log')),
             )
     except Exception as exc:
         admin_event('error', f'suika sync failed: {exc}')
         return _json_error('同步失败，本地进度已保留', 500)
-    if bool(payload.get('game_over')):
+    if bool(payload.get('game_over')) and str((result or {}).get('status') or '') != 'retry':
         # 游戏失败/结束：直接结算（服务端口径）并结束会话计时。
+        # status == 'retry' 表示还在等完整投放日志补传，先别把会话结算掉。
         import leisure_sessions as _ls
         _ls.force_settle_now(identity[0])
         result = dict(result or {})

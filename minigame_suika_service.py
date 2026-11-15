@@ -242,11 +242,16 @@ def _check_time_anchor(row, kept: List[Dict[str, float]],
 def sync_progress(conn, user_id: int, game_uid: str, from_index: int, drops,
                   *, claimed_score=None, claimed_max_tier=None, source: str = "online",
                   now=None, play_mode: str = "normal",
-                  game_over: bool = False) -> Dict[str, object]:
+                  game_over: bool = False, full_log: bool = False) -> Dict[str, object]:
     """把"这一批新增投放 + 新的总分"立刻落库，并按启发式判断能不能计入榜单。
 
     ``game_over`` 由客户端在结束时置 True：物理游戏服务端判不了终局，
     发奖金额用的是**服务端已存的分数**（只有启发式校验通过的批次才会抬分）。
+
+    ``full_log`` 是终局补传（2026-11-16）：终局那一批常常只带 0~1 个新投放，
+    分数却含着刚结算完的整段连锁，按"单批增长上限"必然被拒。第一次 game_over
+    被拒时先不回改任何东西、也不结算，让客户端把整段 ``dropLog`` 从 0 重传一次
+    （``status == 'retry'``）；补传仍不合格才按已存分数结算，避免这一局永远不关。
     """
 
     ensure_schema(conn)
@@ -263,6 +268,9 @@ def sync_progress(conn, user_id: int, game_uid: str, from_index: int, drops,
                                                             play_mode=play_mode)}
     state = _game_state(row)
     start = int(from_index or 0)
+    if full_log:
+        # 终局补传：从第 0 个投放整段重传，不再按已确认前缀切片。
+        start = 0
     if start > int(state["drop_index"]):
         return {"status": "gap", "expected_index": int(state["drop_index"]), "game": state}
     try:
@@ -287,6 +295,33 @@ def sync_progress(conn, user_id: int, game_uid: str, from_index: int, drops,
     ok, reason = _verify_batch(kept, incoming, int(state["score"]), score)
     if ok and incoming:
         ok, reason = _check_time_anchor(row, kept, incoming, now)
+
+    if game_over and not ok:
+        if not full_log:
+            # 终局批被拒：先别改存档、别结算，让客户端拿完整 dropLog 补传一次。
+            # （这里如果照常 UPDATE，会把 kept 之外的投放序列写没，补传就再也对不上了。）
+            return {
+                "status": "retry",
+                "verified": False,
+                "reason": reason,
+                "retry_with_full_log": True,
+                "game": state,
+            }
+        # 补传仍不合格：按服务端已存分数结算（credit 幂等），避免这一局永远不关。
+        settled_dew = base.credit_game_over_dew(
+            conn, user_id, int(state["game_id"]), int(state["score"]),
+            divisor=GAME_OVER_DEW_DIVISOR, game_key=GAME_KEY,
+        )
+        conn.commit()
+        return {
+            "status": "ok",
+            "verified": False,
+            "settled": True,
+            "reason": reason,
+            "verified_score": None,
+            "dew_awarded": settled_dew,
+            "game": state,
+        }
 
     stamp = base.now_iso(now)
     # 校验不通过时**连投放也不收**：否则这条异常记录会留在序列里，
@@ -332,7 +367,12 @@ def sync_progress(conn, user_id: int, game_uid: str, from_index: int, drops,
             divisor=GAME_OVER_DEW_DIVISOR, game_key=GAME_KEY,
         )
     conn.commit()
-    fresh = _game_state(row)
+    # 重新查一次：`row` 是本批 UPDATE 之前读出来的快照，直接拿它回给客户端会让
+    # 客户端以为这批没被接收（acked / score 停在旧值，下一轮还会重发同一批）。
+    fresh_row = conn.execute(
+        "SELECT * FROM minigame_suika_games WHERE id = ?", (int(state["game_id"]),)
+    ).fetchone()
+    fresh = _game_state(fresh_row if fresh_row is not None else row)
     return {
         "status": "ok",
         "verified": bool(ok),

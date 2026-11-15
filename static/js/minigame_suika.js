@@ -171,6 +171,7 @@ const syncState = {
   acked: 0,          // 服务端已确认的投放数
   verified: 0,       // 已验证入榜的最高分
   gameOverSynced: false, // 结束标记是否已上报（荆露结算每局只发一次）
+  gameOverFullLogAttempted: false, // 终局被拒后是否已经补传过完整投放日志
   timer: null,
   inflight: false,
   lastError: '',
@@ -1064,6 +1065,7 @@ async function restartCloudGame() {
         syncState.gameUid = String(remote.game_uid);
         syncState.acked = 0;
         syncState.gameOverSynced = false;
+        syncState.gameOverFullLogAttempted = false;
       }
     } catch (_) { /* 离线：下次同步时会走 state 分支 */ }
   })();
@@ -1075,10 +1077,14 @@ async function restartCloudGame() {
   }
 }
 
-/** 把"新增投放 + 新总分"立刻上传；服务端落库后再启发式校验能否入榜。 */
-async function syncNow() {
+/** 把"新增投放 + 新总分"立刻上传；服务端落库后再启发式校验能否入榜。
+ *  fullLog: 终局补传 —— 服务端判定本批不合格时，从 0 重传整段 dropLog，
+ *  让结算按真实分数走，而不是停在最后一次通过校验的分数上。 */
+async function syncNow(options = {}) {
+  const fullLog = !!(options && options.fullLog);
   if (syncState.timer) { window.clearTimeout(syncState.timer); syncState.timer = null; }
   if (!game || syncState.inflight || guestMode) return;
+  if (fullLog && syncState.gameOverFullLogAttempted) return;
   if (cloudRestartPromise) {
     try { await cloudRestartPromise; } catch (_) { /* 上面已兜住 */ }
   }
@@ -1102,10 +1108,12 @@ async function syncNow() {
       }
     } catch (_) { syncState.lastError = 'offline'; return; }
   }
-  const drops = game.dropLog.slice(syncState.acked).map((entry) => ({ t: entry.t, x: entry.x }));
+  const fromIndex = fullLog ? 0 : syncState.acked;
+  const drops = game.dropLog.slice(fromIndex).map((entry) => ({ t: entry.t, x: entry.x }));
   // 结束标记还没上报过的话，即使没有新投放/新分数也要同步一次（结算荆露）。
   const gameOverPending = !!(game && game.gameOver) && !syncState.gameOverSynced;
   if (!drops.length && game.score === syncState.verified && !gameOverPending) return;
+  if (fullLog) syncState.gameOverFullLogAttempted = true;
   syncState.inflight = true;
   try {
     const response = await fetch('/api/minigame/suika/sync', {
@@ -1114,16 +1122,22 @@ async function syncNow() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         game_uid: syncState.gameUid,
-        from_index: syncState.acked,
+        from_index: fromIndex,
         drops,
         claimed_score: game.score,
         claimed_max_tier: Math.max(0, Math.min(MAX_TIER, Number(game.maxTierSeen) || 0)),
         source: navigator.onLine === false ? 'offline' : 'online',
         game_over: !!(game && game.gameOver),
+        full_log: fullLog,
       }),
     });
     if (!response.ok) throw new Error(`http ${response.status}`);
     const data = await response.json();
+    if (data && data.status === 'retry') {
+      // 终局批被拒：服务端没动存档也没结算，等完整 dropLog 补传（只补一次）。
+      window.setTimeout(() => { void syncNow({ fullLog: true }); }, 80);
+      return;
+    }
     const remote = data && data.game;
     if (remote) {
       // 服务端永远是权威：stale_game / gap 时采纳它返回的当前局与下标，
@@ -1131,7 +1145,11 @@ async function syncNow() {
       if (remote.game_uid) syncState.gameUid = String(remote.game_uid);
       syncState.acked = Math.max(0, Number(remote.drop_index) || 0);
       if (Number(remote.score) > syncState.verified) syncState.verified = Number(remote.score);
-      if (data.status === 'ok') syncState.gameOverSynced = syncState.gameOverSynced || !!(game && game.gameOver);
+      // 只有真正验证通过（或服务端确认已按旧分结算）才算结束标记上齐；
+      // 单纯 HTTP ok 不算 —— 否则被拒的那一局再也不会补传。
+      if (data.status === 'ok' && (data.verified === true || data.settled === true)) {
+        syncState.gameOverSynced = syncState.gameOverSynced || !!(game && game.gameOver);
+      }
       setVerifiedText();
       saveLocal();
     }
@@ -1146,6 +1164,8 @@ async function syncNow() {
     }
   } catch (_) {
     syncState.lastError = 'sync';
+    // 补传本身失败（断网/超时）：放开一次性标记，下一轮还能再试。
+    if (fullLog) syncState.gameOverFullLogAttempted = false;
     setStatus(lt({ zh: '网络不可用：进度已存在本机，稍后自动重试', en: 'Network unavailable: progress saved locally, retrying soon', fr: 'Réseau indisponible : progression sauvegardée, nouvel essai bientôt', ja: 'ネットワーク不可：進捗はローカル保存済み、後で再試行します' }), { offline: true });
     scheduleSync(8000);
   } finally {

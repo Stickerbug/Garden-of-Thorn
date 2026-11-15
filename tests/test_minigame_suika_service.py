@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import unittest
 from datetime import timedelta
@@ -18,6 +19,10 @@ def _conn():
     conn.executescript(
         "CREATE TABLE users (id INTEGER PRIMARY KEY, username TEXT, display_name TEXT,"
         " thorn_dew_free INTEGER DEFAULT 0, thorn_dew_paid INTEGER DEFAULT 0);"
+        "CREATE TABLE user_currency_transactions (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " user_id INTEGER, currency TEXT, free_delta INTEGER, paid_delta INTEGER, reason TEXT,"
+        " source_type TEXT, source_id TEXT, balance_free_after INTEGER, balance_paid_after INTEGER,"
+        " admin_username TEXT, created_at TEXT);"
     )
     conn.execute("INSERT INTO users (id, username, display_name) VALUES (7, 'probe', 'probe')")
     conn.execute("INSERT INTO users (id, username, display_name) VALUES (8, 'other', 'other')")
@@ -163,6 +168,71 @@ class SuikaServiceTests(unittest.TestCase):
         me = suika.self_entry_from_table(cached, 7)
         self.assertIsNotNone(me)
         self.assertEqual(me['score'], 5)
+    def test_game_over_rejected_batch_asks_for_the_full_log(self):
+        """终局批只有 1 个新投放却要涨 648 分：先要完整日志补传，别急着按旧分结算。"""
+        conn = _conn()
+        game = suika.load_state(conn, 7, seed=1)
+        suika.sync_progress(conn, 7, game['game_uid'], 0,
+                            [{'t': i * 600, 'x': 300} for i in range(4)],
+                            claimed_score=9, claimed_max_tier=1)
+        result = suika.sync_progress(
+            conn, 7, game['game_uid'], 4, [{'t': 2400, 'x': 120}],
+            claimed_score=657, claimed_max_tier=3, game_over=True)
+        self.assertEqual(result['status'], 'retry')
+        self.assertTrue(result['retry_with_full_log'])
+        self.assertFalse(result['verified'])
+        self.assertEqual(result['reason'], '单批分数增长过快')
+        # 存档原样：分数没抬、投放序列没被吞、也没有提前发奖
+        self.assertEqual(result['game']['score'], 9)
+        self.assertEqual(result['game']['drop_index'], 4)
+        rewards = conn.execute('SELECT COUNT(*) FROM minigame_2048_rewards').fetchone()[0]
+        self.assertEqual(int(rewards), 0)
+
+    def test_game_over_full_log_retry_settles_the_real_score(self):
+        conn = _conn()
+        game = suika.load_state(conn, 7, seed=1)
+        suika.sync_progress(conn, 7, game['game_uid'], 0,
+                            [{'t': i * 600, 'x': 300} for i in range(4)],
+                            claimed_score=9, claimed_max_tier=1)
+        retry = suika.sync_progress(
+            conn, 7, game['game_uid'], 0,
+            [{'t': i * 600, 'x': 300} for i in range(5)],
+            claimed_score=657, claimed_max_tier=3, game_over=True, full_log=True)
+        self.assertEqual(retry['status'], 'ok')
+        self.assertTrue(retry['verified'])
+        self.assertEqual(retry['verified_score'], 657)
+        self.assertEqual(retry['game']['score'], 657)
+        self.assertEqual(retry['dew_awarded'], 65)   # 657 // 10
+        self.assertEqual(suika.leaderboard(conn, window='all', limit=10)['entries'][0]['score'], 657)
+
+    def test_game_over_full_log_retry_that_still_fails_settles_the_stored_score(self):
+        conn = _conn()
+        game = suika.load_state(conn, 7, seed=1)
+        suika.sync_progress(conn, 7, game['game_uid'], 0,
+                            [{'t': i * 600, 'x': 300} for i in range(4)],
+                            claimed_score=99, claimed_max_tier=1)
+        retry = suika.sync_progress(
+            conn, 7, game['game_uid'], 0, [{'t': 2400, 'x': 120}],
+            claimed_score=99999, claimed_max_tier=9, game_over=True, full_log=True)
+        self.assertEqual(retry['status'], 'ok')
+        self.assertFalse(retry['verified'])
+        self.assertTrue(retry['settled'])
+        self.assertEqual(retry['dew_awarded'], 9)    # 按已存的 99 分发奖
+        again = suika.sync_progress(
+            conn, 7, game['game_uid'], 0, [{'t': 2400, 'x': 120}],
+            claimed_score=99999, claimed_max_tier=9, game_over=True, full_log=True)
+        self.assertEqual(again['dew_awarded'], 0)    # 同一局只发一次
+
+    def test_client_retries_the_final_batch_with_the_full_drop_log(self):
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            'static', 'js', 'minigame_suika.js')
+        with open(path, encoding='utf-8') as handle:
+            source = handle.read()
+        self.assertIn("data.status === 'retry'", source)
+        self.assertIn('void syncNow({ fullLog: true })', source)
+        self.assertIn('full_log: fullLog', source)
+        self.assertIn('gameOverFullLogAttempted', source)
+        self.assertIn('data.verified === true || data.settled === true', source)
 
 
 if __name__ == '__main__':
