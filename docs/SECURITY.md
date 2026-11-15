@@ -107,3 +107,8 @@ HTTP 限流返回 `429`、`Retry-After` 与 `Cache-Control: no-store`。遇到�
 429 时应先区分单 IP、账号、DB 类别和服务器总量，再调整阈值；不要直接
 移除服务器总熔断。Nginx 与应用层都需要观察连接数、429、SQLite busy、
 请求延迟和 Socket 拒绝数。
+
+## 部署与运维
+
+- **`SECRET_KEY` 等价于管理台命令权限**：拿到它就能签出 `admin_console_authenticated` 会话并调用 `/api/adminconsole/command`（例如 `lobby broadcast <内容>`）。因此它只放在 `0600` 的环境文件里，不写进日志、不提交仓库。
+- 更新前广播由 `scripts/gtn_broadcast.py` 以 root 在服务器本机执行；脚本从 `/proc/<pid>/environ` 取 `SECRET_KEY` 代签短期会话，不打印密钥、不新增公网接口。
