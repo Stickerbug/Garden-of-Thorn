@@ -346,7 +346,13 @@ def pause_play_session(user_id):
 
 
 def resume_play_session(user_id):
-    """重连：恢复倒计时。"""
+    """重连：恢复倒计时（先把已跑过的墙钟时间记进 elapsed，再从当前时刻重新起算）。
+
+    2026-11-16：此前直接把 started_at 改成 now 而不结算已跑时间——活动中的会话
+    elapsed_seconds 还停在 0（只有暂停才写），于是服务器更新/断线重连后
+    （小游戏页 socket 重连会重新发 minigame_presence，服务端走这里的 resume）
+    剩余时间被重置回整 10 分钟。现在先累计 elapsed 再起算，剩余时间保持不变。
+    """
     now = db.utc_now()
     with db.get_db_connection() as conn:
         conn.execute('BEGIN IMMEDIATE')
@@ -357,16 +363,24 @@ def resume_play_session(user_id):
         if row is None or not int(row['active'] or 0):
             conn.commit()
             return None
-        elapsed = float(row['elapsed_seconds'] or 0)
+        started = db.datetime.fromisoformat(str(row['started_at']).replace('Z', '+00:00'))
+        elapsed = float(row['elapsed_seconds'] or 0) + max(
+            0.0, (db.utc_now_dt() - started).total_seconds()
+        )
         if elapsed >= PLAY_SESSION_SECONDS:
             conn.commit()
             return finish_play_session(user_id)
         conn.execute(
-            'UPDATE leisure_play_sessions SET started_at = ?, active = 1, updated_at = ? WHERE user_id = ?',
-            (now, now, int(user_id)),
+            'UPDATE leisure_play_sessions SET elapsed_seconds = ?, started_at = ?, active = 1,'
+            ' updated_at = ? WHERE user_id = ?',
+            (elapsed, now, now, int(user_id)),
         )
         conn.commit()
-        return {'resumed': True, 'elapsed': elapsed}
+        return {
+            'resumed': True,
+            'elapsed': round(elapsed, 1),
+            'remaining': round(max(0.0, PLAY_SESSION_SECONDS - elapsed), 1),
+        }
 
 
 def session_remaining_seconds(conn, user_id):
