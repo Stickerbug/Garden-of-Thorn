@@ -316,12 +316,18 @@ class BattlePassTests(unittest.TestCase):
         self.assertEqual(payload['level'], 125)
         self.assertEqual(payload['max_level'], 125)
         self.assertEqual(payload['base_max_level'], 100)
-        self.assertEqual(len(payload['tracks'][bp.TRACK_FREE]['entries']), 125)
+        self.assertEqual(len(payload['tracks'][bp.TRACK_FREE]['entries']), 126)
         over = payload['tracks'][bp.TRACK_FREE]['entries'][100]  # 第 101 级
         self.assertEqual(over['level'], 101)
         self.assertEqual(over['reward']['kind'], 'dew')
         self.assertEqual(over['reward']['amount'], 100)
         self.assertTrue(over['reward']['overflow'])
+        # 满级之后轨道仍要多给一格（当前等级 +1），主界面 HUD 才有「下一级奖励」可显示。
+        nxt = payload['tracks'][bp.TRACK_FREE]['entries'][-1]
+        self.assertEqual(nxt['level'], 126)
+        self.assertTrue(nxt['reward']['overflow'])
+        self.assertEqual(nxt['text'], '100 荆露')
+        self.assertFalse(nxt['unlocked'])
         self.assertEqual(payload['overflow_rewards'][bp.TRACK_GOLDEN], '50 荆露')
 
     def test_overflow_level_can_be_claimed(self):

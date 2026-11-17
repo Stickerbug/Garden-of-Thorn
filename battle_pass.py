@@ -949,7 +949,8 @@ def state_payload(conn, user_id, *, now=None):
 
     def _track_view(track):
         entries = []
-        visible_max = max(PASS_MAX_LEVEL, level)
+        # 2026-11-17：满级（100 级及以后）也要能看到下一格的溢出奖励，否则 HUD 只能显示「已满级」。
+        visible_max = max(PASS_MAX_LEVEL, level + 1 if level >= PASS_MAX_LEVEL else level)
         for lv in range(1, visible_max + 1):
             reward = reward_for(lv, track)
             entries.append({
