@@ -71,6 +71,23 @@ class PassHomeEntryTests(unittest.TestCase):
         css = read('static/css/battle-pass.css')
         self.assertIn(':is(#achievements-pass-panel, #pass-panel)', css)
         self.assertIn('#pass-popover {', css)
+    def test_top_button_shows_level_reward_and_progress(self):
+        html = read('templates/index.html')
+        for anchor in ('id="pass-hud"', 'id="pass-hud-level"', 'id="pass-hud-next-icon"',
+                       'id="pass-hud-next-text"', 'id="pass-hud-bar-fill"', 'id="pass-hud-xp"'):
+            self.assertIn(anchor, html)
+        css = read('static/css/style.css')
+        self.assertIn('.pass-hud-level {', css)
+        self.assertIn('.pass-hud-bar-fill {', css)
+        # 顶栏按钮里的 img 默认 display:none，奖励图标必须显式放开
+        self.assertIn('.pass-top-btn .pass-hud-next-icon {', css)
+        js = read('static/js/game.js')
+        self.assertIn('function applyPassEntryHud(payload)', js)
+        self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
+        self.assertIn("payload.tracks[payload.golden ? 'golden' : 'free']", js)
+        self.assertIn("fill.style.width = Math.round((into / perLevel) * 100) + '%';", js)
+        self.assertIn('applyPassEntryHud(payload);', js)
+        self.assertIn('applyPassEntryHud(null);', js)
 
 
 if __name__ == '__main__':

@@ -19740,9 +19740,50 @@ function applyPassEntryIcon(golden) {
     if (homeLabel) homeLabel.textContent = passEntryGolden ? '通行证 Pro' : '通行证';
 }
 
+function applyPassEntryHud(payload) {
+    const hud = $('pass-hud');
+    if (!hud) return;
+    if (!payload) {
+        hud.hidden = true;
+        return;
+    }
+    const level = Math.max(1, Number(payload.level) || 1);
+    const perLevel = Math.max(1, Number(payload.xp_per_level) || 100);
+    const into = Math.max(0, Math.min(perLevel, Number(payload.xp_into_level) || 0));
+    const maxLevel = Math.max(level, Number(payload.max_level) || level);
+    const track = payload.tracks && payload.tracks[payload.golden ? 'golden' : 'free'];
+    const next = level + 1;
+    const entry = track && Array.isArray(track.entries)
+        ? track.entries.find((item) => Number(item.level) === next)
+        : null;
+    const levelEl = $('pass-hud-level');
+    if (levelEl) levelEl.textContent = String(level);
+    const iconEl = $('pass-hud-next-icon');
+    const textEl = $('pass-hud-next-text');
+    if (entry) {
+        if (iconEl) {
+            iconEl.hidden = !entry.icon;
+            if (entry.icon) iconEl.src = entry.icon;
+        }
+        if (textEl) textEl.textContent = entry.text || entry.type || '';
+    } else {
+        if (iconEl) {
+            iconEl.hidden = true;
+            iconEl.removeAttribute('src');
+        }
+        if (textEl) textEl.textContent = level >= maxLevel ? '已满级' : '—';
+    }
+    const fill = $('pass-hud-bar-fill');
+    if (fill) fill.style.width = Math.round((into / perLevel) * 100) + '%';
+    const xpEl = $('pass-hud-xp');
+    if (xpEl) xpEl.textContent = into + '/' + perLevel;
+    hud.hidden = false;
+}
+
 function syncPassEntryIcons(payload) {
     if (!payload) return;
     applyPassEntryIcon(!!payload.golden);
+    applyPassEntryHud(payload);
 }
 
 async function syncPassEntryIconForAccount() {
@@ -19750,6 +19791,7 @@ async function syncPassEntryIconForAccount() {
     if (!uid) {
         passEntryGoldenSyncedId = null;
         applyPassEntryIcon(false);
+        applyPassEntryHud(null);
         return;
     }
     if (passEntryGoldenSyncedId === uid) return;
