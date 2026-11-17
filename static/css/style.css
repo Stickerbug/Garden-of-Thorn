@@ -683,6 +683,17 @@ html.home-touhou-active .top-action-buttons {
 .achievements-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/achievements.svg"); }
 .replay-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/replay.svg"); }
 .leaderboard-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/rank.svg"); }
+/* 2026-11-17：通行证从成就弹层移到主界面，拥有黄金之路时换成 Season Pass Pro */
+.pass-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass.svg"); }
+.pass-top-btn.pass-top-btn-pro::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass-pro.svg"); }
+.home-entry-icon {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 0.4em;
+  vertical-align: -0.16em;
+  object-fit: contain;
+}
 
 .resource-icon-label {
   min-width: 22px;

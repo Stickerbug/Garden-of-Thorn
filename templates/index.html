@@ -107,6 +107,7 @@
 <button id="btn-changelog-top" class="top-icon-btn changelog-top-btn" type="button" aria-label="公告"><img src="/static/assets/ui-icons/log.svg" alt="" aria-hidden="true"><span class="top-icon-label">公告</span></button>
 <button id="btn-skin-top" class="top-icon-btn skin-top-btn" type="button" aria-label="皮肤"><img src="/static/assets/ui-icons/skins.svg" alt="" aria-hidden="true"><span class="top-icon-label">皮肤</span></button>
 <button id="btn-achievements-top" class="top-icon-btn achievements-top-btn" type="button" aria-label="成就"><img src="/static/assets/ui-icons/achievements.svg" alt="" aria-hidden="true"><span class="top-icon-label">成就</span></button>
+ <button id="btn-pass-top" class="top-icon-btn pass-top-btn" type="button" aria-label="通行证" title="通行证"><img src="/static/assets/ui-icons/season-pass.svg" alt="" aria-hidden="true"><span class="top-icon-label">通行证</span></button>
 <button id="btn-title-shop-top" class="top-icon-btn title-shop-top-btn" type="button" aria-label="商店"><img src="/static/assets/ui-icons/shop.svg" alt="" aria-hidden="true"><span class="top-icon-label">商店</span></button>
 <button id="btn-card-gallery" class="top-icon-btn gallery-top-btn" type="button" aria-label="图鉴"><img src="/static/assets/ui-icons/gallery.svg" alt="" aria-hidden="true"><span class="top-icon-label">图鉴</span></button>
 <button id="btn-replays-top" class="top-icon-btn replay-top-btn" type="button" aria-label="回放"><img src="/static/assets/ui-icons/replay.svg" alt="" aria-hidden="true"><span class="top-icon-label">回放</span></button>
@@ -265,13 +266,19 @@
     <button class="account-mode-tab" type="button" data-achievement-tab="daily">签到</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="achievements">成就</button>
     <button class="account-mode-tab" type="button" data-achievement-tab="tasks">每日任务</button>
-    <button class="account-mode-tab" type="button" data-achievement-tab="pass">通行证</button>
   </div>
   <div id="achievements-dew-panel" class="achievement-tab-panel"></div>
   <div id="achievements-daily-panel" class="achievement-tab-panel hidden"></div>
   <div id="achievements-list" class="achievements-list"></div>
   <div id="achievements-tasks-panel" class="achievement-tab-panel hidden"></div>
   <div id="achievements-pass-panel" class="achievement-tab-panel hidden"></div>
+</div>
+<div id="pass-popover" class="account-popover pass-popover hidden">
+  <div class="account-popover-head">
+    <div id="pass-popover-title" class="account-popover-title">通行证</div>
+    <button id="btn-pass-popover-close" class="account-close-btn" type="button" aria-label="关闭通行证">×</button>
+  </div>
+  <div id="pass-panel" class="pass-panel-host"></div>
 </div>
 <div id="title-shop-popover" class="account-popover title-shop-popover hidden">
   <div class="account-popover-head">
@@ -567,6 +574,9 @@
 <!-- 東方Project风主页隐藏了右上角图标，成就/签到/通行证在这里补一个入口 -->
 <div class="form-row home-extra-entry" id="home-entry-achievements-row">
   <button id="home-entry-achievements" class="btn" type="button" data-menu-en="Achievements">成就与货币</button>
+</div>
+<div class="form-row home-extra-entry" id="home-entry-pass-row">
+  <button id="home-entry-pass" class="btn" type="button" data-menu-en="Season Pass"><img id="home-entry-pass-icon" class="home-entry-icon" src="/static/assets/ui-icons/season-pass.svg" alt="" aria-hidden="true"><span id="home-entry-pass-label">通行证</span></button>
 </div>
 <div class="form-row home-extra-entry" id="home-entry-ann-row">
   <button id="home-entry-ann" class="btn" type="button" data-menu-en="Announcement and log">公告与日志</button>

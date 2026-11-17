@@ -54,6 +54,8 @@
         if (!data || !data.tracks) return;
         state.payload = data;
         state.error = '';
+        // 2026-11-17：通行证移到主界面后，主界面图标要跟着黄金之路的归属换图。
+        if (typeof window.gtnSyncPassEntryIcons === 'function') window.gtnSyncPassEntryIcons(data);
     }
 
     async function ensureLoaded(force) {
@@ -137,8 +139,15 @@
     }
 
     function renderPanel(container) {
-        const panel = container || document.getElementById('achievements-pass-panel');
-        if (!panel) return;
+        // 2026-11-17：通行证入口移到主界面，同一个状态要渲染到成就弹层与独立弹层两个挂载点。
+        if (container) { renderInto(container); return; }
+        ['achievements-pass-panel', 'pass-panel'].forEach((id) => {
+            const node = document.getElementById(id);
+            if (node) renderInto(node);
+        });
+    }
+
+    function renderInto(panel) {
         if (state.loading && !state.payload) {
             panel.innerHTML = '<div class="account-replay-sub">通行证加载中…</div>';
             return;

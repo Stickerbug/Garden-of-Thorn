@@ -1,9 +1,9 @@
 /* 通行证（S1 荆棘之路 / 黄金之路）弹层样式。
-   仅作用于 #achievements-pass-panel，避免影响成就弹层的其它页签。
+   仅作用于 :is(#achievements-pass-panel, #pass-panel)，避免影响成就弹层的其它页签。
    配色跟随成就弹层底色：浅色主题用深金字/深绿字，[data-theme="dark"] 下换回亮色，
    否则按钮会出现「浅字浅底」看不清的问题。 */
 
-#achievements-pass-panel {
+:is(#achievements-pass-panel, #pass-panel) {
     --bp-gold: #a1741d;
     --bp-gold-strong: #6b4a00;
     --bp-gold-tint: rgba(255, 214, 102, .18);
@@ -18,7 +18,7 @@
     color: var(--text-primary);
 }
 
-[data-theme="dark"] #achievements-pass-panel {
+[data-theme="dark"] :is(#achievements-pass-panel, #pass-panel) {
     --bp-gold: #f3d98a;
     --bp-gold-strong: #fff4cc;
     --bp-gold-tint: rgba(243, 217, 138, .18);
@@ -34,7 +34,7 @@
 
 /* ── 赛季信息卡 ───────────────────────────────────────────── */
 
-#achievements-pass-panel .bp-season {
+:is(#achievements-pass-panel, #pass-panel) .bp-season {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 12px 14px 10px;
@@ -42,14 +42,14 @@
     margin-bottom: 12px;
 }
 
-#achievements-pass-panel .bp-head {
+:is(#achievements-pass-panel, #pass-panel) .bp-head {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 14px;
 }
 
-#achievements-pass-panel .bp-head-title {
+:is(#achievements-pass-panel, #pass-panel) .bp-head-title {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -58,7 +58,7 @@
     letter-spacing: .02em;
 }
 
-#achievements-pass-panel .bp-season-chip {
+:is(#achievements-pass-panel, #pass-panel) .bp-season-chip {
     display: inline-block;
     padding: 1px 7px;
     border-radius: 999px;
@@ -69,7 +69,7 @@
     color: var(--bp-gold);
 }
 
-#achievements-pass-panel .bp-golden-row {
+:is(#achievements-pass-panel, #pass-panel) .bp-golden-row {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -78,31 +78,31 @@
     color: var(--text-secondary);
 }
 
-#achievements-pass-panel .bp-golden-on {
+:is(#achievements-pass-panel, #pass-panel) .bp-golden-on {
     color: var(--bp-gold);
     font-weight: 700;
 }
 
-#achievements-pass-panel .bp-level-row {
+:is(#achievements-pass-panel, #pass-panel) .bp-level-row {
     display: flex;
     align-items: center;
     gap: 10px;
     margin: 10px 0 8px;
 }
 
-#achievements-pass-panel .bp-head-level {
+:is(#achievements-pass-panel, #pass-panel) .bp-head-level {
     flex: 0 0 auto;
     font-size: 12px;
     color: var(--text-secondary);
 }
 
-#achievements-pass-panel .bp-head-level strong {
+:is(#achievements-pass-panel, #pass-panel) .bp-head-level strong {
     font-size: 20px;
     color: var(--text-primary);
     margin-left: 2px;
 }
 
-#achievements-pass-panel .bp-bar {
+:is(#achievements-pass-panel, #pass-panel) .bp-bar {
     flex: 1 1 auto;
     height: 12px;
     border-radius: 999px;
@@ -111,14 +111,14 @@
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, .08);
 }
 
-#achievements-pass-panel .bp-bar-fill {
+:is(#achievements-pass-panel, #pass-panel) .bp-bar-fill {
     height: 100%;
     border-radius: 999px;
     background: linear-gradient(90deg, #6aa8e8, #9b7ae0);
     transition: width .25s ease;
 }
 
-#achievements-pass-panel .bp-head-xp {
+:is(#achievements-pass-panel, #pass-panel) .bp-head-xp {
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
@@ -130,25 +130,25 @@
     white-space: nowrap;
 }
 
-#achievements-pass-panel .bp-head-xp small {
+:is(#achievements-pass-panel, #pass-panel) .bp-head-xp small {
     font-size: 10px;
     color: var(--text-secondary);
 }
 
-#achievements-pass-panel .bp-xp-value {
+:is(#achievements-pass-panel, #pass-panel) .bp-xp-value {
     display: inline-flex;
     align-items: center;
     gap: 4px;
 }
 
-#achievements-pass-panel .bp-xp-icon {
+:is(#achievements-pass-panel, #pass-panel) .bp-xp-icon {
     width: 16px;
     height: 16px;
     display: block;
     flex: 0 0 auto;
 }
 
-#achievements-pass-panel .bp-season-meta {
+:is(#achievements-pass-panel, #pass-panel) .bp-season-meta {
     margin-top: 6px;
     padding-top: 6px;
     border-top: 1px dashed var(--border-color);
@@ -156,7 +156,7 @@
     color: var(--text-secondary);
 }
 
-#achievements-pass-panel .bp-perks {
+:is(#achievements-pass-panel, #pass-panel) .bp-perks {
     display: flex;
     flex-wrap: wrap;
     gap: 6px 8px;
@@ -165,61 +165,61 @@
     margin-bottom: 6px;
 }
 
-#achievements-pass-panel .bp-perks > span {
+:is(#achievements-pass-panel, #pass-panel) .bp-perks > span {
     padding: 2px 8px;
     border-radius: 999px;
     background: var(--bp-cell-bg-strong);
     white-space: nowrap;
 }
 
-#achievements-pass-panel .bp-weekly {
+:is(#achievements-pass-panel, #pass-panel) .bp-weekly {
     font-size: 12px;
     color: var(--text-secondary);
 }
 
 /* ── 双轨 ────────────────────────────────────────────────── */
 
-#achievements-pass-panel .bp-tracks {
+:is(#achievements-pass-panel, #pass-panel) .bp-tracks {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
 }
 
-#achievements-pass-panel .bp-track {
+:is(#achievements-pass-panel, #pass-panel) .bp-track {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 10px 12px 6px;
     background: var(--bp-track-bg);
 }
 
-#achievements-pass-panel .bp-track.golden {
+:is(#achievements-pass-panel, #pass-panel) .bp-track.golden {
     border-color: var(--bp-gold-ring);
     background: var(--bp-gold-tint);
 }
 
-#achievements-pass-panel .bp-track-head {
+:is(#achievements-pass-panel, #pass-panel) .bp-track-head {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 13px;
 }
 
-#achievements-pass-panel .bp-track-name.free {
+:is(#achievements-pass-panel, #pass-panel) .bp-track-name.free {
     color: var(--bp-green);
     font-weight: 700;
 }
 
-#achievements-pass-panel .bp-track-name.golden {
+:is(#achievements-pass-panel, #pass-panel) .bp-track-name.golden {
     color: var(--bp-gold);
     font-weight: 700;
 }
 
-#achievements-pass-panel .bp-track-meta {
+:is(#achievements-pass-panel, #pass-panel) .bp-track-meta {
     color: var(--text-secondary);
     font-size: 12px;
 }
 
-#achievements-pass-panel .bp-claim-all {
+:is(#achievements-pass-panel, #pass-panel) .bp-claim-all {
     margin-left: auto;
     font-size: 12px;
     font-weight: 600;
@@ -231,16 +231,16 @@
     cursor: pointer;
 }
 
-#achievements-pass-panel .bp-claim-all:hover {
+:is(#achievements-pass-panel, #pass-panel) .bp-claim-all:hover {
     filter: brightness(.94);
 }
 
-#achievements-pass-panel .bp-claim-all[disabled] {
+:is(#achievements-pass-panel, #pass-panel) .bp-claim-all[disabled] {
     opacity: .5;
     cursor: default;
 }
 
-#achievements-pass-panel .bp-locked-note {
+:is(#achievements-pass-panel, #pass-panel) .bp-locked-note {
     margin-top: 4px;
     font-size: 12px;
     color: var(--bp-gold);
@@ -248,7 +248,7 @@
 
 /* ── 泡泡轨道 ────────────────────────────────────────────── */
 
-#achievements-pass-panel .bp-rail {
+:is(#achievements-pass-panel, #pass-panel) .bp-rail {
     position: relative;
     display: flex;
     align-items: flex-start;
@@ -262,7 +262,7 @@
 }
 
 /* 泡泡之间的连线，让 100 格读起来像一条轨道 */
-#achievements-pass-panel .bp-rail::before {
+:is(#achievements-pass-panel, #pass-panel) .bp-rail::before {
     content: '';
     position: absolute;
     left: 10px;
@@ -274,20 +274,20 @@
     z-index: 0;
 }
 
-#achievements-pass-panel .bp-rail::-webkit-scrollbar {
+:is(#achievements-pass-panel, #pass-panel) .bp-rail::-webkit-scrollbar {
     height: 6px;
 }
 
-#achievements-pass-panel .bp-rail::-webkit-scrollbar-thumb {
+:is(#achievements-pass-panel, #pass-panel) .bp-rail::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: var(--bp-cell-bg-strong);
 }
 
-#achievements-pass-panel .bp-rail-locked {
+:is(#achievements-pass-panel, #pass-panel) .bp-rail-locked {
     pointer-events: none;
 }
 
-#achievements-pass-panel .bp-node {
+:is(#achievements-pass-panel, #pass-panel) .bp-node {
     position: relative;
     z-index: 1;
     flex: 0 0 auto;
@@ -305,7 +305,7 @@
     cursor: default;
 }
 
-#achievements-pass-panel .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-bubble {
     position: relative;
     display: grid;
     place-items: center;
@@ -322,7 +322,7 @@
     transition: transform .15s ease, box-shadow .15s ease;
 }
 
-#achievements-pass-panel .bp-bubble-star {
+:is(#achievements-pass-panel, #pass-panel) .bp-bubble-star {
     position: absolute;
     top: -6px;
     right: -4px;
@@ -334,7 +334,7 @@
     border-radius: 50%;
 }
 
-#achievements-pass-panel .bp-node-reward {
+:is(#achievements-pass-panel, #pass-panel) .bp-node-reward {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -345,14 +345,14 @@
     overflow: hidden;
 }
 
-#achievements-pass-panel .bp-node-amount {
+:is(#achievements-pass-panel, #pass-panel) .bp-node-amount {
     font-size: 11px;
     font-weight: 700;
     color: var(--bp-gold);
     font-variant-numeric: tabular-nums;
 }
 
-#achievements-pass-panel .bp-node-type {
+:is(#achievements-pass-panel, #pass-panel) .bp-node-type {
     font-size: 8.5px;
     line-height: 1.1;
     letter-spacing: .02em;
@@ -361,12 +361,12 @@
     white-space: nowrap;
 }
 
-#achievements-pass-panel .bp-node-unit {
+:is(#achievements-pass-panel, #pass-panel) .bp-node-unit {
     color: var(--text-secondary);
     word-break: break-all;
 }
 
-#achievements-pass-panel .bp-node-icon {
+:is(#achievements-pass-panel, #pass-panel) .bp-node-icon {
     width: 18px;
     height: 18px;
     display: block;
@@ -374,7 +374,7 @@
     margin-bottom: 1px;
 }
 
-#achievements-pass-panel .bp-node.milestone .bp-node-icon {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.milestone .bp-node-icon {
     width: 32px;
     height: 32px;
     margin-bottom: 2px;
@@ -382,17 +382,17 @@
 
 /* 玩家皮肤是极简徽记（六边形/星形/骷髅），比通用图标再放大一档才认得出，
    不加底色——徽记本身就是实心色块，叠底反而缩小了字形。 */
-#achievements-pass-panel .bp-node-icon-player_skin {
+:is(#achievements-pass-panel, #pass-panel) .bp-node-icon-player_skin {
     width: 26px;
     height: 26px;
 }
 
-#achievements-pass-panel .bp-node.milestone .bp-node-icon-player_skin {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.milestone .bp-node-icon-player_skin {
     width: 38px;
     height: 38px;
 }
 
-#achievements-pass-panel .bp-node.milestone .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.milestone .bp-bubble {
     width: 50px;
     height: 50px;
     margin-top: -2px;
@@ -403,18 +403,18 @@
     box-shadow: 0 0 0 3px var(--bp-gold-tint);
 }
 
-#achievements-pass-panel .bp-node.locked .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.locked .bp-bubble {
     border-style: dashed;
     opacity: .55;
 }
 
-#achievements-pass-panel .bp-node.claimed .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.claimed .bp-bubble {
     border-color: var(--bp-green-ring);
     background: var(--bp-green-tint);
     color: var(--bp-green);
 }
 
-#achievements-pass-panel .bp-node.claimed .bp-bubble::after {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.claimed .bp-bubble::after {
     content: '✓';
     position: absolute;
     right: -3px;
@@ -430,15 +430,15 @@
     line-height: 1;
 }
 
-#achievements-pass-panel .bp-node.current .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.current .bp-bubble {
     box-shadow: 0 0 0 3px var(--bp-green-ring);
 }
 
-#achievements-pass-panel .bp-node.claimable {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.claimable {
     cursor: pointer;
 }
 
-#achievements-pass-panel .bp-node.claimable .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.claimable .bp-bubble {
     border-color: #c8952c;
     background: linear-gradient(180deg, #ffeab0, #f7d67a);
     color: #6b4a00;
@@ -446,7 +446,7 @@
     animation: bpPulse 1.8s ease-in-out infinite;
 }
 
-#achievements-pass-panel .bp-node.claimable:hover .bp-bubble {
+:is(#achievements-pass-panel, #pass-panel) .bp-node.claimable:hover .bp-bubble {
     transform: translateY(-2px) scale(1.04);
 }
 
@@ -456,12 +456,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #achievements-pass-panel .bp-node.claimable .bp-bubble {
+    :is(#achievements-pass-panel, #pass-panel) .bp-node.claimable .bp-bubble {
         animation: none;
     }
 }
 
-#achievements-pass-panel .bp-buy {
+:is(#achievements-pass-panel, #pass-panel) .bp-buy {
     padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid var(--bp-gold-ring);
@@ -472,18 +472,18 @@
     cursor: pointer;
 }
 
-#achievements-pass-panel .bp-buy:hover {
+:is(#achievements-pass-panel, #pass-panel) .bp-buy:hover {
     filter: brightness(.95);
 }
 
-#achievements-pass-panel .bp-buy[disabled] {
+:is(#achievements-pass-panel, #pass-panel) .bp-buy[disabled] {
     opacity: .55;
     cursor: default;
     filter: none;
 }
 
 /* 2026-11-15：5 金露 → 100 经验（与「解锁黄金之路」并排，弱化一档以免抢主按钮）。 */
-#achievements-pass-panel .bp-buy-xp {
+:is(#achievements-pass-panel, #pass-panel) .bp-buy-xp {
     padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid rgba(255, 214, 102, .55);
@@ -494,17 +494,17 @@
     cursor: pointer;
 }
 
-#achievements-pass-panel .bp-buy-xp:hover {
+:is(#achievements-pass-panel, #pass-panel) .bp-buy-xp:hover {
     background: rgba(255, 214, 102, .22);
 }
 
-#achievements-pass-panel .bp-buy-xp[disabled] {
+:is(#achievements-pass-panel, #pass-panel) .bp-buy-xp[disabled] {
     opacity: .45;
     cursor: default;
     background: rgba(255, 214, 102, .06);
 }
 
-#achievements-pass-panel .bp-notice {
+:is(#achievements-pass-panel, #pass-panel) .bp-notice {
     margin: 6px 0 2px;
     padding: 6px 10px;
     border-radius: 8px;
@@ -514,7 +514,7 @@
     font-size: 12px;
 }
 
-#achievements-pass-panel .bp-retry {
+:is(#achievements-pass-panel, #pass-panel) .bp-retry {
     margin-top: 8px;
     padding: 4px 10px;
     border-radius: 8px;
@@ -522,4 +522,15 @@
     background: var(--bg-card);
     color: var(--text-primary);
     cursor: pointer;
+}
+
+/* 2026-11-17：通行证从成就弹层移出，主界面独立入口使用自己的弹层容器 */
+#pass-popover {
+  width: min(980px, 96vw);
+  max-width: 96vw;
+  max-height: 88vh;
+  overflow: auto;
+}
+#pass-popover .pass-panel-host {
+  min-height: 140px;
 }

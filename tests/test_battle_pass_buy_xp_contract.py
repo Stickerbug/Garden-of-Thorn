@@ -40,10 +40,12 @@ class BuyPassXpContractTests(unittest.TestCase):
         self.assertIn('state.notice', source)
 
     def test_styles_exist_for_the_button_and_notice(self):
+        # 2026-11-17：通行证面板从成就弹层移到独立弹层，样式作用域改成 :is(旧面板, 新面板)；
+        # 这里只校验按钮和提示的样式存在，不绑定具体容器前缀。
         source = _read('static', 'css', 'battle-pass.css')
-        self.assertIn('#achievements-pass-panel .bp-buy-xp {', source)
-        self.assertIn('#achievements-pass-panel .bp-buy-xp[disabled] {', source)
-        self.assertIn('#achievements-pass-panel .bp-notice {', source)
+        self.assertIn('.bp-buy-xp {', source)
+        self.assertIn('.bp-buy-xp[disabled] {', source)
+        self.assertIn('.bp-notice {', source)
 
 
 if __name__ == '__main__':

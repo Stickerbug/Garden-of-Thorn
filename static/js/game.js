@@ -19719,6 +19719,71 @@ async function loadAchievementCenter(force = false) {
     }
 }
 
+let passEntryGoldenSyncedId = null;
+let passEntryGolden = null;
+
+function applyPassEntryIcon(golden) {
+    passEntryGolden = !!golden;
+    const top = $('btn-pass-top');
+    if (top) {
+        top.classList.toggle('pass-top-btn-pro', passEntryGolden);
+        top.setAttribute('aria-label', passEntryGolden ? '通行证 Pro' : '通行证');
+        top.title = passEntryGolden ? '通行证 Pro' : '通行证';
+    }
+    const homeIcon = $('home-entry-pass-icon');
+    if (homeIcon) {
+        homeIcon.src = passEntryGolden
+            ? '/static/assets/ui-icons/season-pass-pro.svg'
+            : '/static/assets/ui-icons/season-pass.svg';
+    }
+    const homeLabel = $('home-entry-pass-label');
+    if (homeLabel) homeLabel.textContent = passEntryGolden ? '通行证 Pro' : '通行证';
+}
+
+function syncPassEntryIcons(payload) {
+    if (!payload) return;
+    applyPassEntryIcon(!!payload.golden);
+}
+
+async function syncPassEntryIconForAccount() {
+    const uid = currentAccount && currentAccount.id ? String(currentAccount.id) : '';
+    if (!uid) {
+        passEntryGoldenSyncedId = null;
+        applyPassEntryIcon(false);
+        return;
+    }
+    if (passEntryGoldenSyncedId === uid) return;
+    passEntryGoldenSyncedId = uid;
+    try {
+        const data = await authRequest('/api/battle-pass', undefined, { timeoutMs: 6000 });
+        if (currentAccount && String(currentAccount.id) === uid) syncPassEntryIcons(data);
+    } catch (_) {
+        passEntryGoldenSyncedId = null;
+    }
+}
+
+window.gtnSyncPassEntryIcons = syncPassEntryIcons;
+
+function togglePassPopover(force) {
+    const pop = $('pass-popover');
+    if (!pop) return;
+    const show = force === undefined ? pop.classList.contains('hidden') : !!force;
+    pop.classList.toggle('hidden', !show);
+    if (show) {
+        toggleAccountPopover(false);
+        toggleFriendsPopover(false);
+        toggleStatsPopover(false);
+        toggleLeaderboardPopover(false);
+        toggleChangelogPopover(false);
+        toggleTitleShopPopover(false);
+        toggleAchievementsPopover(false);
+        if (window.gtnBattlePass) {
+            window.gtnBattlePass.ensureLoaded(true);
+            window.gtnBattlePass.render($('pass-panel'));
+        }
+    }
+}
+
 function toggleAchievementsPopover(force) {
     const pop = $('achievements-popover');
     if (!pop) return;
@@ -23518,6 +23583,7 @@ function cacheAccount(user) {
 }
 
 function renderAccountState() {
+    syncPassEntryIconForAccount();
     const accountDisplay = currentAccount ? (currentAccount.display_name || currentAccount.username) : '';
     const accountText = currentAccount ? tf('account_logged_in_as', accountDisplay) : UI.account_not_logged_in;
     renderAccountWarningBanner();
@@ -42905,6 +42971,9 @@ async function init() {
     if ($('btn-replays-top')) $('btn-replays-top').addEventListener('click', () => toggleStatsPopover());
     if ($('btn-achievements-top')) $('btn-achievements-top').addEventListener('click', () => toggleAchievementsPopover());
     if ($('home-entry-achievements')) $('home-entry-achievements').addEventListener('click', () => toggleAchievementsPopover(true));
+    if ($('btn-pass-top')) $('btn-pass-top').addEventListener('click', () => togglePassPopover());
+    if ($('home-entry-pass')) $('home-entry-pass').addEventListener('click', () => togglePassPopover(true));
+    if ($('btn-pass-popover-close')) $('btn-pass-popover-close').addEventListener('click', () => togglePassPopover(false));
     if ($('btn-achievements-popover-close')) $('btn-achievements-popover-close').addEventListener('click', () => toggleAchievementsPopover(false));
     if ($('btn-title-shop-top')) $('btn-title-shop-top').addEventListener('click', () => toggleTitleShopPopover());
     if ($('btn-title-shop-close')) $('btn-title-shop-close').addEventListener('click', () => toggleTitleShopPopover(false));
