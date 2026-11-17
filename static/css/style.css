@@ -686,23 +686,22 @@ html.home-touhou-active .top-action-buttons {
 /* 2026-11-17：通行证从成就弹层移到主界面，拥有黄金之路时换成 Season Pass Pro */
 .pass-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass.svg"); }
 .pass-top-btn.pass-top-btn-pro::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass-pro.svg"); }
-/* 2026-11-17：通行证入口固定到右上角，图标比其它顶栏按钮大一倍（50px → 100px），
- * 落在金币 HUD 下方，避免和右上角的资源栏叠在一起。 */
+/* 2026-11-17：通行证入口固定到右上角，上边缘紧贴荆露栏下沿，按图形比例放大（约为常规顶栏按钮的三倍宽）。 */
 button.pass-top-btn {
   position: fixed;
-  top: 50px;
-  right: 12px;
-  width: 100px;
-  height: 100px;
+  top: 36px;
+  right: 10px;
+  width: 170px;
+  height: auto;
+  aspect-ratio: 246 / 148;
   z-index: 910;
 }
-button.pass-top-btn::before { width: 100px; height: 100px; }
+button.pass-top-btn::before { width: 100%; height: 100%; }
 /* 对局/故事页里不显示主界面入口，避免压住战斗界面右上角（与金币 HUD 的隐藏规则一致） */
 body:has(#view-game:not(.hidden)) button.pass-top-btn,
 body:has(#story-app:not(.hidden)) button.pass-top-btn { display: none; }
 @media (max-width: 700px) {
-  button.pass-top-btn { top: 42px; right: 8px; width: 84px; height: 84px; }
-  button.pass-top-btn::before { width: 84px; height: 84px; }
+  button.pass-top-btn { top: 30px; right: 8px; width: 140px; }
 }
 .home-entry-icon {
   display: inline-block;

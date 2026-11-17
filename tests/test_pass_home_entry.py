@@ -38,9 +38,15 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('.pass-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass.svg"); }', css)
         self.assertIn('.pass-top-btn.pass-top-btn-pro::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass-pro.svg"); }', css)
         self.assertIn('.home-entry-icon {', css)
-        # 入口固定在右上角，图标尺寸是其它顶栏按钮的两倍（手机端稍小，但仍大于常规按钮）
+        # 入口固定在右上角，上边缘紧贴荆露栏下沿，尺寸按图形比例放大
         self.assertIn('button.pass-top-btn {\n  position: fixed;', css)
-        self.assertIn('button.pass-top-btn::before { width: 100px; height: 100px; }', css)
+        self.assertIn('top: 36px;', css)
+        self.assertIn('width: 170px;', css)
+        self.assertIn('aspect-ratio: 246 / 148;', css)
+        self.assertIn('button.pass-top-btn::before { width: 100%; height: 100%; }', css)
+        # 两张图都裁掉了上下透明留白，否则顶部对不齐
+        for name in ('season-pass.svg', 'season-pass-pro.svg'):
+            self.assertIn('viewBox="19 66 246 148"', (ROOT / 'static/assets/ui-icons' / name).read_text(encoding='utf-8'))
 
     def test_game_js_syncs_the_icon_with_golden_road(self):
         js = read('static/js/game.js')
