@@ -38,9 +38,10 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('.pass-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass.svg"); }', css)
         self.assertIn('.pass-top-btn.pass-top-btn-pro::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass-pro.svg"); }', css)
         self.assertIn('.home-entry-icon {', css)
-        # 入口固定在右上角，上边缘紧贴荆露栏下沿，尺寸按图形比例放大
+        # 入口固定在左上角图标行下方，尺寸按图形比例放大
         self.assertIn('button.pass-top-btn {\n  position: fixed;', css)
-        self.assertIn('top: 36px;', css)
+        self.assertIn('top: 68px;', css)
+        self.assertIn('left: 10px;', css)
         self.assertIn('width: 170px;', css)
         self.assertIn('aspect-ratio: 246 / 148;', css)
         self.assertIn('button.pass-top-btn::before { width: 100%; height: 100%; }', css)
