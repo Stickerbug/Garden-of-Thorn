@@ -737,6 +737,7 @@ body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }
   align-items: center;
   justify-content: center;
   gap: 1px;
+  transform: translateY(3px);
 }
 /* .top-icon-btn img 默认 display:none，这里的奖励图标要单独放开 */
 .pass-top-btn .pass-hud-next-icon {

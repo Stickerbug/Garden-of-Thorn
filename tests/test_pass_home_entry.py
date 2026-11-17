@@ -91,6 +91,7 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('left: 54%;', next_block)
         self.assertIn('width: 46%;', next_block)
         self.assertIn('align-items: center;', next_block)
+        self.assertIn('transform: translateY(3px);', next_block)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
