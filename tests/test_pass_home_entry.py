@@ -38,6 +38,9 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('.pass-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass.svg"); }', css)
         self.assertIn('.pass-top-btn.pass-top-btn-pro::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass-pro.svg"); }', css)
         self.assertIn('.home-entry-icon {', css)
+        # 入口固定在右上角，图标尺寸是其它顶栏按钮的两倍（手机端稍小，但仍大于常规按钮）
+        self.assertIn('button.pass-top-btn {\n  position: fixed;', css)
+        self.assertIn('button.pass-top-btn::before { width: 100px; height: 100px; }', css)
 
     def test_game_js_syncs_the_icon_with_golden_road(self):
         js = read('static/js/game.js')
