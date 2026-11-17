@@ -16,6 +16,8 @@ class ResponsePanelLayoutTests(unittest.TestCase):
         self.assertIsNotNone(block)
         body = block.group('body')
         self.assertIn('top: 68%;', body)
+        # 2026-11-17：对方打出的牌会盖住窗口，整体再下移 60px
+        self.assertIn('margin-top: 60px;', body)
         self.assertIn('max-height: calc(100vh - 48px);', body)
         self.assertIn('overflow-y: auto;', body)
         self.assertIn('z-index: 12020;', body)

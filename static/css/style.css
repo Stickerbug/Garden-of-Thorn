@@ -11443,6 +11443,9 @@ html.blind-level-4 .card-prediction-part.magic {
   position: fixed;
   top: 68%;
   left: 50%;
+  /* 2026-11-17：对方刚打出的牌会盖住窗口，整体再下移 60px（用 margin 而不是改 top/transform，
+     这样移动端画布的 transform 覆写仍然生效） */
+  margin-top: 60px;
   transform: translate(-50%, -50%);
   flex-direction: column;
   align-items: center;
