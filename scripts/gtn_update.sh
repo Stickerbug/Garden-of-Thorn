@@ -8,7 +8,7 @@
 # 可调环境变量（仅演练时才改时长）：
 #   GTN_NOTICE_MESSAGE   广播文案
 #   GTN_NOTICE_WAIT_SECONDS  广播后等待秒数（默认 300）
-#   GTN_NOTICE_BANNER_SECONDS 顶部公告持续秒数（默认 WAIT+120，覆盖重启窗口）
+#   GTN_NOTICE_BANNER_SECONDS 顶部公告持续秒数（默认与等待时间一致，倒计时正好 5 分钟）
 #   GTN_PORT             应用端口（默认 5000）
 set -euo pipefail
 
@@ -16,7 +16,7 @@ ARCHIVE=${1:?用法: bash gtn_update.sh <archive.tar.gz> <git-sha>}
 SHA=${2:?用法: bash gtn_update.sh <archive.tar.gz> <git-sha>}
 NOTICE=${GTN_NOTICE_MESSAGE:-五分钟后更新，请大家尽快结束对局}
 WAIT=${GTN_NOTICE_WAIT_SECONDS:-300}
-BANNER_SECONDS=${GTN_NOTICE_BANNER_SECONDS:-$((WAIT + 120))}
+BANNER_SECONDS=${GTN_NOTICE_BANNER_SECONDS:-$WAIT}
 PORT=${GTN_PORT:-5000}
 
 RELEASE=/opt/gtn-release

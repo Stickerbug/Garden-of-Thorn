@@ -13,10 +13,10 @@
     box-sizing: border-box;
     min-height: 40px;
     padding: 8px 18px;
-    background: linear-gradient(180deg, rgba(186, 28, 42, 0.97), rgba(110, 12, 22, 0.97));
-    border-bottom: 1px solid rgba(255, 214, 102, 0.55);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.38);
-    color: #ffe9c9;
+    background: #ffffff;
+    border-bottom: 1px solid rgba(198, 40, 40, 0.45);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+    color: #c62828;
     font-size: 14px;
     font-weight: 600;
     line-height: 1.35;
@@ -41,7 +41,7 @@
 }
 
 .gtn-maintenance-clock {
-    color: #ffd666;
+    color: #b71c1c;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }

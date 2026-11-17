@@ -37,7 +37,7 @@ class BroadcastToolTests(unittest.TestCase):
     def test_command_line_shows_the_top_banner_and_broadcasts(self):
         self.assertEqual(
             self.module.build_command_line('五分钟后更新，请大家尽快结束对局'),
-            'maintenance notice 420 五分钟后更新，请大家尽快结束对局',
+            'maintenance notice 300 五分钟后更新，请大家尽快结束对局',
         )
         self.assertEqual(
             self.module.build_command_line('演练公告', 90),
@@ -81,7 +81,7 @@ class BroadcastToolTests(unittest.TestCase):
         finally:
             self.module.sys.stdout = original
         self.assertEqual(code, 0)
-        self.assertEqual(out.getvalue().strip(), 'maintenance notice 420 测试公告')
+        self.assertEqual(out.getvalue().strip(), 'maintenance notice 300 测试公告')
 
 
 class UpdateScriptTests(unittest.TestCase):
@@ -100,7 +100,7 @@ class UpdateScriptTests(unittest.TestCase):
         self.assertIn('五分钟后更新，请大家尽快结束对局', self.text)
 
     def test_banner_outlives_the_wait_and_the_restart(self):
-        self.assertIn('GTN_NOTICE_BANNER_SECONDS:-$((WAIT + 120))', self.text)
+        self.assertIn('GTN_NOTICE_BANNER_SECONDS:-$WAIT', self.text)
         self.assertIn('--seconds "$BANNER_SECONDS"', self.text)
 
     def test_uses_the_broadcast_tool_from_the_incoming_bundle(self):
