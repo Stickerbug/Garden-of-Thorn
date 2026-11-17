@@ -45,6 +45,10 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('width: 170px;', css)
         self.assertIn('aspect-ratio: 246 / 148;', css)
         self.assertIn('button.pass-top-btn::before { width: 100%; height: 100%; }', css)
+        # 只在主界面（#view-login 可见）显示，其余视图一律隐藏
+        self.assertIn('  display: none;\n}\nbutton.pass-top-btn::before', css)
+        self.assertIn('body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }', css)
+        self.assertNotIn('body:has(#view-game:not(.hidden)) button.pass-top-btn', css)
         # 两张图都裁掉了上下透明留白，否则顶部对不齐
         for name in ('season-pass.svg', 'season-pass-pro.svg'):
             self.assertIn('viewBox="19 66 246 148"', (ROOT / 'static/assets/ui-icons' / name).read_text(encoding='utf-8'))
