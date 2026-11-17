@@ -6683,6 +6683,20 @@ function applyTheme(theme) {
     localStorage.setItem('gtn_theme', theme);
     const sel = $('settings-theme-select');
     if (sel) sel.value = theme;
+    // 2026-11-17：皮肤墨色按当前主题的文字基色生成映射图，主题切换后
+    // 必须重算，否则深/浅主题会沿用另一套基色算出的字色（data-ink-base 残留）。
+    try {
+        if (typeof stripSkinInkFromCard === 'function') {
+            document.querySelectorAll('.card.card-skin-backed').forEach((cardEl) => {
+                stripSkinInkFromCard(cardEl);
+                cardEl.querySelectorAll('.skin-ink[data-ink-base]').forEach(node => node.removeAttribute('data-ink-base'));
+            });
+            if (typeof scheduleVisibleCardEffectFits === 'function') scheduleVisibleCardEffectFits();
+        }
+    } catch (_) {}
+    try {
+        if (window.GtnThemeInk && typeof window.GtnThemeInk.apply === 'function') window.GtnThemeInk.apply();
+    } catch (_) {}
 }
 
 function applyUiStyle(style) {
