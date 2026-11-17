@@ -727,9 +727,10 @@ body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }
 }
 .pass-hud-next {
   position: absolute;
-  left: 68%;
+  /* 虚线右侧整块叶面（54%..100%）居中，而不是只占右半边里的一小条 */
+  left: 54%;
   top: 4%;
-  width: 28%;
+  width: 46%;
   height: 49%;
   display: flex;
   flex-direction: column;

@@ -86,6 +86,11 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('.pass-hud-bar-fill {', css)
         # 顶栏按钮里的 img 默认 display:none，奖励图标必须显式放开
         self.assertIn('.pass-top-btn .pass-hud-next-icon {', css)
+        # 虚线右侧整块叶面（54%..100%）居中，奖励不能被挤到右半边的一小条里
+        next_block = css.split('.pass-hud-next {', 1)[1].split('}', 1)[0]
+        self.assertIn('left: 54%;', next_block)
+        self.assertIn('width: 46%;', next_block)
+        self.assertIn('align-items: center;', next_block)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
