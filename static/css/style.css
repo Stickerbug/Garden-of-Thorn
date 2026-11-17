@@ -752,30 +752,31 @@ button.pass-top-btn::before { width: 100%; height: 100%; }
   text-align: center;
   color: #4a3a20;
 }
+/* 原图底部的黑色进度条（viewBox 19/66/246/148 里 x75..252、y175..200 的深色矩形，已被 10px 描边吃掉外沿） */
 .pass-hud-bar {
   position: absolute;
-  left: 24%;
-  top: 80%;
-  width: 71%;
-  height: 13%;
-  border-radius: 999px;
-  background: rgba(38, 28, 22, .55);
+  left: 22.76%;
+  top: 73.65%;
+  width: 71.95%;
+  height: 16.89%;
+  border-radius: 0;
+  background: transparent;
   overflow: hidden;
 }
 .pass-hud-bar-fill {
   display: block;
   width: 0;
   height: 100%;
-  border-radius: 999px;
+  border-radius: 0;
   background: linear-gradient(90deg, #9bd46f, #d8ef82);
   transition: width .3s ease;
 }
 .pass-hud-xp {
   position: absolute;
-  left: 24%;
-  top: 80%;
-  width: 71%;
-  height: 13%;
+  left: 22.76%;
+  top: 73.65%;
+  width: 71.95%;
+  height: 16.89%;
   display: flex;
   align-items: center;
   justify-content: center;
