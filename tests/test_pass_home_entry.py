@@ -128,6 +128,9 @@ class PassHomeEntryTests(unittest.TestCase):
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
+        # 2026-11-19：图标等级跟随真实等级（原来一直是模板里的 1）。
+        self.assertIn("const level = Math.max(0, Number(payload.level) || 0);", js)
+        self.assertIn("levelEl.textContent = String(level);", js)
         self.assertIn("payload.tracks.free", js)
         self.assertIn("payload.tracks.golden", js)
         self.assertIn("fill.style.width = Math.round((into / perLevel) * 100) + '%';", js)

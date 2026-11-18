@@ -19774,7 +19774,9 @@ function applyPassEntryHud(payload) {
         hud.hidden = true;
         return;
     }
-    const level = Math.max(1, Number(payload.level) || 1);
+    // 2026-11-19：等级按服务端的真实等级显示（0 级就是 0 级，与面板一致），
+    // 之前图标上的数字一直停留在模板里的 1。
+    const level = Math.max(0, Number(payload.level) || 0);
     const perLevel = Math.max(1, Number(payload.xp_per_level) || 100);
     const into = Math.max(0, Math.min(perLevel, Number(payload.xp_into_level) || 0));
     const maxLevel = Math.max(level, Number(payload.max_level) || level);
@@ -19800,6 +19802,8 @@ function applyPassEntryHud(payload) {
         }
         if (textEl) textEl.textContent = emptyText;
     };
+    const levelEl = $('pass-hud-level');
+    if (levelEl) levelEl.textContent = String(level);
     const next = level + 1;
     const emptyText = level >= maxLevel ? '已满级' : '—';
     // 第二条虚线左边：荆棘之路奖励；右边：黄金之路奖励
