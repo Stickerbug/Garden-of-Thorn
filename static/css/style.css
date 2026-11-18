@@ -798,7 +798,31 @@ body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }
 button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
 /* 等级压在左上叶片上，奖励放两条虚线之间，进度条铺满底部黑条 */
 .pass-top-btn-pro .pass-hud-level { left: 12%; top: 8%; width: 24%; height: 46%; font-size: 30px; transform: translateY(2px); }
-.pass-top-btn-pro .pass-hud-next { left: 45%; top: 9%; width: 25%; height: 48%; transform: none; }
+.pass-top-btn-pro .pass-hud-next { left: 72.2%; top: 9%; width: 26.5%; height: 48%; transform: none; }
+.pass-top-btn-pro .pass-hud-next-text { font-size: 11px; }
+.pass-top-btn-pro .pass-hud-next-icon { max-width: 34px; }
+/* 2026-11-18：第二条虚线（71.5%）右侧的黄金之路区域发金光，黄金奖励也放在这块 */
+.pass-hud-glow { display: none; }
+.pass-top-btn-pro .pass-hud-glow {
+  display: block;
+  position: absolute;
+  left: 71.4%;
+  top: 8.5%;
+  width: 27.6%;
+  height: 55.1%;
+  pointer-events: none;
+  background:
+    radial-gradient(80% 115% at 58% 28%, rgba(255, 252, 214, .95) 0%, rgba(255, 208, 64, .55) 48%, rgba(255, 176, 0, 0) 86%),
+    linear-gradient(180deg, rgba(255, 192, 24, .34), rgba(255, 164, 0, .30));
+  box-shadow: inset 0 0 12px rgba(255, 214, 90, .85);
+  filter: blur(.6px);
+  animation: pass-hud-gold-pulse 2.6s ease-in-out infinite;
+}
+.pass-hud-glow[hidden] { display: none !important; }
+@keyframes pass-hud-gold-pulse {
+  0%, 100% { opacity: .82; }
+  50% { opacity: 1; }
+}
 .pass-top-btn-pro .pass-hud-bar,
 .pass-top-btn-pro .pass-hud-xp { left: 19.4%; top: 69.6%; width: 79.5%; height: 22.2%; }
 @media (max-width: 700px) {

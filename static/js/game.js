@@ -19752,6 +19752,10 @@ function applyPassEntryIcon(golden) {
     }
     const homeLabel = $('home-entry-pass-label');
     if (homeLabel) homeLabel.textContent = passEntryGolden ? '通行证 Pro' : '通行证';
+
+    // 2026-11-18：黄金之路的图标在第二条虚线右侧发金光，奖励也显示在那块
+    const glow = $('pass-hud-glow');
+    if (glow) glow.hidden = !passEntryGolden;
 }
 
 function applyPassEntryHud(payload) {

@@ -53,6 +53,17 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('viewBox="19 66 246 148"', (ROOT / 'static/assets/ui-icons/season-pass.svg').read_text(encoding='utf-8'))
         # 黄金之路图标用改版 Pro 图，画布更宽（360×158）
         self.assertIn('viewBox="0 60 360 158"', (ROOT / 'static/assets/ui-icons/season-pass-pro.svg').read_text(encoding='utf-8'))
+        # 第二条虚线（71.5%）右侧显示黄金之路奖励，并有一层脉动金光
+        self.assertIn('id="pass-hud-glow"', read('templates/index.html'))
+        pro_next = css.split('.pass-top-btn-pro .pass-hud-next {', 1)[1].split('}', 1)[0]
+        self.assertIn('left: 72.2%;', pro_next)
+        self.assertIn('width: 26.5%;', pro_next)
+        glow = css.split('.pass-top-btn-pro .pass-hud-glow {', 1)[1].split('}', 1)[0]
+        self.assertIn('left: 71.4%;', glow)
+        self.assertIn('animation: pass-hud-gold-pulse', glow)
+        self.assertIn('@keyframes pass-hud-gold-pulse', css)
+        self.assertIn('.pass-hud-glow[hidden] { display: none !important; }', css)
+        self.assertIn("if (glow) glow.hidden = !passEntryGolden;", read('static/js/game.js'))
 
     def test_game_js_syncs_the_icon_with_golden_road(self):
         js = read('static/js/game.js')
