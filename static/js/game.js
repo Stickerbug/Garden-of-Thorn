@@ -17575,6 +17575,13 @@ function connectSocket(serverUrl, options = {}) {
     bindSocketEvent('invite_declined', () => {
         flashStatus(UI.invite_declined, 2000);
     });
+    // 2026-11-18：邀请 30 秒后自动作废（或对方会话已断开）时服务端会主动通知，
+    // 否则弹窗一直挂着，点「接受」只会静默失败。
+    bindSocketEvent('invite_expired', (data = {}) => {
+        if ($('invite-accept')) hideModal();
+        const message = data.message || (currentLang === 'zh' ? '邀请已失效' : 'Invite expired');
+        flashStatus(message, 3200, 'neutral');
+    });
     bindSocketEvent('invite_gr_preview', (data = {}) => {
         if (data.text) flashStatus(data.text, 4200, 'neutral');
     });

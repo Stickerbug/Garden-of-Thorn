@@ -33239,6 +33239,7 @@ def on_invite(data):
     def _invite_timeout(inviter_sid):
         changed = False
         with _lock:
+            timed_out_target = invites.get(inviter_sid)
             if inviter_sid in invites:
                 del invites[inviter_sid]
                 changed = True
@@ -33246,6 +33247,17 @@ def on_invite(data):
                 changed = True
         if changed:
             broadcast_lobby()
+            # 2026-11-18：邀请超时以前只清状态、不给任何一方提示，被邀请方留在弹窗里
+            # 点「接受」会落到 accept_invite 的静默分支，看起来像「接受无效」。
+            if timed_out_target:
+                socketio.emit('invite_expired', {
+                    'inviter_sid': inviter_sid,
+                    'message': '邀请已超时，请让邀请方重新发起',
+                }, room=timed_out_target)
+            socketio.emit('invite_expired', {
+                'target_sid': timed_out_target,
+                'message': '对方没有及时回应，邀请已超时',
+            }, room=inviter_sid)
 
     timer = threading.Timer(30.0, _invite_timeout, args=[sid])
     timer.daemon = True
@@ -33278,10 +33290,15 @@ def on_accept_invite(data):
             return
     with _lock:
         if inviter_sid not in players or sid not in players:
-                    return
+            # 2026-11-18：邀请方/接受方会话已经不在了，以前这里直接 return，
+            # 被邀请方点了「接受」却什么提示都没有。
+            emit('server_error', {'message': '邀请已失效：有玩家已离开大厅', 'reason': 'invite_expired'})
+            return
         # 同账号的另一个标签页（例如 2048 小游戏页）也可以接受这条邀请。
         if resolve_pending_invite_for_sid(inviter_sid) is None:
-                    return
+            # 邀请不存在或已超过 30 秒自动作废：必须给接受方一个提示。
+            emit('server_error', {'message': '邀请已失效，请让邀请方重新发起', 'reason': 'invite_expired'})
+            return
         del invites[inviter_sid]
         inviter = players[inviter_sid]
         accepter = players[sid]
