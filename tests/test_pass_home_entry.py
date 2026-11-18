@@ -100,6 +100,10 @@ class PassHomeEntryTests(unittest.TestCase):
         css = read('static/css/battle-pass.css')
         self.assertIn(':is(#achievements-pass-panel, #pass-panel)', css)
         self.assertIn('#pass-popover {', css)
+        # 2026-11-19：弹层锚在入口按钮下方，不能盖住按钮本身。
+        self.assertIn('top: 180px;', css)
+        self.assertIn('max-height: calc(100vh - 196px);', css)
+        self.assertIn('@media (max-width: 700px) {\n  #pass-popover {\n    top: 152px;', css.replace('\r\n', '\n'))
     def test_top_button_shows_level_reward_and_progress(self):
         html = read('templates/index.html')
         for anchor in ('id="pass-hud"', 'id="pass-hud-level"', 'id="pass-hud-next-icon"',
