@@ -53,17 +53,29 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('viewBox="19 66 246 148"', (ROOT / 'static/assets/ui-icons/season-pass.svg').read_text(encoding='utf-8'))
         # 黄金之路图标用改版 Pro 图，画布更宽（360×158）
         self.assertIn('viewBox="0 60 360 158"', (ROOT / 'static/assets/ui-icons/season-pass-pro.svg').read_text(encoding='utf-8'))
-        # 第二条虚线（71.5%）右侧显示黄金之路奖励，并有一层脉动金光
+        # 第二条虚线左侧显示荆棘之路奖励，右侧显示黄金之路奖励并带金光
         self.assertIn('id="pass-hud-glow"', read('templates/index.html'))
+        self.assertIn('id="pass-hud-golden-text"', read('templates/index.html'))
         pro_next = css.split('.pass-top-btn-pro .pass-hud-next {', 1)[1].split('}', 1)[0]
-        self.assertIn('left: 72.2%;', pro_next)
-        self.assertIn('width: 26.5%;', pro_next)
+        self.assertIn('left: 44.6%;', pro_next)
+        self.assertIn('width: 26.4%;', pro_next)
+        golden = css.split('.pass-hud-golden {', 1)[1].split('}', 1)[0]
+        self.assertIn('left: 72.2%;', golden)
+        self.assertIn('width: 26.5%;', golden)
+        self.assertIn('.pass-top-btn-pro .pass-hud-golden { display: flex; }', css)
+        self.assertIn('.pass-hud-golden[hidden] { display: none !important; }', css)
         glow = css.split('.pass-top-btn-pro .pass-hud-glow {', 1)[1].split('}', 1)[0]
         self.assertIn('left: 71.4%;', glow)
         self.assertIn('animation: pass-hud-gold-pulse', glow)
         self.assertIn('@keyframes pass-hud-gold-pulse', css)
         self.assertIn('.pass-hud-glow[hidden] { display: none !important; }', css)
-        self.assertIn("if (glow) glow.hidden = !passEntryGolden;", read('static/js/game.js'))
+        js = read('static/js/game.js')
+        self.assertIn("if (glow) glow.hidden = !passEntryGolden;", js)
+        self.assertIn("payload.tracks.free", js)
+        self.assertIn("payload.tracks.golden", js)
+        self.assertIn("fillReward('pass-hud-golden-icon', 'pass-hud-golden-text'", js)
+        # 黄金之路未解锁时右侧那格不显示
+        self.assertIn("if (goldenBox) goldenBox.hidden = !payload.golden;", js)
 
     def test_game_js_syncs_the_icon_with_golden_road(self):
         js = read('static/js/game.js')
@@ -116,7 +128,8 @@ class PassHomeEntryTests(unittest.TestCase):
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
-        self.assertIn("payload.tracks[payload.golden ? 'golden' : 'free']", js)
+        self.assertIn("payload.tracks.free", js)
+        self.assertIn("payload.tracks.golden", js)
         self.assertIn("fill.style.width = Math.round((into / perLevel) * 100) + '%';", js)
         self.assertIn('applyPassEntryHud(payload);', js)
         self.assertIn('applyPassEntryHud(null);', js)

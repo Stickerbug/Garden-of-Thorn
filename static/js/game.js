@@ -19769,27 +19769,36 @@ function applyPassEntryHud(payload) {
     const perLevel = Math.max(1, Number(payload.xp_per_level) || 100);
     const into = Math.max(0, Math.min(perLevel, Number(payload.xp_into_level) || 0));
     const maxLevel = Math.max(level, Number(payload.max_level) || level);
-    const track = payload.tracks && payload.tracks[payload.golden ? 'golden' : 'free'];
-    const next = level + 1;
-    const entry = track && Array.isArray(track.entries)
-        ? track.entries.find((item) => Number(item.level) === next)
-        : null;
-    const levelEl = $('pass-hud-level');
-    if (levelEl) levelEl.textContent = String(level);
-    const iconEl = $('pass-hud-next-icon');
-    const textEl = $('pass-hud-next-text');
-    if (entry) {
-        if (iconEl) {
-            iconEl.hidden = !entry.icon;
-            if (entry.icon) iconEl.src = entry.icon;
+    const freeTrack = payload.tracks && payload.tracks.free;
+    const goldenTrack = payload.tracks && payload.tracks.golden;
+    const findEntry = (track, target) => (track && Array.isArray(track.entries)
+        ? track.entries.find((item) => Number(item.level) === target) || null
+        : null);
+    const fillReward = (iconId, textId, entry, emptyText) => {
+        const iconEl = $(iconId);
+        const textEl = $(textId);
+        if (entry) {
+            if (iconEl) {
+                iconEl.hidden = !entry.icon;
+                if (entry.icon) iconEl.src = entry.icon;
+            }
+            if (textEl) textEl.textContent = entry.text || entry.type || '';
+            return;
         }
-        if (textEl) textEl.textContent = entry.text || entry.type || '';
-    } else {
         if (iconEl) {
             iconEl.hidden = true;
             iconEl.removeAttribute('src');
         }
-        if (textEl) textEl.textContent = level >= maxLevel ? '已满级' : '—';
+        if (textEl) textEl.textContent = emptyText;
+    };
+    const next = level + 1;
+    const emptyText = level >= maxLevel ? '已满级' : '—';
+    // 第二条虚线左边：荆棘之路奖励；右边：黄金之路奖励
+    fillReward('pass-hud-next-icon', 'pass-hud-next-text', findEntry(freeTrack, next), emptyText);
+    const goldenBox = $('pass-hud-golden');
+    if (goldenBox) goldenBox.hidden = !payload.golden;
+    if (payload.golden) {
+        fillReward('pass-hud-golden-icon', 'pass-hud-golden-text', findEntry(goldenTrack, next), emptyText);
     }
     const fill = $('pass-hud-bar-fill');
     if (fill) fill.style.width = Math.round((into / perLevel) * 100) + '%';

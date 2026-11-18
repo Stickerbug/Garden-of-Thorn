@@ -798,7 +798,22 @@ body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }
 button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
 /* 等级压在左上叶片上，奖励放两条虚线之间，进度条铺满底部黑条 */
 .pass-top-btn-pro .pass-hud-level { left: 12%; top: 8%; width: 24%; height: 46%; font-size: 30px; transform: translateY(2px); }
-.pass-top-btn-pro .pass-hud-next { left: 72.2%; top: 9%; width: 26.5%; height: 48%; transform: none; }
+/* 2026-11-18：Pro 图第二条虚线左边是荆棘之路奖励，右边是黄金之路奖励 */
+.pass-hud-golden {
+  position: absolute;
+  left: 72.2%;
+  top: 9%;
+  width: 26.5%;
+  height: 48%;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.pass-top-btn-pro .pass-hud-golden { display: flex; }
+.pass-hud-golden[hidden] { display: none !important; }
+.pass-top-btn-pro .pass-hud-next { left: 44.6%; top: 9%; width: 26.4%; height: 48%; transform: none; }
 .pass-top-btn-pro .pass-hud-next-text { font-size: 11px; }
 .pass-top-btn-pro .pass-hud-next-icon { max-width: 34px; }
 /* 2026-11-18：第二条虚线（71.5%）右侧的黄金之路区域发金光，黄金奖励也放在这块 */
