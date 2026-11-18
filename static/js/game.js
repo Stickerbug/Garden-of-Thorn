@@ -18467,6 +18467,7 @@ function connectSocket(serverUrl, options = {}) {
     });
     bindSocketEvent('opponent_disconnected', (data) => {
         if (!shouldAcceptNetworkMatchPayload(data, 'opponent_disconnected', { allowSwitch: false })) return;
+        pauseMulliganCountdownForDisconnect();
         if (data && data.timeout) {
             if (data.stay) {
                 clearOpponentDisconnectModal();
@@ -18494,6 +18495,7 @@ function connectSocket(serverUrl, options = {}) {
         }
     });
     bindSocketEvent('opponent_reconnected', () => {
+        resumeMulliganCountdownAfterReconnect();
         flashStatus(UI.opponent_reconnected, 2000);
         clearOpponentDisconnectModal();
     });
@@ -38821,12 +38823,30 @@ let mulliganTimerId = null;
 let mulliganSelectedIds = new Set();
 let mulliganSubmittedLocal = false;
 let mulliganCountdown = 30;
+// 2026-11-19：有人断线时冻结开局调度倒计时；重连后把暂停时长补回截止时间。
+let mulliganAutoDeadline = 0;
+let mulliganPausedAt = 0;
+
+function pauseMulliganCountdownForDisconnect() {
+    if (!mulliganTimerId || mulliganPausedAt) return;
+    mulliganPausedAt = Date.now();
+    const panel = $('mulligan-panel');
+    const el = panel ? panel.querySelector('.mulligan-countdown') : null;
+    if (el) el.textContent = UI.opponent_disconnected || 'Opponent disconnected';
+}
+
+function resumeMulliganCountdownAfterReconnect() {
+    if (!mulliganTimerId || !mulliganPausedAt) return;
+    mulliganAutoDeadline += Math.max(0, Date.now() - mulliganPausedAt);
+    mulliganPausedAt = 0;
+}
 // 换牌选择跨局残留：your_pick 为 null（新局未提交）时旧代码回退保留上一局
 // 的选择集——R-28782 实测残留3张+新选2张=提交5张。按对局键切换时清空
 let mulliganMatchKey = '';
 
 function hideMulliganPanel() {
     if (mulliganTimerId) { clearInterval(mulliganTimerId); mulliganTimerId = null; }
+    mulliganPausedAt = 0;
     removeMulliganVisibilityListeners();
     document.body.classList.remove('mulligan-open');
     const panel = $('mulligan-panel');
@@ -38972,13 +38992,19 @@ function syncMulliganPanel(data) {
     // 浏览器限流（1 次/分钟甚至更稀），纯递减计数可能几分钟不触发，调度
     // 阶段就"卡住"直到服务端 60s 兜底。回到前台（visibilitychange/focus）
     // 立即复核，过期即刻提交。
-    const autoDeadline = Date.now() + 30000;
+    mulliganAutoDeadline = Date.now() + 30000;
+    mulliganPausedAt = 0;
     const tick = () => {
-        mulliganCountdown = Math.max(0, Math.ceil((autoDeadline - Date.now()) / 1000));
-        if (mulliganCountdown <= 0) {
+        const reference = mulliganPausedAt || Date.now();
+        mulliganCountdown = Math.max(0, Math.ceil((mulliganAutoDeadline - reference) / 1000));
+        if (mulliganCountdown <= 0 && !mulliganPausedAt) {
             if (mulliganTimerId) { clearInterval(mulliganTimerId); mulliganTimerId = null; }
             removeMulliganVisibilityListeners();
             submitMulligan(Array.from(mulliganSelectedIds));
+            return;
+        }
+        if (mulliganPausedAt) {
+            countdownEl.textContent = UI.opponent_disconnected || 'Opponent disconnected';
             return;
         }
         countdownEl.textContent = (UI.mulligan_countdown || 'Auto-confirm in {0}s').replace('{0}', String(mulliganCountdown));

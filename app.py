@@ -3918,6 +3918,7 @@ def _resolve_disconnect_blockers(room, player_index):
             if isinstance(result, dict) and result.get('success'):
                 if result.get('resolved'):
                     room._mulligan_deadline = None
+                    _clear_mulligan_deadline_pause(room)
                     record_room_replay_keyframe(room, 'mulligan_done')
                 changed = True
     return changed
@@ -6057,11 +6058,12 @@ def _pending_interaction_watchdog_worker():
                         continue
                     _stamp_pending_interactions(room)
                     if getattr(engine, 'phase', None) == 'mulligan':
-                        mulligan_deadline = getattr(room, '_mulligan_deadline', None)
-                        if mulligan_deadline and now >= float(mulligan_deadline):
+                        # 2026-11-19：有人断线时暂停开局调度倒计时，等重连/兜底超时再恢复。
+                        if _mulligan_force_due_locked(room, now):
                             try:
                                 engine.force_finish_mulligan()
                                 room._mulligan_deadline = None
+                                _clear_mulligan_deadline_pause(room)
                                 record_room_replay_keyframe(room, 'mulligan_done')
                                 admin_event(
                                     'warning',
@@ -6408,6 +6410,47 @@ def _clear_pregame_deadline_pause(room):
             delattr(room, 'pregame_pause_last_tick')
         except Exception:
             room.pregame_pause_last_tick = None
+
+
+def _pause_mulligan_deadline_locked(room, now=None):
+    """开局调度倒计时遇到有人断线时冻结：把 60 秒兜底截止时间按暂停时长顺延。"""
+    if room is None:
+        return
+    deadline = getattr(room, '_mulligan_deadline', None)
+    if deadline is None:
+        return
+    now = now or time.time()
+    last = getattr(room, '_mulligan_pause_last_tick', None)
+    room._mulligan_pause_last_tick = now
+    if last is None:
+        return
+    delta = max(0.0, now - float(last))
+    if delta <= 0:
+        return
+    try:
+        room._mulligan_deadline = float(deadline) + delta
+    except Exception:
+        pass
+
+
+def _clear_mulligan_deadline_pause(room):
+    if room is None:
+        return
+    if hasattr(room, '_mulligan_pause_last_tick'):
+        try:
+            delattr(room, '_mulligan_pause_last_tick')
+        except Exception:
+            room._mulligan_pause_last_tick = None
+
+
+def _mulligan_force_due_locked(room, now):
+    """开局调度是否该被 60 秒兜底强制结束；有人断线时暂停、不强制。"""
+    if _room_has_blocking_disconnect(room):
+        _pause_mulligan_deadline_locked(room, now)
+        return False
+    _clear_mulligan_deadline_pause(room)
+    deadline = getattr(room, '_mulligan_deadline', None)
+    return bool(deadline) and now >= float(deadline)
 
 
 def _draft_timer_total_for_player(engine, pidx):
