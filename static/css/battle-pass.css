@@ -526,23 +526,10 @@
 
 /* 2026-11-17：通行证从成就弹层移出，主界面独立入口使用自己的弹层容器 */
 #pass-popover {
-  /* 2026-11-19：弹层不能盖住左上角的通行证入口（原来沿用账号弹层的 top:56/left:14，
-     点开后面板正好压在按钮上，再点按钮就被面板接走，看起来像"点不动"）。 */
-  top: 180px;
-  left: 14px;
   width: min(980px, 96vw);
   max-width: 96vw;
-  max-height: calc(100vh - 196px);
+  max-height: 88vh;
   overflow: auto;
-}
-@media (max-width: 700px) {
-  #pass-popover {
-    top: 152px;
-    left: 8px;
-    width: calc(100vw - 16px);
-    max-width: calc(100vw - 16px);
-    max-height: calc(100vh - 168px);
-  }
 }
 #pass-popover .pass-panel-host {
   min-height: 140px;
