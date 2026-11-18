@@ -838,8 +838,9 @@ button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
   0%, 100% { opacity: .82; }
   50% { opacity: 1; }
 }
+/* 2026-11-18：黄金叶（x≈22.5..82 / 360）压在黑条左端，进度条从左端起步会盖住它，留出叶宽 */
 .pass-top-btn-pro .pass-hud-bar,
-.pass-top-btn-pro .pass-hud-xp { left: 19.4%; top: 69.6%; width: 79.5%; height: 22.2%; }
+.pass-top-btn-pro .pass-hud-xp { left: 22.8%; top: 69.6%; width: 76.2%; height: 22.2%; }
 @media (max-width: 700px) {
   button.pass-top-btn.pass-top-btn-pro { width: 196px; }
   .pass-top-btn-pro .pass-hud-level { font-size: 26px; }

@@ -19769,6 +19769,8 @@ function applyPassEntryHud(payload) {
     const perLevel = Math.max(1, Number(payload.xp_per_level) || 100);
     const into = Math.max(0, Math.min(perLevel, Number(payload.xp_into_level) || 0));
     const maxLevel = Math.max(level, Number(payload.max_level) || level);
+    const levelEl = $('pass-hud-level');
+    if (levelEl) levelEl.textContent = String(level);
     const freeTrack = payload.tracks && payload.tracks.free;
     const goldenTrack = payload.tracks && payload.tracks.golden;
     const findEntry = (track, target) => (track && Array.isArray(track.entries)
