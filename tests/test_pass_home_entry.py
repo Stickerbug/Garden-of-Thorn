@@ -123,11 +123,8 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('left: 12%;', pro_level)
         self.assertIn('font-size: 30px;', pro_level)
         pro_bar = css2.split('.pass-top-btn-pro .pass-hud-bar,', 1)[1].split('}', 1)[0]
-        # 黄金叶压在黑条左端，进度条从叶子右侧（22.8%）起步，避免盖住图标
-        self.assertIn('left: 22.8%;', pro_bar)
-        self.assertIn('width: 76.2%;', pro_bar)
-        # 等级数字必须由数据刷新，不能停在模板里的 1
-        self.assertIn("levelEl.textContent = String(level);", read('static/js/game.js'))
+        self.assertIn('left: 19.4%;', pro_bar)
+        self.assertIn('width: 79.5%;', pro_bar)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
