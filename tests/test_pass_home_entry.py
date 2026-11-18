@@ -49,9 +49,10 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('  display: none;\n}\nbutton.pass-top-btn::before', css)
         self.assertIn('body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }', css)
         self.assertNotIn('body:has(#view-game:not(.hidden)) button.pass-top-btn', css)
-        # 两张图都裁掉了上下透明留白，否则顶部对不齐
-        for name in ('season-pass.svg', 'season-pass-pro.svg'):
-            self.assertIn('viewBox="19 66 246 148"', (ROOT / 'static/assets/ui-icons' / name).read_text(encoding='utf-8'))
+        # 基础图标裁掉了上下透明留白，否则顶部对不齐
+        self.assertIn('viewBox="19 66 246 148"', (ROOT / 'static/assets/ui-icons/season-pass.svg').read_text(encoding='utf-8'))
+        # 黄金之路图标用改版 Pro 图，画布更宽（360×158）
+        self.assertIn('viewBox="0 60 360 158"', (ROOT / 'static/assets/ui-icons/season-pass-pro.svg').read_text(encoding='utf-8'))
 
     def test_game_js_syncs_the_icon_with_golden_road(self):
         js = read('static/js/game.js')
@@ -92,6 +93,15 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('width: 46%;', next_block)
         self.assertIn('align-items: center;', next_block)
         self.assertIn('transform: translateY(3px);', next_block)
+        # 拥有黄金之路后按钮按 Pro 图比例变宽，三层信息按新图位置重排
+        css2 = read('static/css/style.css')
+        self.assertIn('button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }', css2)
+        pro_level = css2.split('.pass-top-btn-pro .pass-hud-level {', 1)[1].split('}', 1)[0]
+        self.assertIn('left: 12%;', pro_level)
+        self.assertIn('font-size: 30px;', pro_level)
+        pro_bar = css2.split('.pass-top-btn-pro .pass-hud-bar,', 1)[1].split('}', 1)[0]
+        self.assertIn('left: 19.4%;', pro_bar)
+        self.assertIn('width: 79.5%;', pro_bar)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)

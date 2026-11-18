@@ -794,6 +794,17 @@ body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }
 @media (max-width: 700px) {
   button.pass-top-btn { top: 56px; left: 8px; width: 140px; }
 }
+/* 2026-11-18：拥有黄金之路时换成 Season Pass Pro改.svg（画布 360×158，比基础图宽） */
+button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
+/* 等级压在左上叶片上，奖励放两条虚线之间，进度条铺满底部黑条 */
+.pass-top-btn-pro .pass-hud-level { left: 12%; top: 8%; width: 24%; height: 46%; font-size: 30px; transform: translateY(2px); }
+.pass-top-btn-pro .pass-hud-next { left: 45%; top: 9%; width: 25%; height: 48%; transform: none; }
+.pass-top-btn-pro .pass-hud-bar,
+.pass-top-btn-pro .pass-hud-xp { left: 19.4%; top: 69.6%; width: 79.5%; height: 22.2%; }
+@media (max-width: 700px) {
+  button.pass-top-btn.pass-top-btn-pro { width: 196px; }
+  .pass-top-btn-pro .pass-hud-level { font-size: 26px; }
+}
 .home-entry-icon {
   display: inline-block;
   width: 1.15em;
