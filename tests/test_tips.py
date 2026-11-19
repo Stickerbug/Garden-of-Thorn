@@ -78,6 +78,9 @@ def test_tips_js_contract() -> None:
     assert "colorizeCardText" in source
     assert "bindInlineCardChips" in source
     assert "decodeURI" in source  # 长链接解码后再显示，避免整条 tip 被链接占满
+    # 「这里[说明…https://…]」：中括号里的说明不显示，改让紧邻在前的字变成超链接
+    assert "ANNOTATED_LINK" in source
+    assert "\\u0000" in source
     for view_id in VIEW_IDS:
         assert view_id in source, f"tips.js 未包含 {view_id}"
     assert "window.GtnTips" in source

@@ -112,9 +112,23 @@
         return shown;
     }
 
+    // 形如「这里[这是一个可点击的链接，指向https://…]」：中括号里是给链接写的说明，
+    // 显示时整段说明丢掉，改成让紧挨在前的几个字变成超链接。
+    var ANNOTATED_LINK = /([^\s\[\]<>"']{1,12})\[[^\]]*?(https?:\/\/[^\s\]'"<>]+)[^\]]*\]/g;
+
+    function extractAnnotatedLinks(text) {
+        var links = [];
+        var rest = String(text || '').replace(ANNOTATED_LINK, function (match, label, href) {
+            links.push({ label: label, href: href.replace(/[.,;:!?]+$/, '') });
+            return '\u0000' + (links.length - 1) + '\u0000';
+        });
+        return { text: rest, links: links };
+    }
+
     // 裸链接（例如 wiki 那条）自动变成可点击的 <a>，其余片段交给 colorizeCardText。
     function renderBody(text) {
-        var parts = String(text || '').split(/(https?:\/\/[^\s<>"'）)】\]]+)/g);
+        var extracted = extractAnnotatedLinks(text);
+        var parts = extracted.text.split(/(https?:\/\/[^\s<>"'）)】\]]+)/g);
         var html = '';
         for (var i = 0; i < parts.length; i += 1) {
             var part = parts[i];
@@ -127,7 +141,11 @@
                 html += colorize(part);
             }
         }
-        return html;
+        return html.replace(/\u0000(\d+)\u0000/g, function (match, index) {
+            var link = extracted.links[Number(index)];
+            if (!link) return '';
+            return '<a class="gtn-tips-link" href="' + escapeHtml(link.href) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(link.label) + '</a>';
+        });
     }
 
     function textFor(tip) {

@@ -16,7 +16,7 @@
 | 富文本 | **不自写解析器**：复用 `game.js:4845` 的 `colorizeCardText(seg, {terms:false})` 渲染 `[[card:]]`/`[[icon:]]`，再调 `game.js:4740` 的 `bindInlineCardChips(el, {interactive:true})` 绑卡牌 chip 悬停预览 |
 | 卡表时序 | `CARD_DEFS` 是异步填充的（`game.js:12492`/`12507`），所以在 `refreshCardDataViews()`（`game.js:12483`）末尾加第三个钩子 `onCardsReady()`，卡表就绪后重渲染当前 tip，否则中文卡名解析不成 chip |
 | 作者 | 桌面 `mouseenter` 显示、`mouseleave` 隐藏；移动端 `touchstart` 长按 400ms 显示、1.8s 后自动隐藏，`touchend/touchcancel/touchmove` 取消 |
-| 裸链接 | `tips.json` 里那条 wiki 链接：先切出 URL 再 `decodeURI` 显示（中文路径短得多），> 64 字符退化成 `host/…`；`href` 保留原始编码 |
+| 裸链接 | `tips.json` 里那条 wiki 链接写成了 `这里[这是一个可点击的链接，指向https://…]`：中括号里的说明**整段不显示**，改让紧挨在前的几个字（`这里`）成为超链接；不带中括号的裸 URL 则按原有 `decodeURI` 显示（> 64 字符退化成 `host/…`） |
 | 标签 | 统一 `Tips:`（半角冒号，与需求原文一致）；去掉了 `text-transform: uppercase`，避免显示成 `TIPS:` |
 | 外观 | **不画底框**（按用户反馈去掉底板 / 描边 / 投影 / 毛玻璃），文字直接贴在页面上：深灰正文 `rgba(58,62,72,.82)`、暗金 `Tips:` 标签、极淡白色光晕保证浅底可读；作者提示同样只有文字，没有胶囊底 |
 | 缓存破坏 | 容器带 `data-version="{{ static_version }}"`，`tips.js` 从容器上取，fetch 成 `/static/data/tips.json?v=<version>`（`document.documentElement` 上没有这个属性） |
