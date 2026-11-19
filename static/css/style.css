@@ -23448,3 +23448,50 @@ body.has-corruption-field::after {
   pointer-events: none;
   z-index: 60;
 }
+
+/* 主界面（登录/主页）文字样式：不在按钮上的文字统一改为白色填充 + 黑色描边。
+   按钮、输入框、以及左下角 Tips 浮层不受影响（Tips 有自己的配色，见 tips.css）。 */
+#view-login .title-main,
+#view-login .title-main .title-word,
+#view-login .title-sub,
+#view-login .subtitle,
+#view-login .beta-mode-badge,
+#view-login .login-divider span,
+#view-login label,
+#view-login #account-nickname-display,
+#view-login #login-error,
+#view-login .account-warning-banner,
+#view-login .home-copyright,
+#view-login .home-icp {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  -webkit-text-stroke: 1px #000;
+  paint-order: stroke fill;
+  text-shadow: none;
+}
+
+/* 大标题字大，描边跟着粗一点，否则白字在浅底上边缘会发灰。 */
+#view-login .title-main,
+#view-login .title-main .title-word,
+#view-login .title-sub {
+  -webkit-text-stroke-width: 2px;
+}
+
+#view-login .home-icp:hover {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+/* 底部状态条在主页上也属于「非按钮文字」，一起描边；进了其它视图就恢复原色。 */
+#view-login:not(.hidden) ~ .status-bar {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  -webkit-text-stroke: 1px #000;
+  text-shadow: none;
+}
+
+#view-login:not(.hidden) ~ .status-bar #status-text {
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+  -webkit-text-stroke: 1px #000;
+}
