@@ -1,7 +1,7 @@
-/* 更新维护公告：固定在屏幕最顶端，覆盖在所有视图之上。 */
+/* 更新维护公告：固定在屏幕最底端，覆盖在所有视图之上。 */
 .gtn-maintenance-banner {
     position: fixed;
-    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
     z-index: 2147482000;
@@ -14,8 +14,8 @@
     min-height: 40px;
     padding: 8px 18px;
     background: #ffffff;
-    border-bottom: 1px solid rgba(198, 40, 40, 0.45);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+    border-top: 1px solid rgba(198, 40, 40, 0.45);
+    box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.22);
     color: #c62828;
     font-size: 14px;
     font-weight: 600;
@@ -48,12 +48,29 @@
 
 @keyframes gtn-maintenance-slide-in {
     from {
-        transform: translateY(-100%);
+        transform: translateY(100%);
         opacity: 0;
     }
     to {
         transform: translateY(0);
         opacity: 1;
+    }
+}
+
+/* 左下角的 Tips 平时贴着底部状态条，横幅出现时整体让出横幅高度（--gtn-maintenance-h 由 js 实测）。 */
+html.gtn-maintenance-active .gtn-tips {
+    bottom: calc(var(--gtn-maintenance-h, 40px) + 12px);
+}
+
+/* 登录页左下角还有版权行，再往上让一个行高。 */
+html.gtn-maintenance-active .gtn-tips[data-view="view-login"] {
+    bottom: calc(var(--gtn-maintenance-h, 40px) + 44px);
+}
+
+/* 窄屏大厅底部是「返回主页 / 设置 / 休闲花园」那排按钮，Tips 得让到它们上面。 */
+@media (max-width: 720px) {
+    html.gtn-maintenance-active .gtn-tips[data-view="view-lobby"] {
+        bottom: calc(var(--gtn-maintenance-h, 40px) + 72px);
     }
 }
 

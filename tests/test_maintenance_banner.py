@@ -96,11 +96,23 @@ class BannerFrontendContractTests(unittest.TestCase):
         cls.js = read_text(BANNER_JS)
         cls.css = read_text(BANNER_CSS)
 
-    def test_banner_is_pinned_to_the_top_of_the_screen(self):
+    def test_banner_is_pinned_to_the_bottom_of_the_screen(self):
         self.assertIn('position: fixed;', self.css)
-        self.assertIn('top: 0;', self.css)
+        self.assertIn('bottom: 0;', self.css)
+        self.assertNotIn('top: 0;', self.css)
+        self.assertIn('border-top: 1px solid', self.css)
+        self.assertIn('translateY(100%)', self.css)
         self.assertIn('z-index: 2147482000;', self.css)
         self.assertIn('pointer-events: none;', self.css)
+
+    def test_banner_lifts_the_tips_row_out_of_its_way(self):
+        self.assertIn('html.gtn-maintenance-active .gtn-tips {', self.css)
+        self.assertIn('calc(var(--gtn-maintenance-h, 40px) + 12px)', self.css)
+        self.assertIn('html.gtn-maintenance-active .gtn-tips[data-view="view-login"] {', self.css)
+        self.assertIn('html.gtn-maintenance-active .gtn-tips[data-view="view-lobby"] {', self.css)
+        self.assertIn('calc(var(--gtn-maintenance-h, 40px) + 72px)', self.css)
+        self.assertIn('function syncHeight()', self.js)
+        self.assertIn("root.style.setProperty('--gtn-maintenance-h'", self.js)
 
     def test_banner_polls_the_public_endpoint_and_counts_down(self):
         self.assertIn("fetch('/api/maintenance/notice'", self.js)

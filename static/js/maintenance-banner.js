@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    // 服务端公告横幅：更新前 5 分钟的提示要一直贴在屏幕最顶端，
+    // 服务端公告横幅：更新前 5 分钟的提示要一直贴在屏幕最底端，
     // 刷新页面、切到故事页也都得看得到，所以这里既轮询接口也接受 socket 推送。
     var POLL_INTERVAL_MS = 15000;
     var BANNER_ID = 'gtn-maintenance-banner';
@@ -57,7 +57,20 @@
         bannerNode.removeAttribute('data-expires-at');
         bannerNode.removeAttribute('data-sequence');
         document.documentElement.classList.remove('gtn-maintenance-active');
+        syncHeight();
     }
+
+    // 横幅高度会随文案换行变化，这里把实测高度交给 CSS，让左下角的 Tips 正好让开。
+    function syncHeight() {
+        var root = document.documentElement;
+        if (!bannerNode || bannerNode.hidden) {
+            root.style.removeProperty('--gtn-maintenance-h');
+            return;
+        }
+        root.style.setProperty('--gtn-maintenance-h', Math.ceil(bannerNode.getBoundingClientRect().height) + 'px');
+    }
+
+    window.addEventListener('resize', syncHeight);
 
     function tick() {
         if (!bannerNode || bannerNode.hidden) {
@@ -93,6 +106,7 @@
         bannerNode.hidden = false;
         bannerNode.classList.add('is-visible');
         document.documentElement.classList.add('gtn-maintenance-active');
+        syncHeight();
         tick();
         stopTicking();
         tickTimer = window.setInterval(tick, 1000);
