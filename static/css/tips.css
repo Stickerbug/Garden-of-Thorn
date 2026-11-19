@@ -1,0 +1,129 @@
+/* 左下角 Tips 小贴士：定位于主界面 / 大厅 / 选牌 / 配装四个视图。 */
+
+.gtn-tips {
+    position: fixed;
+    left: 24px;
+    bottom: 24px;
+    z-index: 60;
+    max-width: min(520px, 46vw);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.gtn-tips.hidden {
+    display: none;
+}
+
+.gtn-tips.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+/* 登录页左下角有版权 / ICP（.home-footer 在 bottom: 40px），整体抬高避让。 */
+.gtn-tips[data-view="view-login"] {
+    bottom: 84px;
+}
+
+.gtn-tips-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(12, 14, 20, .72);
+    border: 1px solid rgba(214, 178, 92, .28);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    color: #e8e2d2;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.gtn-tips-label {
+    flex: 0 0 auto;
+    padding-top: 1px;
+    color: #d6b25c;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    white-space: nowrap;
+}
+
+/* 只有文字本身吃指针事件，盒子留白区域仍然点击穿透。 */
+.gtn-tips-text {
+    pointer-events: auto;
+    cursor: default;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.gtn-tips-text .gtn-tips-link {
+    color: #f0d68a;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    word-break: break-all;
+}
+
+.gtn-tips-text .gtn-tips-link:hover {
+    color: #fff0bd;
+}
+
+.gtn-tips-author {
+    position: absolute;
+    left: 14px;
+    bottom: calc(100% + 6px);
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(12, 14, 20, .92);
+    border: 1px solid rgba(214, 178, 92, .35);
+    color: #d6b25c;
+    font-size: 11px;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity .16s ease, transform .16s ease;
+}
+
+.gtn-tips-author.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .gtn-tips,
+    .gtn-tips-author {
+        transition: none;
+        transform: none;
+    }
+}
+
+@media (max-width: 720px) {
+    .gtn-tips {
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        max-width: none;
+    }
+
+    .gtn-tips[data-view="view-login"] {
+        bottom: 88px;
+    }
+
+    .gtn-tips-panel {
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .gtn-tips-text {
+        -webkit-line-clamp: 2;
+    }
+}

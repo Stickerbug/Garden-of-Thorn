@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="/static/css/season-settlement.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/player-skins.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/eye-styles.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/tips.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/mouth-styles.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/battle-pass.css?v={{ static_version|default('dev')|urlencode }}">
@@ -1554,5 +1555,14 @@
     <script src="/static/js/community.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/maintenance-banner.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script src="/static/js/theme-ink.js?v={{ static_version|default('dev')|urlencode }}"></script>
+
+<div id="gtn-tips" class="gtn-tips hidden" role="note" aria-live="polite" data-version="{{ static_version|default('dev')|urlencode }}">
+    <div class="gtn-tips-panel">
+        <span class="gtn-tips-label" id="gtn-tips-label">Tips:</span>
+        <span class="gtn-tips-text" id="gtn-tips-text"></span>
+    </div>
+    <div class="gtn-tips-author" id="gtn-tips-author" aria-hidden="true"></div>
+</div>
+<script src="/static/js/tips.js?v={{ static_version|default('dev')|urlencode }}"></script>
 </body>
 </html>

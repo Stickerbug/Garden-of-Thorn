@@ -7117,6 +7117,9 @@ function applyLang(lang) {
     currentLang = lang;
     localStorage.setItem('gtn_lang', lang);
     document.documentElement.setAttribute('lang', lang);
+    if (window.GtnTips) {
+        try { window.GtnTips.onLang(lang); } catch (e) { console.warn('tips onLang failed', e); }
+    }
     const sel = $('settings-lang-select');
     if (sel) sel.value = lang;
     updateStaticText();
@@ -8130,6 +8133,10 @@ function showView(viewId) {
         lastStatusSignatures.clear();
         updateModeSpecificControls({ solo: false, phase: '' });
         refreshBaseStatus(viewId);
+    }
+    // 左下角 Tips：只在展示模块存在时通知，任何异常都不能影响视图切换。
+    if (window.GtnTips) {
+        try { window.GtnTips.onView(viewId); } catch (e) { console.warn('tips onView failed', e); }
     }
 }
 
@@ -12487,6 +12494,10 @@ function refreshCardDataViews() {
     }
     const gallery = $('view-card-gallery');
     if (gallery && !gallery.classList.contains('hidden')) renderCardGallery();
+    // 卡表就绪后重渲染 Tips：中文卡名要等 CARD_DEFS 才能解析成 chip。
+    if (window.GtnTips) {
+        try { window.GtnTips.onCardsReady(); } catch (e) { console.warn('tips onCardsReady failed', e); }
+    }
 }
 
 async function fetchCardDefs(options = {}) {
