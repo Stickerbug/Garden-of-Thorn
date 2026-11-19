@@ -24,7 +24,11 @@ def test_outline_block_targets_home_text() -> None:
     ):
         assert selector in block, f"缺少选择器 {selector}"
     assert "-webkit-text-fill-color: #fff" in block
-    assert "-webkit-text-stroke: 1px #000" in block
+    assert "-webkit-text-stroke: 3px #000" in block
+
+
+def test_titles_use_a_thicker_stroke() -> None:
+    assert "-webkit-text-stroke-width: 6px" in STYLE
 
 
 def test_buttons_are_not_outlined() -> None:

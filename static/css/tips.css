@@ -35,7 +35,7 @@
     /* 和主界面其它非按钮文字统一：白色填充 + 黑色描边 */
     color: #fff;
     -webkit-text-fill-color: #fff;
-    -webkit-text-stroke: 1px #000;
+    -webkit-text-stroke: 3px #000;
     paint-order: stroke fill;
     font-size: 17.5px;
     line-height: 1.45;
@@ -46,7 +46,7 @@
     flex: 0 0 auto;
     color: #fff;
     -webkit-text-fill-color: #fff;
-    -webkit-text-stroke: 1px #000;
+    -webkit-text-stroke: 3px #000;
     font-size: 16px;
     font-weight: 600;
     letter-spacing: .02em;
@@ -93,7 +93,7 @@
     bottom: calc(100% + 2px);
     color: #fff;
     -webkit-text-fill-color: #fff;
-    -webkit-text-stroke: 1px #000;
+    -webkit-text-stroke: 3px #000;
     font-size: 13.5px;
     letter-spacing: .02em;
     white-space: nowrap;

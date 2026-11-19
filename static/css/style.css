@@ -23465,7 +23465,7 @@ body.has-corruption-field::after {
 #view-login .home-icp {
   color: #fff;
   -webkit-text-fill-color: #fff;
-  -webkit-text-stroke: 1px #000;
+  -webkit-text-stroke: 3px #000;
   paint-order: stroke fill;
   text-shadow: none;
 }
@@ -23474,7 +23474,7 @@ body.has-corruption-field::after {
 #view-login .title-main,
 #view-login .title-main .title-word,
 #view-login .title-sub {
-  -webkit-text-stroke-width: 2px;
+  -webkit-text-stroke-width: 6px;
 }
 
 #view-login .home-icp:hover {
@@ -23486,12 +23486,12 @@ body.has-corruption-field::after {
 #view-login:not(.hidden) ~ .status-bar {
   color: #fff;
   -webkit-text-fill-color: #fff;
-  -webkit-text-stroke: 1px #000;
+  -webkit-text-stroke: 3px #000;
   text-shadow: none;
 }
 
 #view-login:not(.hidden) ~ .status-bar #status-text {
   color: #fff;
   -webkit-text-fill-color: #fff;
-  -webkit-text-stroke: 1px #000;
+  -webkit-text-stroke: 3px #000;
 }
