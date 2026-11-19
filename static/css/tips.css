@@ -1,12 +1,13 @@
 /* 左下角 Tips 小贴士：定位于主界面 / 大厅 / 选牌 / 配装四个视图。
-   不画底框，直接以文字贴在页面上；浅色背景用深灰字 + 极淡白色光晕保证可读。 */
+   不画底框，直接以文字贴在页面上；浅色背景用深灰字 + 极淡白色光晕保证可读。
+   底部有一条 32px 高的灰色状态条（.status-bar），文字下端紧贴它的上沿。 */
 
 .gtn-tips {
     position: fixed;
     left: 24px;
-    bottom: 24px;
+    bottom: 32px;
     z-index: 60;
-    max-width: min(520px, 46vw);
+    max-width: min(460px, 42vw);
     pointer-events: none;
     opacity: 0;
     transform: translateY(4px);
@@ -22,25 +23,20 @@
     transform: none;
 }
 
-/* 登录页左下角有版权 / ICP（.home-footer 在 bottom: 40px），整体抬高避让。 */
-.gtn-tips[data-view="view-login"] {
-    bottom: 84px;
-}
-
 .gtn-tips-panel {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 8px;
     color: rgba(58, 62, 72, .82);
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 26px;
+    line-height: 1.45;
     text-shadow: 0 1px 2px rgba(255, 255, 255, .7);
 }
 
 .gtn-tips-label {
     flex: 0 0 auto;
     color: rgba(150, 112, 34, .92);
-    font-size: 12px;
+    font-size: 24px;
     font-weight: 600;
     letter-spacing: .02em;
     white-space: nowrap;
@@ -61,7 +57,7 @@
     color: #8a5f10;
     text-decoration: underline;
     text-decoration-color: rgba(138, 95, 16, .45);
-    text-underline-offset: 2px;
+    text-underline-offset: 3px;
     word-break: break-all;
 }
 
@@ -75,7 +71,7 @@
     left: 0;
     bottom: calc(100% + 2px);
     color: rgba(150, 112, 34, .95);
-    font-size: 11px;
+    font-size: 20px;
     letter-spacing: .02em;
     white-space: nowrap;
     pointer-events: none;
@@ -102,17 +98,22 @@
     .gtn-tips {
         left: 12px;
         right: 12px;
-        bottom: 12px;
+        bottom: 33px;
         max-width: none;
     }
 
+    /* 手机端版权行铺满整行，贴住灰条就会压字，登录页单独抬高到版权行上方。 */
     .gtn-tips[data-view="view-login"] {
-        bottom: 88px;
+        bottom: 84px;
     }
 
     .gtn-tips-panel {
-        font-size: 12px;
-        line-height: 1.5;
+        font-size: 24px;
+        line-height: 1.4;
+    }
+
+    .gtn-tips-label {
+        font-size: 22px;
     }
 
     .gtn-tips-text {
