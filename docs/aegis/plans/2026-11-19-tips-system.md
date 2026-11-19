@@ -20,7 +20,7 @@
 | 标签 | 统一 `Tips:`（半角冒号，与需求原文一致）；去掉了 `text-transform: uppercase`，避免显示成 `TIPS:` |
 | 外观 | **不画底框**（按用户反馈去掉底板 / 描边 / 投影 / 毛玻璃），文字直接贴在页面上：深灰正文 `rgba(58,62,72,.82)`、暗金 `Tips:` 标签、极淡白色光晕保证浅底可读；作者提示同样只有文字，没有胶囊底 |
 | 缓存破坏 | 容器带 `data-version="{{ static_version }}"`，`tips.js` 从容器上取，fetch 成 `/static/data/tips.json?v=<version>`（`document.documentElement` 上没有这个属性） |
-| 字号 | 按用户要求放大到原来的 2 倍：正文 `26px`、`Tips:` 标签 `24px`、作者提示 `20px`，`line-height: 1.45`；移动端 `24px / 22px` |
+| 字号 | 迭代两轮：先按用户要求放大到 2 倍（正文 26px / 标签 24px / 作者 20px），再按「缩小 1.5 倍」定稿为 **正文 `17.5px`、`Tips:` 标签 `16px`、作者提示 `13.5px`**，`line-height: 1.45`；移动端 `16px / 14.5px` |
 | 贴底 | `.gtn-tips { bottom: 32px }` 正好把文字底边压在页面底部灰色条 `.status-bar`（`height: 32px`、`background: rgba(0,0,0,.05)`）上沿：1440×900 实测 tips 盒 `793–868`，灰条 `868–900`；`max-width: min(460px, 42vw)`（再宽会横向压到大厅底部那排按钮，左起 x≈503） |
 | 登录页避让 | 桌面上版权/ICP 居中在右半侧，与左下角文字不相交；移动端版权行铺满整行，`(max-width: 720px)` 下登录页单独抬到 `bottom: 84px`（实测与版权行间距 8px），其余视图 `bottom: 33px` |
 | 测试 | `tests/test_tips.py` 13 个用例全绿（含 500 次内连续 50 次不重复、20000 次频次 ±40% 两条算法性质测试） |
