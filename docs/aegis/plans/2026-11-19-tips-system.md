@@ -18,6 +18,7 @@
 | 作者 | 桌面 `mouseenter` 显示、`mouseleave` 隐藏；移动端 `touchstart` 长按 400ms 显示、1.8s 后自动隐藏，`touchend/touchcancel/touchmove` 取消 |
 | 裸链接 | `tips.json` 里那条 wiki 链接：先切出 URL 再 `decodeURI` 显示（中文路径短得多），> 64 字符退化成 `host/…`；`href` 保留原始编码 |
 | 标签 | 统一 `Tips:`（半角冒号，与需求原文一致）；去掉了 `text-transform: uppercase`，避免显示成 `TIPS:` |
+| 外观 | **不画底框**（按用户反馈去掉底板 / 描边 / 投影 / 毛玻璃），文字直接贴在页面上：深灰正文 `rgba(58,62,72,.82)`、暗金 `Tips:` 标签、极淡白色光晕保证浅底可读；作者提示同样只有文字，没有胶囊底 |
 | 缓存破坏 | 容器带 `data-version="{{ static_version }}"`，`tips.js` 从容器上取，fetch 成 `/static/data/tips.json?v=<version>`（`document.documentElement` 上没有这个属性） |
 | 登录页避让 | 桌面 `bottom: 84px`；移动端断点（≤720px）**88px**——64px 时实测与 `.home-footer` 重叠 12px |
 | 测试 | `tests/test_tips.py` 13 个用例全绿（含 500 次内连续 50 次不重复、20000 次频次 ±40% 两条算法性质测试） |

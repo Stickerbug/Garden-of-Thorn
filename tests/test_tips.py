@@ -88,6 +88,10 @@ def test_tips_css_contract() -> None:
     assert "#gtn-tips" in source or ".gtn-tips" in source
     assert 'data-view="view-login"' in source
     assert "pointer-events" in source
+    # 需求：不要外框，直接显示文字（不能有底板 / 描边 / 投影 / 毛玻璃）
+    panel = source.split(".gtn-tips-panel {", 1)[1].split("}", 1)[0]
+    for banned in ("background", "border", "box-shadow", "backdrop-filter"):
+        assert banned not in panel, f".gtn-tips-panel 不应再有 {banned}"
 
 
 def test_index_html_wires_tips() -> None:

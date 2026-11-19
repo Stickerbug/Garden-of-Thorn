@@ -1,4 +1,5 @@
-/* 左下角 Tips 小贴士：定位于主界面 / 大厅 / 选牌 / 配装四个视图。 */
+/* 左下角 Tips 小贴士：定位于主界面 / 大厅 / 选牌 / 配装四个视图。
+   不画底框，直接以文字贴在页面上；浅色背景用深灰字 + 极淡白色光晕保证可读。 */
 
 .gtn-tips {
     position: fixed;
@@ -28,31 +29,24 @@
 
 .gtn-tips-panel {
     display: flex;
-    align-items: flex-start;
+    align-items: baseline;
     gap: 6px;
-    padding: 10px 14px;
-    border-radius: 10px;
-    background: rgba(12, 14, 20, .72);
-    border: 1px solid rgba(214, 178, 92, .28);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-    color: #e8e2d2;
+    color: rgba(58, 62, 72, .82);
     font-size: 13px;
     line-height: 1.6;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, .7);
 }
 
 .gtn-tips-label {
     flex: 0 0 auto;
-    padding-top: 1px;
-    color: #d6b25c;
-    font-size: 11px;
+    color: rgba(150, 112, 34, .92);
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: .04em;
+    letter-spacing: .02em;
     white-space: nowrap;
 }
 
-/* 只有文字本身吃指针事件，盒子留白区域仍然点击穿透。 */
+/* 只有文字本身吃指针事件，其余留白仍然点击穿透。 */
 .gtn-tips-text {
     pointer-events: auto;
     cursor: default;
@@ -64,31 +58,30 @@
 }
 
 .gtn-tips-text .gtn-tips-link {
-    color: #f0d68a;
+    color: #8a5f10;
     text-decoration: underline;
+    text-decoration-color: rgba(138, 95, 16, .45);
     text-underline-offset: 2px;
     word-break: break-all;
 }
 
 .gtn-tips-text .gtn-tips-link:hover {
-    color: #fff0bd;
+    color: #6d4a08;
+    text-decoration-color: rgba(109, 74, 8, .8);
 }
 
 .gtn-tips-author {
     position: absolute;
-    left: 14px;
-    bottom: calc(100% + 6px);
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: rgba(12, 14, 20, .92);
-    border: 1px solid rgba(214, 178, 92, .35);
-    color: #d6b25c;
+    left: 0;
+    bottom: calc(100% + 2px);
+    color: rgba(150, 112, 34, .95);
     font-size: 11px;
-    letter-spacing: .04em;
+    letter-spacing: .02em;
     white-space: nowrap;
     pointer-events: none;
+    text-shadow: 0 1px 2px rgba(255, 255, 255, .75);
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(3px);
     transition: opacity .16s ease, transform .16s ease;
 }
 
@@ -118,7 +111,6 @@
     }
 
     .gtn-tips-panel {
-        padding: 8px 10px;
         font-size: 12px;
         line-height: 1.5;
     }
