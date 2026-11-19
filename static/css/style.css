@@ -23449,8 +23449,83 @@ body.has-corruption-field::after {
   z-index: 60;
 }
 
-/* 主界面（登录/主页）文字样式：不在按钮上的文字统一改为白色填充 + 黑色描边。
-   按钮、输入框、以及左下角 Tips 浮层不受影响（Tips 有自己的配色，见 tips.css）。 */
+/* 主界面（登录/主页）文字样式：不在按钮上的文字统一改为白色填充 + 黑色外描边。
+   按钮、输入框、以及左下角 Tips 浮层不受影响（Tips 有自己的配色，见 tips.css）。
+
+   描边不用 -webkit-text-stroke：它是居中描边，一半压在字形内部，细笔画被吃掉一半
+   填充后，横、竖、斜各方向看起来粗细不一。这里改用 16 个方向的硬投影拼出一圈等宽
+   的外描边——投影只画在字形之外，方向间隔 22.5°，圆周方向上的起伏约 0.1px。 */
+:root {
+  --gtn-ring-1:
+    1px 0px 0 #000,
+    0.92px 0.38px 0 #000,
+    0.71px 0.71px 0 #000,
+    0.38px 0.92px 0 #000,
+    0px 1px 0 #000,
+    -0.38px 0.92px 0 #000,
+    -0.71px 0.71px 0 #000,
+    -0.92px 0.38px 0 #000,
+    -1px 0px 0 #000,
+    -0.92px -0.38px 0 #000,
+    -0.71px -0.71px 0 #000,
+    -0.38px -0.92px 0 #000,
+    -0px -1px 0 #000,
+    0.38px -0.92px 0 #000,
+    0.71px -0.71px 0 #000,
+    0.92px -0.38px 0 #000;
+  --gtn-ring-1-5:
+    1.5px 0px 0 #000,
+    1.39px 0.57px 0 #000,
+    1.06px 1.06px 0 #000,
+    0.57px 1.39px 0 #000,
+    0px 1.5px 0 #000,
+    -0.57px 1.39px 0 #000,
+    -1.06px 1.06px 0 #000,
+    -1.39px 0.57px 0 #000,
+    -1.5px 0px 0 #000,
+    -1.39px -0.57px 0 #000,
+    -1.06px -1.06px 0 #000,
+    -0.57px -1.39px 0 #000,
+    -0px -1.5px 0 #000,
+    0.57px -1.39px 0 #000,
+    1.06px -1.06px 0 #000,
+    1.39px -0.57px 0 #000;
+  --gtn-ring-2:
+    2px 0px 0 #000,
+    1.85px 0.77px 0 #000,
+    1.41px 1.41px 0 #000,
+    0.77px 1.85px 0 #000,
+    0px 2px 0 #000,
+    -0.77px 1.85px 0 #000,
+    -1.41px 1.41px 0 #000,
+    -1.85px 0.77px 0 #000,
+    -2px 0px 0 #000,
+    -1.85px -0.77px 0 #000,
+    -1.41px -1.41px 0 #000,
+    -0.77px -1.85px 0 #000,
+    -0px -2px 0 #000,
+    0.77px -1.85px 0 #000,
+    1.41px -1.41px 0 #000,
+    1.85px -0.77px 0 #000;
+  --gtn-ring-3:
+    3px 0px 0 #000,
+    2.77px 1.15px 0 #000,
+    2.12px 2.12px 0 #000,
+    1.15px 2.77px 0 #000,
+    0px 3px 0 #000,
+    -1.15px 2.77px 0 #000,
+    -2.12px 2.12px 0 #000,
+    -2.77px 1.15px 0 #000,
+    -3px 0px 0 #000,
+    -2.77px -1.15px 0 #000,
+    -2.12px -2.12px 0 #000,
+    -1.15px -2.77px 0 #000,
+    -0px -3px 0 #000,
+    1.15px -2.77px 0 #000,
+    2.12px -2.12px 0 #000,
+    2.77px -1.15px 0 #000;
+}
+
 #view-login .title-main,
 #view-login .title-main .title-word,
 #view-login .title-sub,
@@ -23465,19 +23540,17 @@ body.has-corruption-field::after {
 #view-login .home-icp {
   color: #fff;
   -webkit-text-fill-color: #fff;
-  -webkit-text-stroke: 3px #000;
-  paint-order: stroke fill;
-  text-shadow: none;
+  text-shadow: var(--gtn-ring-1-5);
 }
 
 /* 描边粗细按字号分档：字越小描边越细，否则 14–15px 的字会被描边糊死。 */
 #view-login .title-main,
 #view-login .title-main .title-word {
-  -webkit-text-stroke-width: 6px;
+  text-shadow: var(--gtn-ring-3);
 }
 
 #view-login .title-sub {
-  -webkit-text-stroke-width: 4px;
+  text-shadow: var(--gtn-ring-2);
 }
 
 /* 14–15px 的小字（版权 / ICP / 昵称 / 副标题 / 分隔文字 / 状态条）改用 2px。 */
@@ -23490,7 +23563,7 @@ body.has-corruption-field::after {
 #view-login #account-nickname-display,
 #view-login:not(.hidden) ~ .status-bar,
 #view-login:not(.hidden) ~ .status-bar #status-text {
-  -webkit-text-stroke-width: 2px;
+  text-shadow: var(--gtn-ring-1);
 }
 
 #view-login .home-icp:hover {
@@ -23502,16 +23575,13 @@ body.has-corruption-field::after {
 #view-login:not(.hidden) ~ .status-bar {
   color: #fff;
   -webkit-text-fill-color: #fff;
-  -webkit-text-stroke: 2px #000;
-  paint-order: stroke fill;
-  text-shadow: none;
+  text-shadow: var(--gtn-ring-1);
 }
 
 #view-login:not(.hidden) ~ .status-bar #status-text {
   color: #fff;
   -webkit-text-fill-color: #fff;
-  -webkit-text-stroke: 2px #000;
-  paint-order: stroke fill;
+  text-shadow: var(--gtn-ring-1);
 }
 
 

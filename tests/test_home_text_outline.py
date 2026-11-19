@@ -1,15 +1,28 @@
-"""主界面（登录/主页）非按钮文字：白色填充 + 黑色描边。"""
+"""主界面（登录/主页）非按钮文字：白色填充 + 黑色外描边。
 
+外描边用 16 个方向的硬投影拼成（`--gtn-ring-*`），不用 -webkit-text-stroke：
+后者是居中描边，一半压在字形里，细笔画被吃掉一半填充后各方向粗细不一。
+"""
+
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 STYLE = (ROOT / "static" / "css" / "style.css").read_text(encoding="utf-8")
+TIPS = (ROOT / "static" / "css" / "tips.css").read_text(encoding="utf-8")
+
+OUTLINE_START = STYLE.index("/* 主界面（登录/主页）文字样式")
 
 
 def _block() -> str:
     marker = "#view-login .title-main,"
     start = STYLE.index(marker)
-    return STYLE[start:start + 1200]
+    return STYLE[start:start + 1400]
+
+
+def _preset(name: str) -> str:
+    start = STYLE.index(f"--gtn-ring-{name}:")
+    return STYLE[start : STYLE.index(";", start)]
 
 
 def test_outline_block_targets_home_text() -> None:
@@ -24,11 +37,23 @@ def test_outline_block_targets_home_text() -> None:
     ):
         assert selector in block, f"缺少选择器 {selector}"
     assert "-webkit-text-fill-color: #fff" in block
-    assert "-webkit-text-stroke: 3px #000" in block
+    assert "text-shadow: var(--gtn-ring-1-5)" in block
 
 
-def test_titles_use_a_thicker_stroke() -> None:
-    assert "-webkit-text-stroke-width: 6px" in STYLE
+def test_outline_no_longer_uses_centered_text_stroke() -> None:
+    outline = STYLE[OUTLINE_START:]
+    # 注释里会提到 -webkit-text-stroke，这里只检查真正生效的声明
+    assert not re.search(r"-webkit-text-stroke(-width|-color)?\s*:", outline), (
+        "描边应改用环形投影，不再用居中描边"
+    )
+
+
+def test_ring_presets_are_sixteen_directions() -> None:
+    for name, radius in (("1", 1), ("1-5", 1.5), ("2", 2), ("3", 3)):
+        preset = _preset(name)
+        shadows = preset.split("0 #000")
+        assert len(shadows) - 1 == 16, f"--gtn-ring-{name} 应有 16 个方向的投影"
+        assert f"{radius:g}px 0px" in preset, f"--gtn-ring-{name} 半径应为 {radius}px"
 
 
 def test_buttons_are_not_outlined() -> None:
@@ -43,14 +68,19 @@ def test_status_bar_outlined_only_on_home() -> None:
 
 
 def test_small_text_is_enlarged_for_legibility() -> None:
-    tail = STYLE[STYLE.index("配合 3px 黑色描边") :]
-    # 12px 的几处（游客模式分隔 / 版权 / ICP / 副标题）抬到 14–15px
+    tail = STYLE[STYLE.index("把主界面上的小字统一抬到可读尺寸") :]
     assert "#view-login #guest-divider-label" in tail
     assert "font-size: 15px" in tail
     assert "font-size: 14px" in tail
 
 
-def test_stroke_width_follows_font_size() -> None:
-    # 字号越小描边越细，否则 14px 的字会被 3px 描边糊死
-    assert "#view-login .title-sub {\n  -webkit-text-stroke-width: 4px;" in STYLE
-    assert "-webkit-text-stroke-width: 2px;" in STYLE
+def test_outline_width_follows_font_size() -> None:
+    # 字号越小外圈越细，否则 14px 的字会被描边糊死
+    assert "#view-login .title-sub {\n  text-shadow: var(--gtn-ring-2);" in STYLE
+    small = STYLE[STYLE.index("#view-login .subtitle,\n#view-login #guest-divider-label,") :]
+    assert "text-shadow: var(--gtn-ring-1);" in small
+
+
+def test_tips_reuses_the_same_ring_presets() -> None:
+    assert "text-shadow: var(--gtn-ring-1);" in TIPS
+    assert "-webkit-text-stroke" not in TIPS

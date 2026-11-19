@@ -32,21 +32,19 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
-    /* 和主界面其它非按钮文字统一：白色填充 + 黑色描边 */
+    /* 和主界面其它非按钮文字统一：白色填充 + 黑色外描边（16 向硬投影，见 style.css :root） */
     color: #fff;
     -webkit-text-fill-color: #fff;
-    -webkit-text-stroke: 2.5px #000;
-    paint-order: stroke fill;
     font-size: 17.5px;
     line-height: 1.45;
-    text-shadow: none;
+    text-shadow: var(--gtn-ring-1);
 }
 
 .gtn-tips-label {
     flex: 0 0 auto;
     color: #fff;
     -webkit-text-fill-color: #fff;
-    -webkit-text-stroke: 2.5px #000;
+    text-shadow: var(--gtn-ring-1);
     font-size: 16px;
     font-weight: 600;
     letter-spacing: .02em;
@@ -69,7 +67,6 @@
 .gtn-tips-text .inline-card-chip .choice-card-name {
     color: #3a3e48;
     -webkit-text-fill-color: #3a3e48;
-    -webkit-text-stroke: 0;
     text-shadow: none;
 }
 
@@ -93,12 +90,11 @@
     bottom: calc(100% + 2px);
     color: #fff;
     -webkit-text-fill-color: #fff;
-    -webkit-text-stroke: 2px #000;
     font-size: 15px;
     letter-spacing: .02em;
     white-space: nowrap;
     pointer-events: none;
-    text-shadow: none;
+    text-shadow: var(--gtn-ring-1);
     opacity: 0;
     transform: translateY(3px);
     transition: opacity .16s ease, transform .16s ease;
