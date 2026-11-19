@@ -57,12 +57,8 @@
     }
 }
 
-/* 横幅出现时整个界面按横幅高度收缩上移，底部浮层同步抬起，
-   这样状态条、Tips、聊天面板、版权行都不会被横幅压住。 */
-html.gtn-maintenance-active #app {
-    height: calc(100% - var(--gtn-maintenance-h, 40px));
-}
-
+/* 横幅盖在底部灰色状态条（.status-bar，32px）上面，把那一栏遮住；
+   界面本身不再整体上移，只把底部三个浮层抬起来，免得被横幅压住。 */
 html.gtn-maintenance-active .home-footer,
 html.gtn-maintenance-active #gtn-tips,
 html.gtn-maintenance-active #phase-chat-panel {

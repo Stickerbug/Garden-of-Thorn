@@ -105,9 +105,10 @@ class BannerFrontendContractTests(unittest.TestCase):
         self.assertIn('z-index: 2147482000;', self.css)
         self.assertIn('pointer-events: none;', self.css)
 
-    def test_active_banner_shrinks_the_app_and_lifts_the_bottom_layers(self):
-        self.assertIn('html.gtn-maintenance-active #app {', self.css)
-        self.assertIn('height: calc(100% - var(--gtn-maintenance-h, 40px));', self.css)
+    def test_active_banner_covers_the_status_bar_and_lifts_the_floating_layers(self):
+        # 横幅要压在底部灰色状态条上面，界面本身不再整体上移
+        self.assertNotIn('html.gtn-maintenance-active #app', self.css)
+        self.assertIn('html.gtn-maintenance-active .home-footer,', self.css)
         self.assertIn('html.gtn-maintenance-active #gtn-tips,', self.css)
         self.assertIn('html.gtn-maintenance-active #phase-chat-panel {', self.css)
         self.assertIn('translate: 0 calc(-1 * var(--gtn-maintenance-h, 40px));', self.css)
