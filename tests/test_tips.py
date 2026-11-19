@@ -84,6 +84,12 @@ def test_tips_js_contract() -> None:
     for view_id in VIEW_IDS:
         assert view_id in source, f"tips.js 未包含 {view_id}"
     assert "window.GtnTips" in source
+    # 轮换：每 15 秒自动换一条，点一下也换一条（点卡牌 chip / 链接时不抢）
+    assert "ROTATE_MS = 15000" in source
+    assert "function startRotate()" in source
+    assert "function rotateNow()" in source
+    assert "is-fading" in source
+    assert "'.inline-card-chip, a'" in source
 
 
 def test_tips_css_contract() -> None:
@@ -95,6 +101,9 @@ def test_tips_css_contract() -> None:
     panel = source.split(".gtn-tips-panel {", 1)[1].split("}", 1)[0]
     for banned in ("background", "border", "box-shadow", "backdrop-filter"):
         assert banned not in panel, f".gtn-tips-panel 不应再有 {banned}"
+    # 轮换时的淡出效果 + 文字区域可点击的指针
+    assert ".gtn-tips.is-fading" in source
+    assert "cursor: pointer" in source
 
 
 def test_index_html_wires_tips() -> None:

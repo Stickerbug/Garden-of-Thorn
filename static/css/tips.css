@@ -23,6 +23,11 @@
     transform: none;
 }
 
+/* 15 秒自动轮换 / 点击换一条时先淡出，换完再淡回来。 */
+.gtn-tips.is-fading {
+    opacity: 0;
+}
+
 .gtn-tips-panel {
     display: flex;
     align-items: baseline;
@@ -45,7 +50,7 @@
 /* 只有文字本身吃指针事件，其余留白仍然点击穿透。 */
 .gtn-tips-text {
     pointer-events: auto;
-    cursor: default;
+    cursor: pointer;
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;

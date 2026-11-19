@@ -9,6 +9,8 @@
     var VIEWS = ['view-login', 'view-lobby', 'view-draft', 'view-event-select'];
     var STATE_KEY = 'gtn_tips_state_v1';
     var MIN_INTERVAL_MS = 30000;
+    var ROTATE_MS = 15000;
+    var FADE_MS = 160;
     var MAX_RECENT = 50;
     var LONG_PRESS_MS = 400;
     var AUTHOR_HOLD_MS = 1800;
@@ -26,6 +28,9 @@
     var pendingView = null;
     var authorTimer = 0;
     var authorHideTimer = 0;
+    var rotateTimer = 0;
+    var fadeTimer = 0;
+    var suppressClick = false;
 
     function $(id) {
         return document.getElementById(id);
@@ -64,7 +69,7 @@
 
     // ---- 抽取 ----
 
-    function draw() {
+    function draw(animate) {
         if (!tips.length) return;
         var state = readState();
         var known = {};
@@ -82,7 +87,7 @@
         writeState(state);
         current = picked;
         lastDrawAt = Date.now();
-        render(picked);
+        render(picked, animate);
     }
 
     // ---- 渲染 ----
@@ -155,7 +160,7 @@
         return body[lang()] || body.zh || '';
     }
 
-    function render(tip) {
+    function paint(tip) {
         if (!box || !textEl) return;
         var text = textFor(tip);
         if (!text) {
@@ -176,12 +181,66 @@
         syncChatLift();
     }
 
+    // animate=true 时先淡出再换内容，避免 15 秒轮换时文字硬切。
+    function render(tip, animate) {
+        if (!box) return;
+        if (fadeTimer) {
+            window.clearTimeout(fadeTimer);
+            fadeTimer = 0;
+        }
+        if (!animate || box.classList.contains('hidden') || !box.classList.contains('is-visible')) {
+            paint(tip);
+            return;
+        }
+        box.classList.add('is-fading');
+        fadeTimer = window.setTimeout(function () {
+            fadeTimer = 0;
+            paint(tip);
+            box.classList.remove('is-fading');
+        }, FADE_MS);
+    }
+
     function hide() {
+        if (fadeTimer) {
+            window.clearTimeout(fadeTimer);
+            fadeTimer = 0;
+        }
         if (box) {
+            box.classList.remove('is-fading');
             box.classList.add('hidden');
             box.classList.remove('is-visible');
         }
         hideAuthor();
+        stopRotate();
+    }
+
+    // ---- 轮换：每 15 秒自动换一条，点一下也能立刻换 ----
+
+    function stopRotate() {
+        if (rotateTimer) {
+            window.clearInterval(rotateTimer);
+            rotateTimer = 0;
+        }
+    }
+
+    function startRotate() {
+        stopRotate();
+        if (!(ROTATE_MS > 0)) return;
+        rotateTimer = window.setInterval(function () {
+            if (document.hidden) return;
+            if (fadeTimer) return;
+            if (!loaded || !tips.length) return;
+            if (box && box.classList.contains('hidden')) return;
+            draw(true);
+        }, ROTATE_MS);
+    }
+
+    // 手动换一条：立即抽，并把 15 秒计时重新起算。
+    function rotateNow() {
+        if (!loaded || !tips.length) return;
+        if (box && box.classList.contains('hidden')) return;
+        draw(true);
+        startRotate();
     }
 
     // ---- 避开右下角浮动的聊天面板 ----
@@ -235,10 +294,12 @@
         textEl.addEventListener('mouseenter', showAuthor);
         textEl.addEventListener('mouseleave', hideAuthor);
         textEl.addEventListener('touchstart', function () {
+            suppressClick = false;
             hideAuthor();
             authorTimer = window.setTimeout(function () {
                 authorTimer = 0;
                 showAuthor();
+                suppressClick = true; // 长按看作者，抬手后的 click 不当作「换一条」
                 authorHideTimer = window.setTimeout(hideAuthor, AUTHOR_HOLD_MS);
             }, LONG_PRESS_MS);
         }, { passive: true });
@@ -249,6 +310,17 @@
                     authorTimer = 0;
                 }
             }, { passive: true });
+        });
+        // 点一下换一条；点到卡牌 chip 或链接时不拦截，交给它们自己处理。
+        textEl.addEventListener('click', function (event) {
+            var target = event.target;
+            if (target && target.closest && target.closest('.inline-card-chip, a')) return;
+            if (suppressClick) {
+                suppressClick = false;
+                return;
+            }
+            hideAuthor();
+            rotateNow();
         });
     }
 
@@ -330,6 +402,7 @@
         } else {
             render(current);
         }
+        startRotate();
     }
 
     function onLang() {
@@ -348,6 +421,10 @@
         labelEl = $('gtn-tips-label');
         bindAuthorTriggers();
         window.addEventListener('resize', syncChatLift);
+        // 切回标签页时重新起算 15 秒，避免一回来就立刻换一条。
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) startRotate();
+        });
         if (window.ResizeObserver) {
             var panel = document.getElementById('phase-chat-panel');
             if (panel) {
