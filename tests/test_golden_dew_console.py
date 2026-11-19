@@ -209,6 +209,9 @@ class GoldenDewConsoleCommandTests(unittest.TestCase):
         self.assertIn("thornDewAmountHtml(total, 'dew-amount', '/static/assets/ui-icons/thorn-dew.svg', true)", center)
         self.assertIn("thornDewAmountHtml(golden, 'dew-amount', '/static/assets/ui-icons/golden-dew.svg', true)", center)
         self.assertIn("thornDewAmountHtml(value, 'dew-amount', undefined, true)", profile)
+        self.assertIn("goldenDew, 'golden'],", profile)
+        self.assertIn("kind === 'golden'", profile)
+        self.assertIn("thornDewAmountHtml(value, 'dew-amount', '/static/assets/ui-icons/golden-dew.svg', true)", profile)
         amount = source.split('function thornDewAmountHtml', 1)[1].split('function titleShopRemainingSeconds', 1)[0]
         self.assertIn('allowNegative = false', amount)
         self.assertIn('allowNegative ? numericAmount : Math.max(0, numericAmount)', amount)

@@ -21091,12 +21091,12 @@ function renderAccountInfoPanel(user) {
         [currentLang === 'zh' ? '胜 / 负 / 平' : 'W / L / D', `${wins} / ${losses} / ${draws}`],
         [UI.account_online_time || '总对局时长', formatAccountPlayTime(user.play_seconds ?? 0)],
         [UI.thorn_dew || '荆露', thornDewTotal, true],
-        [currentLang === 'zh' ? '金露' : 'Golden Dew', goldenDew, true],
+        [currentLang === 'zh' ? '金露' : 'Golden Dew', goldenDew, 'golden'],
     ];
     grid.innerHTML = items.map(([label, value, kind]) => `
         <div class="account-info-item">
             <span class="account-info-label">${escapeHtml(label)}</span>
-            <span class="account-info-value">${kind === 'html' ? value : (kind === true ? thornDewAmountHtml(value, 'dew-amount', undefined, true) : escapeHtml(value))}</span>
+            <span class="account-info-value">${kind === 'html' ? value : (kind === 'golden' ? thornDewAmountHtml(value, 'dew-amount', '/static/assets/ui-icons/golden-dew.svg', true) : (kind === true ? thornDewAmountHtml(value, 'dew-amount', undefined, true) : escapeHtml(value)))}</span>
         </div>
     `).join('') + `
         <div class="account-info-item account-rank-progress-item">
