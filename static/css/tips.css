@@ -5,7 +5,7 @@
 .gtn-tips {
     position: fixed;
     left: 24px;
-    bottom: 32px;
+    bottom: calc(32px + var(--gtn-chat-lift, 0px));
     z-index: 60;
     max-width: min(460px, 42vw);
     pointer-events: none;
@@ -98,13 +98,13 @@
     .gtn-tips {
         left: 12px;
         right: 12px;
-        bottom: 33px;
+        bottom: calc(33px + var(--gtn-chat-lift, 0px));
         max-width: none;
     }
 
     /* 手机端版权行铺满整行，贴住灰条就会压字，登录页单独抬高到版权行上方。 */
     .gtn-tips[data-view="view-login"] {
-        bottom: 84px;
+        bottom: calc(84px + var(--gtn-chat-lift, 0px));
     }
 
     .gtn-tips-panel {

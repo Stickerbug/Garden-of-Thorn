@@ -173,6 +173,7 @@
         box.classList.remove('hidden');
         box.classList.add('is-visible');
         hideAuthor();
+        syncChatLift();
     }
 
     function hide() {
@@ -181,6 +182,29 @@
             box.classList.remove('is-visible');
         }
         hideAuthor();
+    }
+
+    // ---- 避开右下角浮动的聊天面板 ----
+
+    // 选牌 / 配装页右下角浮着 #phase-chat-panel，手机上面板铺满整行会压住 Tips。
+    // 这里按实际矩形把 Tips 抬到面板上沿之上（桌面面板在右侧、不相交时不会触发）。
+    function syncChatLift() {
+        var root = document.documentElement;
+        if (!box || !root) return;
+        root.style.removeProperty('--gtn-chat-lift');
+        if (box.classList.contains('hidden')) return;
+        var panel = document.getElementById('phase-chat-panel');
+        if (!panel || !panel.offsetWidth) return;
+        var style = window.getComputedStyle(panel);
+        if (style.display === 'none' || style.visibility === 'hidden') return;
+        var panelRect = panel.getBoundingClientRect();
+        var tipRect = box.getBoundingClientRect();
+        if (!panelRect.height || !tipRect.height) return;
+        var overlapsX = tipRect.left < panelRect.right && tipRect.right > panelRect.left;
+        var overlapsY = tipRect.bottom > panelRect.top && tipRect.top < panelRect.bottom;
+        if (!overlapsX || !overlapsY) return;
+        var lift = Math.round(tipRect.bottom - panelRect.top) + 12;
+        if (lift > 0) root.style.setProperty('--gtn-chat-lift', lift + 'px');
     }
 
     // ---- 作者：桌面悬停 / 移动端长按 ----
@@ -323,6 +347,15 @@
         authorEl = $('gtn-tips-author');
         labelEl = $('gtn-tips-label');
         bindAuthorTriggers();
+        window.addEventListener('resize', syncChatLift);
+        if (window.ResizeObserver) {
+            var panel = document.getElementById('phase-chat-panel');
+            if (panel) {
+                try {
+                    new window.ResizeObserver(syncChatLift).observe(panel);
+                } catch (e) { /* 观察不到就只在切视图时校正 */ }
+            }
+        }
         load();
         var visible = document.querySelector('.view:not(.hidden)');
         if (visible && visible.id) onView(visible.id);

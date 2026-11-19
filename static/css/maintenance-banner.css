@@ -57,21 +57,16 @@
     }
 }
 
-/* 左下角的 Tips 平时贴着底部状态条，横幅出现时整体让出横幅高度（--gtn-maintenance-h 由 js 实测）。 */
-html.gtn-maintenance-active .gtn-tips {
-    bottom: calc(var(--gtn-maintenance-h, 40px) + 12px);
+/* 横幅出现时整个界面按横幅高度收缩上移，底部浮层同步抬起，
+   这样状态条、Tips、聊天面板、版权行都不会被横幅压住。 */
+html.gtn-maintenance-active #app {
+    height: calc(100% - var(--gtn-maintenance-h, 40px));
 }
 
-/* 登录页左下角还有版权行，再往上让一个行高。 */
-html.gtn-maintenance-active .gtn-tips[data-view="view-login"] {
-    bottom: calc(var(--gtn-maintenance-h, 40px) + 44px);
-}
-
-/* 窄屏大厅底部是「返回主页 / 设置 / 休闲花园」那排按钮，Tips 得让到它们上面。 */
-@media (max-width: 720px) {
-    html.gtn-maintenance-active .gtn-tips[data-view="view-lobby"] {
-        bottom: calc(var(--gtn-maintenance-h, 40px) + 72px);
-    }
+html.gtn-maintenance-active .home-footer,
+html.gtn-maintenance-active #gtn-tips,
+html.gtn-maintenance-active #phase-chat-panel {
+    translate: 0 calc(-1 * var(--gtn-maintenance-h, 40px));
 }
 
 @media (max-width: 640px) {

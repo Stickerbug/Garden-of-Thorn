@@ -105,12 +105,12 @@ class BannerFrontendContractTests(unittest.TestCase):
         self.assertIn('z-index: 2147482000;', self.css)
         self.assertIn('pointer-events: none;', self.css)
 
-    def test_banner_lifts_the_tips_row_out_of_its_way(self):
-        self.assertIn('html.gtn-maintenance-active .gtn-tips {', self.css)
-        self.assertIn('calc(var(--gtn-maintenance-h, 40px) + 12px)', self.css)
-        self.assertIn('html.gtn-maintenance-active .gtn-tips[data-view="view-login"] {', self.css)
-        self.assertIn('html.gtn-maintenance-active .gtn-tips[data-view="view-lobby"] {', self.css)
-        self.assertIn('calc(var(--gtn-maintenance-h, 40px) + 72px)', self.css)
+    def test_active_banner_shrinks_the_app_and_lifts_the_bottom_layers(self):
+        self.assertIn('html.gtn-maintenance-active #app {', self.css)
+        self.assertIn('height: calc(100% - var(--gtn-maintenance-h, 40px));', self.css)
+        self.assertIn('html.gtn-maintenance-active #gtn-tips,', self.css)
+        self.assertIn('html.gtn-maintenance-active #phase-chat-panel {', self.css)
+        self.assertIn('translate: 0 calc(-1 * var(--gtn-maintenance-h, 40px));', self.css)
         self.assertIn('function syncHeight()', self.js)
         self.assertIn("root.style.setProperty('--gtn-maintenance-h'", self.js)
 
