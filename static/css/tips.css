@@ -32,15 +32,21 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
-    color: rgba(58, 62, 72, .82);
+    /* 和主界面其它非按钮文字统一：白色填充 + 黑色描边 */
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    -webkit-text-stroke: 1px #000;
+    paint-order: stroke fill;
     font-size: 17.5px;
     line-height: 1.45;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, .7);
+    text-shadow: none;
 }
 
 .gtn-tips-label {
     flex: 0 0 auto;
-    color: rgba(150, 112, 34, .92);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    -webkit-text-stroke: 1px #000;
     font-size: 16px;
     font-weight: 600;
     letter-spacing: .02em;
@@ -58,29 +64,41 @@
     word-break: break-word;
 }
 
+/* 卡牌 chip 是白底深字的小零件，不能被外层描边规则带成白字 */
+.gtn-tips-text .inline-card-chip,
+.gtn-tips-text .inline-card-chip .choice-card-name {
+    color: #3a3e48;
+    -webkit-text-fill-color: #3a3e48;
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+}
+
 .gtn-tips-text .gtn-tips-link {
-    color: #8a5f10;
+    color: #fff;
+    -webkit-text-fill-color: #fff;
     text-decoration: underline;
-    text-decoration-color: rgba(138, 95, 16, .45);
+    text-decoration-color: rgba(0, 0, 0, .55);
     text-underline-offset: 3px;
     word-break: break-all;
 }
 
 .gtn-tips-text .gtn-tips-link:hover {
-    color: #6d4a08;
-    text-decoration-color: rgba(109, 74, 8, .8);
+    color: #fff;
+    text-decoration-color: rgba(0, 0, 0, .85);
 }
 
 .gtn-tips-author {
     position: absolute;
     left: 0;
     bottom: calc(100% + 2px);
-    color: rgba(150, 112, 34, .95);
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    -webkit-text-stroke: 1px #000;
     font-size: 13.5px;
     letter-spacing: .02em;
     white-space: nowrap;
     pointer-events: none;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, .75);
+    text-shadow: none;
     opacity: 0;
     transform: translateY(3px);
     transition: opacity .16s ease, transform .16s ease;
