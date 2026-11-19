@@ -114,7 +114,7 @@ def test_index_html_wires_tips() -> None:
     assert "/static/js/tips.js" in html
     # 缓存破坏：tips.json 的 ?v= 从容器上取，跟随 static_version
     assert 'data-version="{{ static_version' in html
-    assert ">Tips:<" in html
+    assert ">Tip:<" in html
 
 
 def test_game_js_hooks() -> None:

@@ -173,7 +173,7 @@
                 window.bindInlineCardChips(textEl, { interactive: true });
             } catch (e) { /* chip 交互绑不上不影响展示 */ }
         }
-        if (labelEl) labelEl.textContent = 'Tips:';
+        if (labelEl) labelEl.textContent = 'Tip:';
         if (authorEl) authorEl.textContent = tip.author ? '—— ' + tip.author : '';
         box.classList.remove('hidden');
         box.classList.add('is-visible');
