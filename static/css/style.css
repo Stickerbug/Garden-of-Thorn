@@ -23631,3 +23631,26 @@ body.has-corruption-field::after {
     font-size: 14px;
   }
 }
+
+/* 多人游戏大厅：
+   1) 直接压在浅色页面底上的文字（大厅标题、赛季/天梯提示）沿用主页那套白色填充 + 黑色外描边；
+   2) 白卡片里的文字（在线玩家 / 聊天 / 在线人数）保持深色，否则会变成空心字；
+   3) 聊天正文 12px 太小，抬到 13px。 */
+#view-lobby .lobby-header h2 {
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    text-shadow: var(--gtn-ring-2);
+}
+
+#view-lobby #season-countdown,
+#view-lobby #ranked-availability {
+    color: #fff;
+    -webkit-text-fill-color: #fff;
+    text-shadow: var(--gtn-ring-1);
+    font-size: 13px;
+}
+
+#view-lobby .lobby-chat-log {
+    font-size: 13px;
+    line-height: 1.5;
+}

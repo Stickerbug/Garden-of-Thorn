@@ -84,3 +84,15 @@ def test_outline_width_follows_font_size() -> None:
 def test_tips_reuses_the_same_ring_presets() -> None:
     assert "text-shadow: var(--gtn-ring-1);" in TIPS
     assert "-webkit-text-stroke" not in TIPS
+
+
+def test_lobby_only_outlines_text_off_white_cards() -> None:
+    # 大厅标题压在浅色页面底上 → 白字 + 外描边；白卡片里的文字保持深色
+    lobby = STYLE[STYLE.index("/* 多人游戏大厅：") :]
+    assert "#view-lobby .lobby-header h2 {" in lobby
+    assert "text-shadow: var(--gtn-ring-2);" in lobby
+    assert "#view-lobby #season-countdown," in lobby
+    head = lobby[: lobby.index("{")]
+    for dark in (".lobby-section h3", ".info-text", ".lobby-chat-title", ".mode-tab"):
+        assert dark not in head, f"{dark} 在白卡片上，不该改成白字"
+
