@@ -67,8 +67,8 @@ def build(rows: list[tuple[str, str]]) -> dict:
         )
     return {
         "schema": SCHEMA,
-        "version": "2026-11-19.1",
-        "updated_at": "2026-11-19",
+        "version": "2026-11-20.1",
+        "updated_at": "2026-11-20",
         "tips": tips,
     }
 

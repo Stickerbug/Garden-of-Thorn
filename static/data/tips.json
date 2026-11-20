@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": "2026-11-19.1",
-  "updated_at": "2026-11-19",
+  "version": "2026-11-20.1",
+  "updated_at": "2026-11-20",
   "tips": [
     {
       "id": "t0001",
@@ -70,819 +70,1393 @@
       "id": "t0010",
       "author": "Einsteinson",
       "text": {
-        "zh": "等待蝉的所有闪避放完了再打"
+        "zh": "世界树下好像有个紫色的人…"
       }
     },
     {
       "id": "t0011",
       "author": "Einsteinson",
       "text": {
-        "zh": "世界树下好像有个紫色的人…"
+        "zh": "简单模式祈福选神格😋嘿嘿嘿"
       }
     },
     {
       "id": "t0012",
       "author": "Einsteinson",
       "text": {
-        "zh": "不打铀桶不会中毒，试试用核弹秒掉"
+        "zh": "Boss Rush可能比疯狂模式更简单🤔"
       }
     },
     {
       "id": "t0013",
       "author": "Einsteinson",
       "text": {
-        "zh": "1v1时，不到必要时刻别用反制"
-      }
-    },
-    {
-      "id": "t0014",
-      "author": "Einsteinson",
-      "text": {
-        "zh": "简单模式祈福选神格😋嘿嘿嘿"
-      }
-    },
-    {
-      "id": "t0015",
-      "author": "Einsteinson",
-      "text": {
-        "zh": "Boss Rush可能比疯狂模式更简单🤔"
-      }
-    },
-    {
-      "id": "t0016",
-      "author": "Einsteinson",
-      "text": {
-        "zh": "多囤点0E 0M卡，也许会救你一命"
-      }
-    },
-    {
-      "id": "t0017",
-      "author": "Einsteinson",
-      "text": {
         "zh": "升级卡牌的普遍规律是数值×1.5后向下取整，但雷神之锤每次只加8伤害"
       }
     },
     {
-      "id": "t0018",
+      "id": "t0014",
       "author": "NaN",
       "text": {
         "zh": "我确信我发现了一个能百分百胜利的绝妙卡组，可惜Tips的长度太短了，写不下。"
       }
     },
     {
-      "id": "t0019",
+      "id": "t0015",
       "author": "NaN",
       "text": {
         "zh": "我的聚变不会输！"
       }
     },
     {
-      "id": "t0020",
+      "id": "t0016",
       "author": "NaN",
       "text": {
         "zh": "你看这个[[card:三叉戟]]，它已经打了1.1754097143382814e+36D×64伤害了"
       }
     },
     {
-      "id": "t0021",
+      "id": "t0017",
       "author": "NetherDog",
       "text": {
         "zh": "我说战个未来"
       }
     },
     {
-      "id": "t0022",
+      "id": "t0018",
       "author": "NetherDog",
       "text": {
         "zh": "好牌多抓"
       }
     },
     {
-      "id": "t0023",
+      "id": "t0019",
       "author": "NetherDog",
       "text": {
         "zh": "~宇宙冷漠~"
       }
     },
     {
-      "id": "t0024",
+      "id": "t0020",
       "author": "NetherDog",
       "text": {
         "zh": "我已启动"
       }
     },
     {
-      "id": "t0025",
+      "id": "t0021",
       "author": "NetherDog",
       "text": {
         "zh": "我已启"
       }
     },
     {
-      "id": "t0026",
+      "id": "t0022",
       "author": "restart",
       "text": {
         "zh": "我觉得AI比生发剂好用"
       }
     },
     {
-      "id": "t0027",
+      "id": "t0023",
       "author": "restart",
       "text": {
         "zh": "X X XXX"
       }
     },
     {
-      "id": "t0028",
+      "id": "t0024",
       "author": "restart",
       "text": {
         "zh": "塔，向上延伸"
       }
     },
     {
-      "id": "t0029",
+      "id": "t0025",
       "author": "Stickerbug",
       "text": {
         "zh": "猜猜看你要重新加载多少次才能再看到这条tip~"
       }
     },
     {
-      "id": "t0030",
+      "id": "t0026",
       "author": "Stickerbug",
       "text": {
         "zh": "欢迎来到《Garden of Thorn》！"
       }
     },
     {
-      "id": "t0031",
+      "id": "t0027",
       "author": "Stickerbug",
       "text": {
         "zh": "Tip: Tip: Tip: Tip: Tip: Tip: Tip: Tip:"
       }
     },
     {
-      "id": "t0032",
+      "id": "t0028",
       "author": "Stickerbug",
       "text": {
         "zh": "回响形态形响回"
       }
     },
     {
-      "id": "t0033",
+      "id": "t0029",
       "author": "Stickerbug",
       "text": {
         "zh": "你知道吗？游戏里的E（能量），其实在代码中写作Elixir"
       }
     },
     {
-      "id": "t0034",
+      "id": "t0030",
       "author": "Stickerbug",
       "text": {
         "zh": "你知道吗？其实Tips全都是废话（或许"
       }
     },
     {
-      "id": "t0035",
+      "id": "t0031",
       "author": "Stickerbug",
       "text": {
         "zh": "上次看到这条Tip还是在上次"
       }
     },
     {
-      "id": "t0036",
+      "id": "t0032",
       "author": "Stickerbug",
       "text": {
         "zh": "下一把一定会赢的！"
       }
     },
     {
-      "id": "t0037",
+      "id": "t0033",
       "author": "Stickerbug",
       "text": {
         "zh": "加入官方QQ群，以了解我们最新的更新情报！"
       }
     },
     {
-      "id": "t0038",
+      "id": "t0034",
       "author": "Stickerbug",
       "text": {
         "zh": "关注B站@Stickerbug喵，关注@Stickerbug谢谢喵"
       }
     },
     {
-      "id": "t0039",
+      "id": "t0035",
       "author": "Stickerbug",
       "text": {
         "zh": "有一个人前来打牌"
       }
     },
     {
-      "id": "t0040",
+      "id": "t0036",
       "author": "Stickerbug",
       "text": {
         "zh": "成 分 复 杂"
       }
     },
     {
-      "id": "t0041",
+      "id": "t0037",
       "author": "Stickerbug",
       "text": {
         "zh": "交电费啦，2[[icon:electric_damage]]一张，2[[icon:electric_damage]]一张~"
       }
     },
     {
-      "id": "t0042",
+      "id": "t0038",
       "author": "Stickerbug",
       "text": {
         "zh": "先别鼓掌，还在结算呢"
       }
     },
     {
-      "id": "t0043",
+      "id": "t0039",
       "author": "Stickerbug",
       "text": {
         "zh": "注意，轨道使并不是在玩 florr.io"
       }
     },
     {
-      "id": "t0044",
+      "id": "t0040",
       "author": "Stickerbug",
       "text": {
         "zh": "在休闲花园的Craft Eternal合出Eternal，并不会导致你被封号"
       }
     },
     {
-      "id": "t0045",
+      "id": "t0041",
       "author": "Stickerbug",
       "text": {
         "zh": "你知道吗？本游戏的生日是2026年4月16日，在线版上线则是同年5月29日"
       }
     },
     {
-      "id": "t0046",
+      "id": "t0042",
       "author": "Stickerbug",
       "text": {
         "zh": "这把问题一定出在发牌员上"
       }
     },
     {
-      "id": "t0047",
+      "id": "t0043",
       "author": "Stickerbug",
       "text": {
         "zh": "我赌对面没反制"
       }
     },
     {
-      "id": "t0048",
+      "id": "t0044",
       "author": "Stickerbug",
       "text": {
         "zh": "这谁配的牌组？"
       }
     },
     {
-      "id": "t0049",
+      "id": "t0045",
       "author": "Stickerbug",
       "text": {
         "zh": "一手全是玫瑰，拿去表白很合适"
       }
     },
     {
-      "id": "t0050",
+      "id": "t0046",
       "author": "Stickerbug",
       "text": {
         "zh": "你上局打赢了吗？"
       }
     },
     {
-      "id": "t0051",
+      "id": "t0047",
       "author": "Stickerbug",
       "text": {
         "zh": "不贪，就一张"
       }
     },
     {
-      "id": "t0052",
+      "id": "t0048",
       "author": "Stickerbug",
       "text": {
         "zh": "月が綺麗ねと……[[card:月石]]？"
       }
     },
     {
-      "id": "t0053",
+      "id": "t0049",
       "author": "Stickerbug",
       "text": {
         "zh": "♪ 花占いでもやってみようかな~"
       }
     },
     {
-      "id": "t0054",
+      "id": "t0050",
       "author": "Stickerbug",
       "text": {
         "zh": "遇到bug或有设计建议，可以在主页的反馈中心里反馈~"
       }
     },
     {
-      "id": "t0055",
+      "id": "t0051",
       "author": "Stickerbug",
       "text": {
         "zh": "Stickerbug是三大管理中最菜的"
       }
     },
     {
-      "id": "t0056",
+      "id": "t0052",
       "author": "Stickerbug",
       "text": {
         "zh": "你说得对，但是《荆棘花园》是 Garden of Thorn Dev Team……"
       }
     },
     {
-      "id": "t0057",
+      "id": "t0053",
       "author": "Stickerbug",
       "text": {
         "zh": "random.shuffle(self.deck)"
       }
     },
     {
-      "id": "t0058",
+      "id": "t0054",
       "author": "Stickerbug",
       "text": {
         "zh": "少女祈祷中……"
       }
     },
     {
-      "id": "t0059",
+      "id": "t0055",
       "author": "Stickerbug",
       "text": {
         "zh": "本游戏还在测试中，出各种问题都是有可能的哦"
       }
     },
     {
-      "id": "t0060",
+      "id": "t0056",
       "author": "Stickerbug",
       "text": {
         "zh": "大概还是有人会看Tip的"
       }
     },
     {
-      "id": "t0061",
+      "id": "t0057",
       "author": "Stickerbug",
       "text": {
         "zh": "还能写些什么Tip呢"
       }
     },
     {
-      "id": "t0062",
+      "id": "t0058",
       "author": "Stickerbug",
       "text": {
         "zh": "喵！"
       }
     },
     {
-      "id": "t0063",
+      "id": "t0059",
       "author": "Stickerbug",
       "text": {
         "zh": "作业没做完别玩手机"
       }
     },
     {
-      "id": "t0064",
+      "id": "t0060",
       "author": "Stickerbug",
       "text": {
         "zh": "点击输入文本"
       }
     },
     {
-      "id": "t0065",
+      "id": "t0061",
       "author": "Stickerbug",
       "text": {
         "zh": "sudo rm -rf /*"
       }
     },
     {
-      "id": "t0066",
+      "id": "t0062",
       "author": "Stickerbug",
       "text": {
         "zh": "我们联合！"
       }
     },
     {
-      "id": "t0067",
+      "id": "t0063",
       "author": "Stickerbug",
       "text": {
         "zh": "哇多么好的游戏啊"
       }
     },
     {
-      "id": "t0068",
+      "id": "t0064",
       "author": "Stickerbug",
       "text": {
         "zh": "电脑端按住Alt键，可查看快捷键提示"
       }
     },
     {
-      "id": "t0069",
+      "id": "t0065",
       "author": "Stickerbug",
       "text": {
         "zh": "快捷键键位是可以自定义的"
       }
     },
     {
-      "id": "t0070",
+      "id": "t0066",
       "author": "Stickerbug",
       "text": {
         "zh": "管理员可以观战天梯模式！别问天梯对局为什么有人观战啦！"
       }
     },
     {
-      "id": "t0071",
+      "id": "t0067",
       "author": "Stickerbug",
       "text": {
         "zh": "大家也要多多支持其他卡牌游戏哦~"
       }
     },
     {
-      "id": "t0072",
+      "id": "t0068",
       "author": "Stickerbug",
       "text": {
         "zh": "東方Project好玩！"
       }
     },
     {
-      "id": "t0073",
+      "id": "t0069",
       "author": "Stickerbug",
       "text": {
         "zh": "Minecraft好玩！"
       }
     },
     {
-      "id": "t0074",
+      "id": "t0070",
       "author": "Stickerbug",
       "text": {
         "zh": "Celeste好玩！"
       }
     },
     {
-      "id": "t0075",
+      "id": "t0071",
       "author": "Stickerbug",
       "text": {
         "zh": "你可以在 设置>社交 中关闭“接受对局邀请”功能"
       }
     },
     {
-      "id": "t0076",
+      "id": "t0072",
       "author": "Stickerbug",
       "text": {
         "zh": "感到吵的话，试试在 设置>音频 中修改音频设置"
       }
     },
     {
-      "id": "t0077",
+      "id": "t0073",
       "author": "Stickerbug",
       "text": {
         "zh": "虽然本游戏代码的95%由AI完成，但是设计和绘图都是开发组真人做的！"
       }
     },
     {
-      "id": "t0078",
+      "id": "t0074",
       "author": "Stickerbug",
       "text": {
         "zh": "OOOOH MY PC!"
       }
     },
     {
-      "id": "t0079",
+      "id": "t0075",
       "author": "Stickerbug",
       "text": {
         "zh": "这里[这是一个可点击的链接，指向https://florrio.wiki.gg/zh/wiki/%E5%90%8C/Garden_of_Thorn%E8%8D%86%E6%A3%98%E8%8A%B1%E5%9B%AD]虽然不是我们的官方Wiki，不过我想你可以看看"
       }
     },
     {
-      "id": "t0080",
+      "id": "t0076",
       "author": "Stickerbug",
       "text": {
         "zh": "1，2，⑨！！！！！"
       }
     },
     {
-      "id": "t0081",
+      "id": "t0077",
       "author": "Stickerbug",
       "text": {
         "zh": "感谢Phigros, Techmino提供(确信)部分Tip模板"
       }
     },
     {
-      "id": "t0082",
+      "id": "t0078",
       "author": "Stickerbug",
       "text": {
         "zh": "Stickerbug只是个写代码的，懂什么卡牌游戏"
       }
     },
     {
-      "id": "t0083",
+      "id": "t0079",
       "author": "Stickerbug",
       "text": {
         "zh": "Hello World!"
       }
     },
     {
-      "id": "t0084",
+      "id": "t0080",
       "author": "Stickerbug",
       "text": {
         "zh": "？！花花！？"
       }
     },
     {
-      "id": "t0085",
+      "id": "t0081",
       "author": "Stickerbug",
       "text": {
         "zh": "[此条Tip已被隐藏]"
       }
     },
     {
-      "id": "t0086",
+      "id": "t0082",
       "author": "Stickerbug",
       "text": {
         "zh": "睡不着了怎么办？数 GTN 有多少个 bug 啊"
       }
     },
     {
-      "id": "t0087",
+      "id": "t0083",
       "author": "Stickerbug",
       "text": {
-        "zh": "みんなー！Stickerbugのカード教室 はじまるよー！"
+        "zh": "みんなー！Stickerbugのカード教室   はじまるよー！"
       }
     },
     {
-      "id": "t0088",
+      "id": "t0084",
       "author": "Stickerbug",
       "text": {
-        "zh": "♪ バーカ バーカ"
+        "zh": "♪ バーカ　バーカ"
       }
     },
     {
-      "id": "t0089",
+      "id": "t0085",
       "author": "Stickerbug",
       "text": {
-        "zh": "♪ 知らないわ  周りの事など  私は私  それだけ"
+        "zh": "♪ 知らないわ　周りの事など　私は私　それだけ"
       }
     },
     {
-      "id": "t0090",
+      "id": "t0086",
       "author": "Stickerbug",
       "text": {
         "zh": "GTN的意思并不是GregTech: New (Horizons)"
       }
     },
     {
-      "id": "t0091",
+      "id": "t0087",
       "author": "Stickerbug",
       "text": {
         "zh": "违禁词检测的词库是随便找的，就连Stickerbug都被禁言过"
       }
     },
     {
-      "id": "t0092",
+      "id": "t0088",
       "author": "Stickerbug",
       "text": {
         "zh": "开发组呢？咕咕咕"
       }
     },
     {
-      "id": "t0093",
+      "id": "t0089",
       "author": "Stickerbug",
       "text": {
         "zh": "在B站发布GTN的优质宣传视频有奖哦，可联系管理员获得2000荆露"
       }
     },
     {
-      "id": "t0094",
+      "id": "t0090",
       "author": "Stickerbug",
       "text": {
         "zh": "我们通过大数据分析您的喜好，查找能获得更高浏览量的Tips。"
       }
     },
     {
-      "id": "t0095",
+      "id": "t0091",
       "author": "Stickerbug",
       "text": {
         "zh": "♪ Only feels like nothing could be better when I'm with you~"
       }
     },
     {
-      "id": "t0096",
+      "id": "t0092",
       "author": "Stickerbug",
       "text": {
         "zh": "这张牌别爆……"
       }
     },
     {
-      "id": "t0097",
+      "id": "t0093",
       "author": "Stickerbug",
       "text": {
         "zh": "我抽到了！我抽到了！！哈哈哈！！！"
       }
     },
     {
-      "id": "t0098",
+      "id": "t0094",
       "author": "Stickerbug",
       "text": {
         "zh": "别催了，在做了！"
       }
     },
     {
-      "id": "t0099",
+      "id": "t0095",
       "author": "Stickerbug",
       "text": {
         "zh": "至死方休！"
       }
     },
     {
-      "id": "t0100",
+      "id": "t0096",
       "author": "Stickerbug",
       "text": {
         "zh": "沟槽的美芬"
       }
     },
     {
-      "id": "t0101",
+      "id": "t0097",
       "author": "Stickerbug",
       "text": {
         "zh": "0.5NoSL了"
       }
     },
     {
-      "id": "t0102",
+      "id": "t0098",
       "author": "Stickerbug",
       "text": {
         "zh": "偏差认知了"
       }
     },
     {
-      "id": "t0103",
+      "id": "t0099",
       "author": "Stickerbug",
       "text": {
         "zh": "这是我在尖塔第5喜欢的角色"
       }
     },
     {
-      "id": "t0104",
+      "id": "t0100",
       "author": "Stickerbug",
       "text": {
         "zh": "上课时间不许摸鱼打牌！"
       }
     },
     {
-      "id": "t0105",
+      "id": "t0101",
       "author": "Stickerbug",
       "text": {
         "zh": "选牌时，建议三思而后行！别忘了自己的配装倾向！"
       }
     },
     {
-      "id": "t0106",
+      "id": "t0102",
       "author": "Stickerbug",
       "text": {
         "zh": "可以试试[[card:腐化]]和[[card:鸢尾]]的搭配，腐化较先触发，毒伤会×1.5"
       }
     },
     {
-      "id": "t0107",
+      "id": "t0103",
       "author": "Stickerbug",
       "text": {
-        "zh": "试试[[card:魔法橙子]]+[[card:魔法电池]](目标选敌方)+[[card:魔法丝兰]]+[[card:魔法叶]]+配装“魔力加速”？"
+        "zh": "用[[card:魔法橙子]]+[[card:魔法电池]](目标选敌方)+[[card:魔法丝兰]]+[[card:魔法叶]]+配装“魔力加速”捅他一万个透明窟窿"
       }
     },
     {
-      "id": "t0108",
+      "id": "t0104",
       "author": "Stickerbug",
       "text": {
         "zh": "曾经有一个配装倾向叫“多重瓣”，但因为太超模被移除了"
       }
     },
     {
-      "id": "t0109",
+      "id": "t0105",
       "author": "Stickerbug",
       "text": {
         "zh": "对[[card:三角形]]使用[[card:裂变]]，可以使自己的攻击牌获得更多暂时威力（前提是造成了伤害）"
       }
     },
     {
-      "id": "t0110",
+      "id": "t0106",
       "author": "Stickerbug",
       "text": {
         "zh": "主动使用[[card:世界树之叶]]需三思，可能会被随机数做局导致一直抽不到"
       }
     },
     {
-      "id": "t0111",
+      "id": "t0107",
       "author": "Stickerbug",
       "text": {
         "zh": "魔法流慎用，看实力和运气，但用好了真的很强"
       }
     },
     {
-      "id": "t0112",
+      "id": "t0108",
       "author": "Stickerbug",
       "text": {
         "zh": "我是熟练入"
       }
     },
     {
-      "id": "t0113",
+      "id": "t0109",
       "author": "Stickerbug",
       "text": {
         "zh": "商店刷新两次，就会比[?!花花!?]称号还贵了，省着点用"
       }
     },
     {
-      "id": "t0114",
+      "id": "t0110",
       "author": "Stickerbug",
       "text": {
         "zh": "等我启动"
       }
     },
     {
-      "id": "t0115",
+      "id": "t0111",
       "author": "Stickerbug",
       "text": {
         "zh": "Craft Eternal 即使合成失败也能得分哦"
       }
     },
     {
-      "id": "t0116",
+      "id": "t0112",
       "author": "Eric",
       "text": {
         "zh": "少女折寿中……"
       }
     },
     {
-      "id": "t0117",
+      "id": "t0113",
       "author": "Eric",
       "text": {
         "zh": "重新开始这一天"
       }
     },
     {
-      "id": "t0118",
+      "id": "t0114",
       "author": "Eric",
       "text": {
         "zh": "正在寻找对手......"
       }
     },
     {
-      "id": "t0119",
+      "id": "t0115",
       "author": "Eric",
       "text": {
         "zh": "未找到？！"
       }
     },
     {
-      "id": "t0120",
+      "id": "t0116",
       "author": "Eric",
       "text": {
         "zh": "肥肠墙？！兑"
       }
     },
     {
-      "id": "t0121",
+      "id": "t0117",
       "author": "Eric",
       "text": {
         "zh": "农神来啦~"
       }
     },
     {
-      "id": "t0122",
+      "id": "t0118",
       "author": "Eric",
       "text": {
         "zh": "⑨月⑨日忆山东baka"
       }
     },
     {
-      "id": "t0123",
+      "id": "t0119",
       "author": "Eric",
       "text": {
         "zh": "GTNH是这个世界上最好玩的游戏"
       }
     },
     {
-      "id": "t0124",
+      "id": "t0120",
       "author": "Eric",
       "text": {
         "zh": "来将梦境变作现实吧！"
       }
     },
     {
-      "id": "t0125",
+      "id": "t0121",
       "author": "Eric",
       "text": {
         "zh": "梦违，为幻之朝霭的世界的记忆~"
       }
     },
     {
-      "id": "t0126",
+      "id": "t0122",
       "author": "Eric",
       "text": {
         "zh": "！！！！不知所措"
+      }
+    },
+    {
+      "id": "t0123",
+      "author": "T64",
+      "text": {
+        "zh": "制作组里可能没有或有一个猫娘"
+      }
+    },
+    {
+      "id": "t0124",
+      "author": "T64",
+      "text": {
+        "zh": "请务必找出所有聊天违禁词并发送至聊天栏"
+      }
+    },
+    {
+      "id": "t0125",
+      "author": "T64",
+      "text": {
+        "zh": "如果你在花游中遇到了制作组的成员，请[[card:标记]]他们 :)"
+      }
+    },
+    {
+      "id": "t0126",
+      "author": "T64",
+      "text": {
+        "zh": "昨日一去不复回~"
+      }
+    },
+    {
+      "id": "t0127",
+      "author": "T64",
+      "text": {
+        "zh": "三军听令，自刎归天！"
+      }
+    },
+    {
+      "id": "t0128",
+      "author": "T64",
+      "text": {
+        "zh": "真是一对笑面虎，两头乌角鲨"
+      }
+    },
+    {
+      "id": "t0129",
+      "author": "T64",
+      "text": {
+        "zh": "生死不明，那就是死了"
+      }
+    },
+    {
+      "id": "t0130",
+      "author": "T64",
+      "text": {
+        "zh": "好火啊，比夷陵之火还要好"
+      }
+    },
+    {
+      "id": "t0131",
+      "author": "T64",
+      "text": {
+        "zh": "死是凉爽的夏夜，可供人无忧的安眠"
+      }
+    },
+    {
+      "id": "t0132",
+      "author": "T64",
+      "text": {
+        "zh": "忠！诚！"
+      }
+    },
+    {
+      "id": "t0133",
+      "author": "T64",
+      "text": {
+        "zh": "哈基米那没路多"
+      }
+    },
+    {
+      "id": "t0134",
+      "author": "T64",
+      "text": {
+        "zh": "如果你的账号遇到问题，请不要惊慌。我们会立即查看您的充值状况"
+      }
+    },
+    {
+      "id": "t0135",
+      "author": "Eric",
+      "text": {
+        "zh": "我的超级智慧告诉我要使用我的超级力量了"
+      }
+    },
+    {
+      "id": "t0136",
+      "author": "Eric",
+      "text": {
+        "zh": "请勿让对手使用[[card:绷带]]，因为只要花花一息尚存，他就战无不胜！"
+      }
+    },
+    {
+      "id": "t0137",
+      "author": "Eric",
+      "text": {
+        "zh": "紫老太婆sjankowkkdklsllg"
+      }
+    },
+    {
+      "id": "t0138",
+      "author": "Eric",
+      "text": {
+        "zh": "新三，🐉"
+      }
+    },
+    {
+      "id": "t0139",
+      "author": "Eric",
+      "text": {
+        "zh": "站中间，串两边"
+      }
+    },
+    {
+      "id": "t0140",
+      "author": "Eric",
+      "text": {
+        "zh": "我们称之为高效"
+      }
+    },
+    {
+      "id": "t0141",
+      "author": "Eric",
+      "text": {
+        "zh": "简易长矛，合体！"
+      }
+    },
+    {
+      "id": "t0142",
+      "author": "Eric",
+      "text": {
+        "zh": "很久很久以前，在一片温暖又繁茂的森林里住着三只幸福的鸟儿。"
+      }
+    },
+    {
+      "id": "t0143",
+      "author": "Eric",
+      "text": {
+        "zh": "起来吧，我的仆从，欢唱着迎接我的到来。"
+      }
+    },
+    {
+      "id": "t0144",
+      "author": "Eric",
+      "text": {
+        "zh": "哇多么好的机会[这是一个可点击的链接，显示在”机会“上，指向https://www.stickerbug.top]啊"
+      }
+    },
+    {
+      "id": "t0145",
+      "author": "Eric",
+      "text": {
+        "zh": "日记：今天我挂了。我在一个温暖的花园里，被这货打死了→（好丑）我要把我所有的东西留给我的嗝屁猫，再见，这个可怕的世界 。"
+      }
+    },
+    {
+      "id": "t0146",
+      "author": "Eric",
+      "text": {
+        "zh": "I am fire~Burn those who dare to care for me"
+      }
+    },
+    {
+      "id": "t0147",
+      "author": "Eric",
+      "text": {
+        "zh": "I↓must↑be→the↓rea→son↑why→"
+      }
+    },
+    {
+      "id": "t0148",
+      "author": "Eric",
+      "text": {
+        "zh": "饿啊~"
+      }
+    },
+    {
+      "id": "t0149",
+      "author": "Eric",
+      "text": {
+        "zh": "烈焰升腾"
+      }
+    },
+    {
+      "id": "t0150",
+      "author": "Eric",
+      "text": {
+        "zh": "花园的和谐使你充满了决心"
+      }
+    },
+    {
+      "id": "t0151",
+      "author": "Eric",
+      "text": {
+        "zh": "怎么，打不中吗？"
+      }
+    },
+    {
+      "id": "t0152",
+      "author": "Eric",
+      "text": {
+        "zh": "一天早晨，格里高尔从不安的睡梦中醒来，发现自己躺在床上变成了一只巨大的花花。"
+      }
+    },
+    {
+      "id": "t0153",
+      "author": "Eric",
+      "text": {
+        "zh": "都是你的错！"
+      }
+    },
+    {
+      "id": "t0154",
+      "author": "Eric",
+      "text": {
+        "zh": "密道：入此门者将舍弃一切花瓣"
+      }
+    },
+    {
+      "id": "t0155",
+      "author": "Eric",
+      "text": {
+        "zh": "究竟是先有蚂蚁，还是先有蚁卵？"
+      }
+    },
+    {
+      "id": "t0156",
+      "author": "Eric",
+      "text": {
+        "zh": "你的法术不奏效了，怎么回事呢？[[card:魔法便便]]"
+      }
+    },
+    {
+      "id": "t0157",
+      "author": "Eric",
+      "text": {
+        "zh": "蜘蛛尤巴有一对光剑，一把叫仁之剑，一把叫义之剑"
+      }
+    },
+    {
+      "id": "t0158",
+      "author": "Eric",
+      "text": {
+        "zh": "我在想我的那些个蚂蚁儿，它们各个有情有义"
+      }
+    },
+    {
+      "id": "t0159",
+      "author": "Eric",
+      "text": {
+        "zh": "这就不奇怪了，这就不奇怪了"
+      }
+    },
+    {
+      "id": "t0160",
+      "author": "Eric",
+      "text": {
+        "zh": "说的好啊，当浮一大白"
+      }
+    },
+    {
+      "id": "t0161",
+      "author": "Eric",
+      "text": {
+        "zh": "恭喜[[card:蜂蜜]]可以称帝了"
+      }
+    },
+    {
+      "id": "t0162",
+      "author": "Eric",
+      "text": {
+        "zh": "我们的同志遍布五湖四海，甚至打入了某些组织的内部……"
+      }
+    },
+    {
+      "id": "t0163",
+      "author": "Eric",
+      "text": {
+        "zh": "来自florr一群兄弟，结庐gtn~"
+      }
+    },
+    {
+      "id": "t0164",
+      "author": "Eric",
+      "text": {
+        "zh": "冰冰冰"
+      }
+    },
+    {
+      "id": "t0165",
+      "author": "Eric",
+      "text": {
+        "zh": "值得注意的是，在该系列事件中，有三位俄罗斯玩家不幸被举报，目前已确认被封禁，他们分别是：安东·尤丁采夫 ，维亚切斯拉夫·巴兰尼科夫、尼基塔·布亚诺夫"
+      }
+    },
+    {
+      "id": "t0166",
+      "author": "Eric",
+      "text": {
+        "zh": "劲啊，劲啊"
+      }
+    },
+    {
+      "id": "t0167",
+      "author": "Eric",
+      "text": {
+        "zh": "筋疲力尽？厌倦。想要休息？肚子饿了。想离开这里？"
+      }
+    },
+    {
+      "id": "t0168",
+      "author": "Eric",
+      "text": {
+        "zh": "你已经累了？我仍尚未正式开始呢。"
+      }
+    },
+    {
+      "id": "t0169",
+      "author": "Eric",
+      "text": {
+        "zh": "今晚月色真美，看看月亮吧"
+      }
+    },
+    {
+      "id": "t0170",
+      "author": "Eric",
+      "text": {
+        "zh": "你根本没在花园，你躲哪儿去了？"
+      }
+    },
+    {
+      "id": "t0171",
+      "author": "Eric",
+      "text": {
+        "zh": "今天   游戏更新了。也可能是昨天   我不知道"
+      }
+    },
+    {
+      "id": "t0172",
+      "author": "Eric",
+      "text": {
+        "zh": "至此，艺术已成"
+      }
+    },
+    {
+      "id": "t0173",
+      "author": "Eric",
+      "text": {
+        "zh": "只要队友发动进攻，一切都会好起来的"
+      }
+    },
+    {
+      "id": "t0174",
+      "author": "Eric",
+      "text": {
+        "zh": "我们必须想象花花是幸福的"
+      }
+    },
+    {
+      "id": "t0175",
+      "author": "Eric",
+      "text": {
+        "zh": "我会重复以上操作，将你打成一块破抹布"
+      }
+    },
+    {
+      "id": "t0176",
+      "author": "Eric",
+      "text": {
+        "zh": "我说不要玩光洗，尼耳朵龙吗"
+      }
+    },
+    {
+      "id": "t0177",
+      "author": "Eric",
+      "text": {
+        "zh": "嘻嘻，我一定要活下去"
+      }
+    },
+    {
+      "id": "t0178",
+      "author": "Eric",
+      "text": {
+        "zh": "心脏！瞄准心脏啊！"
+      }
+    },
+    {
+      "id": "t0179",
+      "author": "Eric",
+      "text": {
+        "zh": "Fly my petals~"
+      }
+    },
+    {
+      "id": "t0180",
+      "author": "Eric",
+      "text": {
+        "zh": "意气风发啊，MomyX"
+      }
+    },
+    {
+      "id": "t0181",
+      "author": "Eric",
+      "text": {
+        "zh": "全体花花，回应于我"
+      }
+    },
+    {
+      "id": "t0182",
+      "author": "Eric",
+      "text": {
+        "zh": "越共探头"
+      }
+    },
+    {
+      "id": "t0183",
+      "author": "Eric",
+      "text": {
+        "zh": "花花欲诞生，必先毁灭花园"
+      }
+    },
+    {
+      "id": "t0184",
+      "author": "Eric",
+      "text": {
+        "zh": "gtn啊 你是我的唯一"
+      }
+    },
+    {
+      "id": "t0185",
+      "author": "Eric",
+      "text": {
+        "zh": "花花！花花！花花！花花！花花！花花！花花！花花！花花！花花！"
+      }
+    },
+    {
+      "id": "t0186",
+      "author": "Eric",
+      "text": {
+        "zh": "今晚八点。我在花园等你"
+      }
+    },
+    {
+      "id": "t0187",
+      "author": "Eric",
+      "text": {
+        "zh": "正在验证您是否是真人。这可能需要几秒钟时间。"
+      }
+    },
+    {
+      "id": "t0188",
+      "author": "Eric",
+      "text": {
+        "zh": "I AM THE STORM THAT IS APPROACHING"
+      }
+    },
+    {
+      "id": "t0189",
+      "author": "Eric",
+      "text": {
+        "zh": "纳米机器，小子！"
+      }
+    },
+    {
+      "id": "t0190",
+      "author": "Eric",
+      "text": {
+        "zh": "你周围的空气变得灼热起来......"
+      }
+    },
+    {
+      "id": "t0191",
+      "author": "Eric",
+      "text": {
+        "zh": "还没完呢，小子！"
+      }
+    },
+    {
+      "id": "t0192",
+      "author": "Eric",
+      "text": {
+        "zh": "我将会向你展示，我那些超越神明的造物。"
+      }
+    },
+    {
+      "id": "t0193",
+      "author": "Eric",
+      "text": {
+        "zh": "一码归一码"
+      }
+    },
+    {
+      "id": "t0194",
+      "author": "Eric",
+      "text": {
+        "zh": "先苦一苦海洋"
+      }
+    },
+    {
+      "id": "t0195",
+      "author": "Eric",
+      "text": {
+        "zh": "farm！farm！不择手段地farm！"
+      }
+    },
+    {
+      "id": "t0196",
+      "author": "Eric",
+      "text": {
+        "zh": "杀死大海，杀死大海！！"
+      }
+    },
+    {
+      "id": "t0197",
+      "author": "Eric",
+      "text": {
+        "zh": "忍耐已经结束"
+      }
+    },
+    {
+      "id": "t0198",
+      "author": "Eric",
+      "text": {
+        "zh": "没有可以思考的心智，没有可以屈服的意志，没有为苦难哭泣的声音"
+      }
+    },
+    {
+      "id": "t0199",
+      "author": "Eric",
+      "text": {
+        "zh": "花花停止了思考"
+      }
+    },
+    {
+      "id": "t0200",
+      "author": "Eric",
+      "text": {
+        "zh": "我是不会告诉你任何事情的！"
+      }
+    },
+    {
+      "id": "t0201",
+      "author": "Eric",
+      "text": {
+        "zh": "做最优质的花花！"
+      }
+    },
+    {
+      "id": "t0202",
+      "author": "Eric",
+      "text": {
+        "zh": "把他们上市！"
+      }
+    },
+    {
+      "id": "t0203",
+      "author": "Eric",
+      "text": {
+        "zh": "跳弹！"
+      }
+    },
+    {
+      "id": "t0204",
+      "author": "Eric",
+      "text": {
+        "zh": "我！不！会！被！遗！忘！"
+      }
+    },
+    {
+      "id": "t0205",
+      "author": "Eric",
+      "text": {
+        "zh": "证明你更像hunter而非noob"
+      }
+    },
+    {
+      "id": "t0206",
+      "author": "Stickerbug",
+      "text": {
+        "zh": "♪ 言葉で飾った花束も　心を奪えば、本物か？"
+      }
+    },
+    {
+      "id": "t0207",
+      "author": "Stickerbug",
+      "text": {
+        "zh": "♪ ねえ知ってる？脳内のお花畑には枯れないように水をやるといいよ"
+      }
+    },
+    {
+      "id": "t0208",
+      "author": "Stickerbug",
+      "text": {
+        "zh": "♪ 息苦しい日々の水面下　ゆらゆらと煙る血の花"
       }
     }
   ]

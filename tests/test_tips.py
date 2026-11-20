@@ -81,6 +81,9 @@ def test_tips_js_contract() -> None:
     # 「这里[说明…https://…]」：中括号里的说明不显示，改让紧邻在前的字变成超链接
     assert "ANNOTATED_LINK" in source
     assert "\\u0000" in source
+    # 说明里写「显示在”机会“上」时，链接标签取引号里那两个字，而不是前面整段文字
+    assert "ANNOTATION_LABEL" in source
+    assert "显示在" in source
     for view_id in VIEW_IDS:
         assert view_id in source, f"tips.js 未包含 {view_id}"
     assert "window.GtnTips" in source

@@ -119,13 +119,33 @@
 
     // 形如「这里[这是一个可点击的链接，指向https://…]」：中括号里是给链接写的说明，
     // 显示时整段说明丢掉，改成让紧挨在前的几个字变成超链接。
-    var ANNOTATED_LINK = /([^\s\[\]<>"']{1,12})\[[^\]]*?(https?:\/\/[^\s\]'"<>]+)[^\]]*\]/g;
+    // 若说明里写了「显示在”机会“上」，则只把引号里那两个字做成链接，前面的字保持普通文本。
+    var ANNOTATED_LINK = /([^\s\[\]<>"']{0,12})\[([^\]]+)\]/g;
+    var ANNOTATION_URL = /https?:\/\/[^\s\]'"<>]+/;
+    var ANNOTATION_LABEL = /显示在\s*["“”「『']([^"“”「」『』']{1,12})["“”」』']/;
 
     function extractAnnotatedLinks(text) {
         var links = [];
-        var rest = String(text || '').replace(ANNOTATED_LINK, function (match, label, href) {
-            links.push({ label: label, href: href.replace(/[.,;:!?]+$/, '') });
-            return '\u0000' + (links.length - 1) + '\u0000';
+        var rest = String(text || '').replace(ANNOTATED_LINK, function (match, prefix, body) {
+            var urlMatch = body.match(ANNOTATION_URL);
+            if (!urlMatch) return match;
+            var href = urlMatch[0].replace(/[.,;:!?]+$/, '');
+            var named = body.match(ANNOTATION_LABEL);
+            var label;
+            var before;
+            if (named) {
+                label = named[1];
+                before = prefix.slice(-label.length) === label
+                    ? prefix.slice(0, prefix.length - label.length)
+                    : prefix;
+            } else {
+                // 没点名时，前面那几个字整体变成链接，不吃多余字符
+                label = prefix;
+                before = '';
+            }
+            if (!label) return match;
+            links.push({ label: label, href: href });
+            return before + '\u0000' + (links.length - 1) + '\u0000';
         });
         return { text: rest, links: links };
     }
