@@ -162,7 +162,10 @@
       xpTop.appendChild(el('span', '', '通行证经验'));
       xpTop.appendChild(el('strong', 'scs-dew-amount', `+${xpGain.toLocaleString()}`));
       xp.appendChild(xpTop);
-      xp.appendChild(el('div', 'scs-dew-formula', '分数/5 通行证经验（最多 1000）'));
+      const xpMultiplier = Number(data.settlement.xp_multiplier || 1);
+      xp.appendChild(el('div', 'scs-dew-formula', Number.isFinite(xpMultiplier) && xpMultiplier > 1
+        ? `分数/5 ×${multiplier(xpMultiplier)}（本周前 3 次通关加成）= ${xpGain.toLocaleString()}`
+        : '分数/5 通行证经验（最多 1000；本周 ×3 已用完或本局为阵亡结算）'));
       page.appendChild(xp);
     }
     return { page, rows, totalValue, dew, xp };

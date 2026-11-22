@@ -298,7 +298,9 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state, victory=True):
     if not dev_used and xp_score > 0:
         try:
             import battle_pass as _bp
-            xp_result = _bp.grant_story_xp(conn, user_id, run_id=run_id, score=xp_score)
+            xp_result = _bp.grant_story_xp(
+                conn, user_id, run_id=run_id, score=xp_score, count_triple=victory,
+            )
             if xp_result.get('applied'):
                 xp_gain = int(xp_result.get('xp') or 0)
                 xp_level = int(xp_result.get('level_after') or 0)

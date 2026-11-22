@@ -611,7 +611,7 @@ def _story_week_used(conn, user_id, now=None):
     return int(row['used'] or 0) if row is not None else 0
 
 
-def grant_story_xp(conn, user_id, *, run_id, score, now=None):
+def grant_story_xp(conn, user_id, *, run_id, score, now=None, count_triple=True):
     base = story_xp(score)
     if base <= 0:
         return {'applied': False, 'reason': 'empty', 'xp': 0, 'base_xp': 0}
@@ -623,7 +623,7 @@ def grant_story_xp(conn, user_id, *, run_id, score, now=None):
         return {'applied': False, 'reason': 'duplicate', 'xp': 0, 'base_xp': base, 'week_used': used}
     used = _story_week_used(conn, uid, now)
     multiplier = golden_xp_multiplier(conn, uid)
-    tripled = used < STORY_WEEKLY_TRIPLE_COUNT
+    tripled = bool(count_triple) and used < STORY_WEEKLY_TRIPLE_COUNT
     if tripled:
         multiplier *= STORY_WEEKLY_TRIPLE_MULTIPLIER
     result = _apply_xp(

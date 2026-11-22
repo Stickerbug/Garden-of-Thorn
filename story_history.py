@@ -159,6 +159,29 @@ def list_history(conn, user_id, *, limit=20, result=None, character_id=None) -> 
     return [_row_to_summary(row) for row in rows]
 
 
+def _story_xp_multiplier(conn, run_id) -> float:
+    """这一局爬塔结算时实际用到的通行证经验倍率（×3 / ×4.5 / ×1）。"""
+    try:
+        has_table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'battle_pass_xp_ledger'",
+        ).fetchone()
+        if has_table is None:
+            return 1.0
+        row = conn.execute(
+            "SELECT multiplier FROM battle_pass_xp_ledger WHERE source = 'story' AND source_key = ?",
+            (f'story:{run_id}',),
+        ).fetchone()
+    except Exception:
+        return 1.0
+    if row is None:
+        return 1.0
+    try:
+        value = float(row['multiplier'] or 1.0)
+    except (TypeError, ValueError):
+        return 1.0
+    return value if value > 0 else 1.0
+
+
 def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
     """单局详情：摘要 + 结束快照里的最终卡组 / 遗物 / 地图与路线统计。"""
 
@@ -317,6 +340,7 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
             'journey_mode': breakdown.get('journey_mode') or 'standard',
             'journey_mode_multiplier': float(breakdown.get('journey_mode_multiplier') or 1),
             'xp_gain': int(ledger['xp_gain'] or 0) if ledger is not None else 0,
+            'xp_multiplier': _story_xp_multiplier(conn, run_id),
             'animation_seen_at': str(ledger['animation_seen_at'] or '') if ledger is not None else '',
         }
     return {

@@ -493,6 +493,71 @@ class StoryClearSettlementTests(unittest.TestCase):
         self.assertEqual(detail['summary']['result'], 'defeat')
         self.assertIsNone(detail['settlement'])
 
+    def test_defeat_does_not_consume_the_weekly_triple_quota(self):
+        # 阵亡结算只拿 ×1，且不占用「每周前 3 次通关 ×3」的名额。
+        for index in range(3):
+            pre = self._pre_completion_state()
+            pre['stage'] = 2
+            run, _ = db.create_story_run(
+                self.user['id'], f'seed-defeat-quota-{index}', 'story-clear-test', pre,
+            )
+            _, outcome = db.commit_story_run_action(
+                self.user['id'], run['id'], int(run['state_version']),
+                f'defeat-quota-{index}', 'end_turn', {}, self._defeat_state(),
+            )
+            self.assertEqual(outcome, 'committed')
+            # 阵亡的旅程会保持 active 以便玩家继续；测试里手动收尾，好创建下一局。
+            with db.get_db_connection() as conn:
+                conn.execute(
+                    "UPDATE story_runs SET status = 'abandoned' WHERE id = ?",
+                    (run['id'],),
+                )
+                conn.commit()
+        state = completed_state()
+        run, _ = db.create_story_run(
+            self.user['id'], 'seed-victory-after-defeats', 'story-clear-test', state,
+        )
+        with db.get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            result = story_score.settle_story_clear_conn(
+                conn, user_id=self.user['id'], run_id=run['id'], state=state,
+            )
+            story_history.record_run_summary_conn(
+                conn, run['id'], self.user['id'], state,
+                started_at='2026-11-20T00:00:00+08:00',
+                ended_at='2026-11-20T01:00:00+08:00',
+                result='victory',
+            )
+            conn.commit()
+            week_row = conn.execute(
+                'SELECT used FROM battle_pass_story_week WHERE user_id = ?',
+                (self.user['id'],),
+            ).fetchone()
+            detail = story_history.get_history_detail(conn, self.user['id'], run['id'])
+        self.assertEqual(result['xp_gain'], min(1000, -(-result['total'] // 5)) * 3)
+        self.assertEqual(int(week_row['used']), 1)
+        self.assertEqual(detail['settlement']['xp_multiplier'], 3.0)
+
+    def test_history_reports_the_xp_multiplier_used(self):
+        state = completed_state()
+        run, _ = db.create_story_run(self.user['id'], 'seed-xp-mult', 'story-clear-test', state)
+        with db.get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            result = story_score.settle_story_clear_conn(
+                conn, user_id=self.user['id'], run_id=run['id'], state=state,
+            )
+            story_history.record_run_summary_conn(
+                conn, run['id'], self.user['id'], state,
+                started_at='2026-11-20T00:00:00+08:00',
+                ended_at='2026-11-20T01:00:00+08:00',
+                result='victory',
+            )
+            conn.commit()
+            detail = story_history.get_history_detail(conn, self.user['id'], run['id'])
+        self.assertIsNotNone(detail['settlement'])
+        self.assertEqual(detail['settlement']['xp_multiplier'], 3.0)
+        self.assertEqual(detail['settlement']['xp_gain'], result['xp_gain'])
+
 
 if __name__ == '__main__':
     unittest.main()
