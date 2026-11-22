@@ -82,7 +82,7 @@
     const totalValue = el('strong', 'scs-total-value', '0');
     totalValue.setAttribute('aria-label', String(finalScore));
     total.appendChild(totalValue);
-    total.appendChild(el('span', 'scs-total-note', `基础分 ${integer(score.base_score)} · 难度与 SL 倍率已计入`));
+    total.appendChild(el('span', 'scs-total-note', `基础分 ${integer(score.base_score)} · 难度 / SL / 模式倍率已计入`));
     layout.appendChild(total);
     const ledger = el('div', 'scs-score-ledger');
     const rows = [];
@@ -102,6 +102,10 @@
     multipliers.appendChild(el('span', '', `基础分 ${integer(score.base_score)}`));
     multipliers.appendChild(el('span', '', `难度倍率 ×${multiplier(score.difficulty_multiplier)}`));
     multipliers.appendChild(el('span', '', `SL 倍率 ×${multiplier(score.sl_multiplier)}`));
+    const modeMultiplier = Number(score.journey_mode_multiplier);
+    if (Number.isFinite(modeMultiplier) && Math.abs(modeMultiplier - 1) > 1e-6) {
+      multipliers.appendChild(el('span', '', `Boss Rush 倍率 ×${multiplier(modeMultiplier)}`));
+    }
     multipliers.appendChild(el('strong', '', `${isDefeat(data) ? '结算得分' : '通关得分'} ${finalScore}`));
     page.appendChild(multipliers);
     const dew = el('section', 'scs-dew-result');
@@ -138,8 +142,10 @@
     const difficulty = multiplier(score.difficulty_multiplier);
     const difficultyKey = String(data.summary.difficulty || 'normal').toLowerCase();
     const noSl = multiplier(Number(score.sl_multiplier) === 1.5 ? 1.5 : 1);
+    const modeFactor = Number.isFinite(modeMultiplier) && Math.abs(modeMultiplier - 1) > 1e-6
+      ? `x${multiplier(modeMultiplier)}（boss rush）` : '';
     golden.appendChild(el('div', 'scs-dew-formula',
-      `${stages}x${difficulty}（${difficultyKey}）x${noSl}（sl）=${integer(data.settlement.golden_dew_reward)}`
+      `${stages}x${difficulty}（${difficultyKey}）x${noSl}（sl）${modeFactor}=${integer(data.settlement.golden_dew_reward)}`
     ));
     if (data.settlement.dev_used) golden.appendChild(el('div', 'scs-dew-adjustment', '本局使用过开发模式，不发金露'));
     page.appendChild(golden);

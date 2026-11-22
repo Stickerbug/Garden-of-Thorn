@@ -16,6 +16,7 @@
 
 import json
 import math
+from fractions import Fraction
 
 
 DIFFICULTY_MULTIPLIERS = {
@@ -23,6 +24,24 @@ DIFFICULTY_MULTIPLIERS = {
     'normal': 1.0,
     'hard': 1.5,
     'lunatic': 2.0,
+}
+# 旅程模式系数（2026-11-23）：Boss Rush 一局只有 3 个 boss 房、没有小怪，
+# 通关耗时远短于标准旅程，所以结算分数与奖励都乘 2/3，避免它成为刷资源的最优解。
+JOURNEY_MODE_MULTIPLIERS = {
+    'standard': 1.0,
+    'boss_rush': 2 / 3,
+}
+# 分数用分数运算，避免 0.666… 的浮点误差把 ×2/3 的整数边界吃掉
+# （例如 931.5 × 2/3 应得 621，浮点会算出 620.999…）。
+_DIFFICULTY_RATIOS = {
+    'easy': Fraction(1, 2),
+    'normal': Fraction(1, 1),
+    'hard': Fraction(3, 2),
+    'lunatic': Fraction(2, 1),
+}
+_JOURNEY_MODE_RATIOS = {
+    'standard': Fraction(1, 1),
+    'boss_rush': Fraction(2, 3),
 }
 STORY_STAGES_TOTAL = 3
 NO_SL_BONUS = 1.5
@@ -78,13 +97,24 @@ def compute_score_breakdown(state, difficulty=None, load_count=0):
             item['points'] = item['count'] * item['unit']
     difficulty_mult = DIFFICULTY_MULTIPLIERS.get(str(difficulty or state.get('difficulty') or 'normal').lower(), 1.0)
     sl_mult = compute_multiplier(load_count)
+    journey_mode = str(state.get('journey_mode') or 'standard')
+    mode_mult = JOURNEY_MODE_MULTIPLIERS.get(journey_mode, 1.0)
+    base_score = sum(item['points'] for item in items.values())
+    difficulty_ratio = _DIFFICULTY_RATIOS.get(
+        str(difficulty or state.get('difficulty') or 'normal').lower(), Fraction(1, 1),
+    )
+    sl_ratio = Fraction(3, 2) if max(0, int(load_count or 0)) == 0 else Fraction(1, 1)
+    mode_ratio = _JOURNEY_MODE_RATIOS.get(journey_mode, Fraction(1, 1))
+    total_score = int(math.floor(base_score * difficulty_ratio * sl_ratio * mode_ratio))
     return {
         'items': items,
-        'base_score': sum(item['points'] for item in items.values()),
-        'total_score': int(math.floor(sum(item['points'] for item in items.values()) * difficulty_mult * sl_mult)),
+        'base_score': base_score,
+        'total_score': total_score,
         'difficulty_multiplier': difficulty_mult,
         'sl_multiplier': sl_mult,
-        'reward_multiplier': difficulty_mult * sl_mult,
+        'journey_mode': journey_mode,
+        'journey_mode_multiplier': mode_mult,
+        'reward_multiplier': difficulty_mult * sl_mult * mode_mult,
         'load_count': max(0, int(load_count or 0)),
     }
 
@@ -102,8 +132,12 @@ def compute_multiplier(load_count):
 
 def compute_score(state, difficulty, load_count):
     base = compute_base_score(state)
-    difficulty_mult = DIFFICULTY_MULTIPLIERS.get(str(difficulty or '').lower(), 1.0)
-    total = base * difficulty_mult * compute_multiplier(load_count)
+    state = state if isinstance(state, dict) else {}
+    journey_mode = str(state.get('journey_mode') or 'standard')
+    difficulty_ratio = _DIFFICULTY_RATIOS.get(str(difficulty or '').lower(), Fraction(1, 1))
+    sl_ratio = Fraction(3, 2) if max(0, int(load_count or 0)) == 0 else Fraction(1, 1)
+    mode_ratio = _JOURNEY_MODE_RATIOS.get(journey_mode, Fraction(1, 1))
+    total = base * difficulty_ratio * sl_ratio * mode_ratio
     return int(math.floor(total)), int(base)
 
 
@@ -271,11 +305,16 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state, victory=True):
         except Exception as exc:
             print(f'[story] battle pass xp failed: {type(exc).__name__}: {exc}', flush=True)
 
-    # 4) 金露：完成幕数 × 难度系数 × 无 SL 奖励系数（不经过荆露全局倍率）。
+    # 4) 金露：完成幕数 × 难度系数 × 无 SL 奖励系数 × 旅程模式系数（不经过荆露全局倍率）。
     completed_stages = completed_stage_count(state)
     no_sl_multiplier = NO_SL_BONUS if load_count == 0 else 1.0
     golden_multiplier = difficulty_mult * no_sl_multiplier
-    golden_reward = int(math.floor(completed_stages * golden_multiplier))
+    mode_multiplier = JOURNEY_MODE_MULTIPLIERS.get(str(state.get('journey_mode') or 'standard'), 1.0)
+    difficulty_ratio = _DIFFICULTY_RATIOS.get(str(difficulty or '').lower(), Fraction(1, 1))
+    sl_ratio = Fraction(3, 2) if load_count == 0 else Fraction(1, 1)
+    mode_ratio = _JOURNEY_MODE_RATIOS.get(str(state.get('journey_mode') or 'standard'), Fraction(1, 1))
+    golden_reward = int(math.floor(completed_stages * difficulty_ratio * sl_ratio * mode_ratio))
+    mode_note = f' ×模式{mode_multiplier:g}' if mode_multiplier != 1 else ''
     if dev_used:
         golden_reward = 0
     if golden_reward > 0:
@@ -294,7 +333,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state, victory=True):
                 ''',
                 (
                     int(user_id), golden_reward,
-                    f'故事{outcome_label}金露 幕数{completed_stages} ×难度{difficulty_mult:g} ×无SL奖励{no_sl_multiplier:g}',
+                    f'故事{outcome_label}金露 幕数{completed_stages} ×难度{difficulty_mult:g} ×无SL奖励{no_sl_multiplier:g}{mode_note}',
                     f'story:{run_id}', golden_after, 0,
                 ),
             )
@@ -326,6 +365,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state, victory=True):
         'golden_dew_reward': golden_reward,
         'completed_stages': completed_stages,
         'golden_multiplier': golden_multiplier,
+        'journey_mode_multiplier': mode_multiplier,
         'dew_gain_multiplier': dew_gain_multiplier,
         'xp_gain': xp_gain,
         'xp_level': xp_level,

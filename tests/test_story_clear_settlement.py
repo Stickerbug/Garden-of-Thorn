@@ -2,6 +2,7 @@
 """通关三页结算：逐项分数、历史数据与单次播放认领。"""
 
 import gc
+import math
 import os
 from pathlib import Path
 import tempfile
@@ -374,6 +375,33 @@ class StoryClearSettlementTests(unittest.TestCase):
         self.assertIn('/static/css/story-clear-settlement.css', template)
         self.assertIn('isDefeat', component)
         self.assertIn('旅程结算 · 战败', component)
+
+    def test_boss_rush_scales_score_and_rewards_by_two_thirds(self):
+        state = completed_state()
+        state['journey_mode'] = 'boss_rush'
+        state['content_version'] = 'story-clear-test'
+        standard = story_score.compute_score_breakdown(completed_state(), 'normal', 0)
+        boss_rush = story_score.compute_score_breakdown(state, 'normal', 0)
+        self.assertAlmostEqual(boss_rush['journey_mode_multiplier'], 2 / 3, places=6)
+        self.assertEqual(boss_rush['journey_mode'], 'boss_rush')
+        # 无 SL 的 1.5 倍与 Boss Rush 的 2/3 正好抵消，总分回到基础分。
+        self.assertEqual(boss_rush['total_score'], standard['base_score'])
+        self.assertLess(boss_rush['total_score'], standard['total_score'])
+
+        run, created = db.create_story_run(
+            self.user['id'], 'seed-boss-rush', 'story-clear-test', state,
+        )
+        self.assertTrue(created)
+        with db.get_db_connection() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            settled = story_score.settle_story_clear_conn(
+                conn, user_id=self.user['id'], run_id=run['id'], state=state,
+            )
+            conn.commit()
+        self.assertAlmostEqual(settled['journey_mode_multiplier'], 2 / 3, places=6)
+        self.assertEqual(settled['total'], boss_rush['total_score'])
+        # 金露也按 2/3 计：3 幕 × 1.5（无 SL）× 2/3 = 3。
+        self.assertEqual(settled['golden_dew_reward'], 3)
 
     def _defeat_state(self, *, stage=2):
         state = completed_state()
