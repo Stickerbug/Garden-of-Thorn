@@ -140,14 +140,19 @@ def _ensure_ledger_schema(conn):
     ensure_story_clear_animation_schema(conn)
 
 
-def settle_story_clear_conn(conn, *, user_id, run_id, state):
-    """通关事务内：清银行 → 算分 → 发荆露 → 记账。
+def settle_story_clear_conn(conn, *, user_id, run_id, state, victory=True):
+    """旅程结束时结算：清银行（仅通关）→ 算分 → 发荆露 → 记账。
 
     conn 由调用方持有 IMMEDIATE 事务。
+    ``victory=False`` 表示旅程在第 3 幕 boss 前失败（阵亡）。此时同样按分数
+    发奖，但「完成阶段」只计已打完 boss 的幕数（阵亡那一幕不算），并且不清空
+    银行——清银行是通关规则，不该惩罚中途失败的一局。
     开发模式（#331）：本次旅程用过任何 dev_* 操作则不发荆露——开发模式可以
     直接改金币/塞卡/跳层，正常算分等于无限刷荆露。
     幂等：同一 (run_id, user_id) 已有台账时直接返回首次结算结果，不再发钱。
     """
+    victory = victory is not False
+    outcome_label = '通关' if victory else '旅程结算'
     from db import _thorn_dew_now  # noqa: F401  (保持与 db 模块一致的时间源)
 
     state = state if isinstance(state, dict) else {}
@@ -183,11 +188,13 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
         }
 
     # 1) 银行存款清零（设计：做了这个系统后清除玩家在银行的存款）
+    #    仅通关清零；阵亡结算保留存款，避免失败一局连带清空积蓄。
     row = conn.execute(
         'SELECT deposit FROM story_bank_accounts WHERE user_id = ?', (int(user_id),),
     ).fetchone()
     bank_before = int(row['deposit'] or 0) if row is not None else 0
-    if bank_before > 0:
+    bank_cleared = bank_before if victory else 0
+    if bank_cleared > 0:
         conn.execute('UPDATE story_bank_accounts SET deposit = 0 WHERE user_id = ?', (int(user_id),))
 
     # 2) SL：手动读档与“重新开始本层”动作都视为使用过 SL。
@@ -244,7 +251,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
                 ''',
                 (
                     int(user_id), total,
-                    f'故事通关奖励 难度{difficulty}×{difficulty_mult:g} 基础{base} SL×{compute_multiplier(load_count):g}',
+                    f'故事{outcome_label}奖励 难度{difficulty}×{difficulty_mult:g} 基础{base} SL×{compute_multiplier(load_count):g}',
                     f'story:{run_id}',
                     free, paid,
                 ),
@@ -287,7 +294,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
                 ''',
                 (
                     int(user_id), golden_reward,
-                    f'故事通关金露 幕数{completed_stages} ×难度{difficulty_mult:g} ×无SL奖励{no_sl_multiplier:g}',
+                    f'故事{outcome_label}金露 幕数{completed_stages} ×难度{difficulty_mult:g} ×无SL奖励{no_sl_multiplier:g}',
                     f'story:{run_id}', golden_after, 0,
                 ),
             )
@@ -304,7 +311,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
         ''',
         (
             int(user_id), str(run_id or ''), difficulty,
-            int(base), int(total), int(load_count), 1 if bank_before > 0 else 0,
+            int(base), int(total), int(load_count), 1 if bank_cleared > 0 else 0,
             1 if dev_used else 0, golden_reward, completed_stages, golden_multiplier,
             dew_gain_multiplier, int(xp_gain),
         ),
@@ -314,7 +321,7 @@ def settle_story_clear_conn(conn, *, user_id, run_id, state):
         'base': base,
         'difficulty': difficulty,
         'load_count': load_count,
-        'bank_cleared': bank_before,
+        'bank_cleared': bank_cleared,
         'dev_used': dev_used,
         'golden_dew_reward': golden_reward,
         'completed_stages': completed_stages,

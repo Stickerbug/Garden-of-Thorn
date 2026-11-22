@@ -9,6 +9,10 @@
   };
   let active = null;
 
+  function isDefeat(data) {
+    return String(data?.summary?.result || '') === 'defeat';
+  }
+
   function el(tag, className, text) {
     const node = document.createElement(tag);
     if (className) node.className = className;
@@ -55,7 +59,7 @@
   }
   function pageHeader(data, title, index) {
     const fragment = document.createDocumentFragment();
-    fragment.appendChild(el('div', 'scs-kicker', '旅程结算 · 通关'));
+    fragment.appendChild(el('div', 'scs-kicker', isDefeat(data) ? '旅程结算 · 战败' : '旅程结算 · 通关'));
     fragment.appendChild(el('h1', 'scs-title', title));
     fragment.appendChild(el('div', 'scs-page-count', `0${index} / 03`));
     return fragment;
@@ -70,11 +74,11 @@
     const data = session.data;
     const score = data.settlement.score;
     const page = el('section', 'scs-page scs-score-page');
-    page.appendChild(pageHeader(data, '通关分数', 1));
+    page.appendChild(pageHeader(data, isDefeat(data) ? '结算分数' : '通关分数', 1));
     const layout = el('div', 'scs-score-layout');
     const total = el('div', 'scs-total-block');
     const finalScore = integer(score.total_score);
-    total.appendChild(el('span', 'scs-total-label', '通关得分'));
+    total.appendChild(el('span', 'scs-total-label', isDefeat(data) ? '结算得分' : '通关得分'));
     const totalValue = el('strong', 'scs-total-value', '0');
     totalValue.setAttribute('aria-label', String(finalScore));
     total.appendChild(totalValue);
@@ -98,7 +102,7 @@
     multipliers.appendChild(el('span', '', `基础分 ${integer(score.base_score)}`));
     multipliers.appendChild(el('span', '', `难度倍率 ×${multiplier(score.difficulty_multiplier)}`));
     multipliers.appendChild(el('span', '', `SL 倍率 ×${multiplier(score.sl_multiplier)}`));
-    multipliers.appendChild(el('strong', '', `通关得分 ${finalScore}`));
+    multipliers.appendChild(el('strong', '', `${isDefeat(data) ? '结算得分' : '通关得分'} ${finalScore}`));
     page.appendChild(multipliers);
     const dew = el('section', 'scs-dew-result');
     const dewTop = el('div', 'scs-dew-heading');
@@ -193,7 +197,7 @@
   function renderRoute(session) {
     const data = session.data;
     const page = el('section', 'scs-page scs-route-page');
-    page.appendChild(pageHeader(data, '通关路线', 2));
+    page.appendChild(pageHeader(data, isDefeat(data) ? '实际路线' : '通关路线', 2));
     page.appendChild(el('p', 'scs-summary', summaryMeta(data, session)));
     const visited = Array.isArray(data.route?.visited) ? data.route.visited : [];
     const stageCount = new Set(visited.map(node => node.stage || 1)).size;
@@ -226,7 +230,7 @@
     const data = session.data;
     const page = el('section', 'scs-page scs-deck-page');
     page.appendChild(pageHeader(data, '最终牌组', 3));
-    page.appendChild(el('p', 'scs-summary', `${data.deck.length} 张卡牌 · 通关时的最终构筑`));
+    page.appendChild(el('p', 'scs-summary', `${data.deck.length} 张卡牌 · ${isDefeat(data) ? '结束时的最终构筑' : '通关时的最终构筑'}`));
     const grid = el('div', 'scs-deck-grid');
     const create = renderer(session, 'createStoryCard');
     data.deck.forEach((card, index) => {
@@ -327,7 +331,7 @@
     const root = el('div', 'scs-overlay');
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
-    root.setAttribute('aria-label', '通关旅程结算');
+    root.setAttribute('aria-label', '旅程结算');
     root.appendChild(el('div', 'scs-wipe scs-wipe-one'));
     root.appendChild(el('div', 'scs-wipe scs-wipe-two'));
     const skip = el('button', 'scs-skip', '跳过');

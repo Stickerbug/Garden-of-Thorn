@@ -372,6 +372,98 @@ class StoryClearSettlementTests(unittest.TestCase):
         self.assertIn('/api/story/runs/clear-settlement/seen', app)
         self.assertIn('/static/js/story-clear-settlement.js', template)
         self.assertIn('/static/css/story-clear-settlement.css', template)
+        self.assertIn('isDefeat', component)
+        self.assertIn('旅程结算 · 战败', component)
+
+    def _defeat_state(self, *, stage=2):
+        state = completed_state()
+        state['phase'] = 'game_over'
+        state['completed'] = False
+        state['stage'] = stage
+        state['content_version'] = 'story-clear-test'
+        return state
+
+    def test_defeat_settles_by_cleared_bosses(self):
+        pre = self._pre_completion_state()
+        pre['stage'] = 2
+        run, created = db.create_story_run(
+            self.user['id'], 'seed-defeat', 'story-clear-test', pre,
+        )
+        self.assertTrue(created)
+        next_state = self._defeat_state()
+        updated, outcome = db.commit_story_run_action(
+            self.user['id'], run['id'], int(run['state_version']),
+            'defeat-1', 'end_turn', {}, next_state,
+        )
+        self.assertEqual(outcome, 'committed')
+        with db.get_db_connection() as conn:
+            ledger = conn.execute(
+                'SELECT completed_stages, total_score, bank_cleared, golden_dew_reward '
+                'FROM story_reward_ledger WHERE run_id = ?',
+                (run['id'],),
+            ).fetchone()
+            detail = story_history.get_history_detail(conn, self.user['id'], run['id'])
+        self.assertIsNotNone(ledger)
+        # 第 2 幕没打完 boss，只能算 1 幕。
+        self.assertEqual(int(ledger['completed_stages']), 1)
+        self.assertGreater(int(ledger['total_score']), 0)
+        self.assertEqual(int(ledger['bank_cleared']), 0)
+        self.assertGreater(db.get_user_thorn_dew(self.user['id'])['total'], 0)
+        self.assertEqual(detail['summary']['result'], 'defeat')
+        self.assertIsNotNone(detail['settlement'])
+
+    def test_defeat_settlement_runs_once(self):
+        pre = self._pre_completion_state()
+        pre['stage'] = 2
+        run, _ = db.create_story_run(
+            self.user['id'], 'seed-defeat-once', 'story-clear-test', pre,
+        )
+        next_state = self._defeat_state()
+        version = int(run['state_version'])
+        for index in (1, 2):
+            updated, outcome = db.commit_story_run_action(
+                self.user['id'], run['id'], version, f'defeat-{index}',
+                'end_turn', {}, next_state,
+            )
+            self.assertEqual(outcome, 'committed')
+            version = int(updated['state_version'])
+        with db.get_db_connection() as conn:
+            ledger_count = conn.execute(
+                'SELECT COUNT(*) AS n FROM story_reward_ledger WHERE run_id = ?',
+                (run['id'],),
+            ).fetchone()['n']
+        self.assertEqual(ledger_count, 1)
+
+    def test_surrender_records_history_without_reward(self):
+        pre = self._pre_completion_state()
+        pre['stage'] = 2
+        run, _ = db.create_story_run(
+            self.user['id'], 'seed-surrender', 'story-clear-test', pre,
+        )
+        next_state = self._defeat_state()
+        _, outcome = db.commit_story_run_action(
+            self.user['id'], run['id'], int(run['state_version']),
+            'surrender-1', 'surrender', {}, next_state,
+        )
+        self.assertEqual(outcome, 'committed')
+        with db.get_db_connection() as conn:
+            ledger_table = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' "
+                "AND name = 'story_reward_ledger'",
+            ).fetchone()
+            ledger_count = (
+                conn.execute(
+                    'SELECT COUNT(*) AS n FROM story_reward_ledger WHERE run_id = ?',
+                    (run['id'],),
+                ).fetchone()['n']
+                if ledger_table is not None
+                else 0
+            )
+            detail = story_history.get_history_detail(conn, self.user['id'], run['id'])
+        self.assertEqual(ledger_count, 0)
+        self.assertEqual(db.get_user_thorn_dew(self.user['id'])['total'], 0)
+        self.assertEqual(detail['summary']['result'], 'defeat')
+        self.assertIsNone(detail['settlement'])
 
 
 if __name__ == '__main__':

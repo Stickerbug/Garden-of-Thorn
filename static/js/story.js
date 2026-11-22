@@ -15422,7 +15422,8 @@
             fr: 'Retour au choix du personnage', ja: 'キャラクター選択へ戻る',
         })[lang] || '返回角色选择');
         showView('story-terminal');
-        if (complete) void maybeAutoStoryClearSettlement();
+        // 通关与阵亡都会生成结算（阵亡按已打完 boss 的幕数计分）。
+        void maybeAutoStoryClearSettlement();
     }
 
 

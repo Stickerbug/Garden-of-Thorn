@@ -273,9 +273,15 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
         },
     })
     settlement = None
-    if str(summary_row['result'] or '') == 'victory':
-        from story_score import compute_score_breakdown, ensure_story_clear_animation_schema
+    from story_score import compute_score_breakdown, ensure_story_clear_animation_schema
 
+    # 阵亡结算（2026-11-23）后，非通关的旅程也可能有奖励台账，因此这里
+    # 以「有台账」为准，而不是只认 result='victory'。老库里可能还没有
+    # story_reward_ledger（部分测试用最小 schema），此时视为无台账。
+    ledger = None
+    if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'story_reward_ledger'"
+    ).fetchone() is not None:
         ensure_story_clear_animation_schema(conn)
         ledger = conn.execute(
             'SELECT base_score, total_score, load_count, bank_cleared, dev_used, animation_seen_at, '
@@ -283,6 +289,7 @@ def get_history_detail(conn, user_id, run_id) -> Optional[Dict[str, object]]:
             'FROM story_reward_ledger WHERE run_id = ? AND user_id = ? LIMIT 1',
             (str(run_id), int(user_id)),
         ).fetchone()
+    if ledger is not None or str(summary_row['result'] or '') == 'victory':
         load_count = int(ledger['load_count'] or 0) if ledger is not None else 0
         breakdown = compute_score_breakdown(state, summary_row['difficulty'], load_count)
         raw_total = int(breakdown['total_score'])

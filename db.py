@@ -5199,6 +5199,7 @@ def commit_story_run_action(
             str((current_state or {}).get('phase') or '') == 'complete'
             and (current_state or {}).get('completed') is True
         )
+        already_over = str((current_state or {}).get('phase') or '') == 'game_over'
         dev_run = bool(
             (next_state or {}).get('dev_mode')
             or (current_state or {}).get('dev_mode')
@@ -5282,6 +5283,45 @@ def commit_story_run_action(
                 )
             except Exception as exc:
                 print(f'[story] history summary failed: {type(exc).__name__}: {exc}', flush=True)
+        # 阵亡结算（2026-11-23）：未通关的一局同样结算——「完成阶段」只计已经
+        # 打完 boss 的幕数（story_score.completed_stage_count 的 stage-1 口径），
+        # 荆露/金露/通行证经验照发，但不清空银行存款。
+        # 主动投降不发奖（否则「打完第一幕 boss 就投降」可以反复刷分），
+        # 只落一条战败历史。
+        if (
+            not already_over
+            and not dev_run
+            and not already_complete
+            and str((next_state or {}).get('phase') or '') == 'game_over'
+            and (next_state or {}).get('completed') is not True
+        ):
+            if str(action_type or '') != 'surrender':
+                conn.execute('SAVEPOINT story_defeat_settlement')
+                try:
+                    from story_score import settle_story_clear_conn
+                    settle_story_clear_conn(
+                        conn,
+                        user_id=user_id,
+                        run_id=run_id,
+                        state=next_state or {},
+                        victory=False,
+                    )
+                except Exception as exc:
+                    print(f'[story] defeat settle failed: {type(exc).__name__}: {exc}', flush=True)
+                    conn.execute('ROLLBACK TO story_defeat_settlement')
+                    conn.execute('RELEASE story_defeat_settlement')
+                    conn.rollback()
+                    raise
+                else:
+                    conn.execute('RELEASE story_defeat_settlement')
+            try:
+                from story_history import record_run_summary_conn
+                record_run_summary_conn(
+                    conn, run_id, user_id, next_state or {},
+                    started_at=row['created_at'], ended_at=now, result='defeat',
+                )
+            except Exception as exc:
+                print(f'[story] defeat history summary failed: {type(exc).__name__}: {exc}', flush=True)
         conn.commit()
         updated = conn.execute(
             'SELECT * FROM story_runs WHERE id = ?', (run_id,),
