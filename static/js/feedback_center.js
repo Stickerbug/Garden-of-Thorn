@@ -1476,7 +1476,19 @@
     const commentTotal = Number(detail.comment_count || comments.length);
     let commentSection = `<section class="fc-section"><h3>${esc(t('comments'))} (${commentTotal})</h3>`;
     if (!comments.length) commentSection += `<p class="fc-muted">—</p>`;
+    // 回复必须紧跟它的父评论渲染：此前按 id 顺序平铺，回复排到整段最后，
+    // 若父评论后面还有别的楼，看起来就像回复挂到了最新一楼。
+    const commentById = new Map();
+    const repliesByParent = new Map();
+    const topLevelComments = [];
+    comments.forEach((comment) => { commentById.set(Number(comment.id), comment); });
     comments.forEach((comment) => {
+      const parentId = Number(comment.parent_comment_id);
+      if (!parentId || !commentById.has(parentId)) { topLevelComments.push(comment); return; }
+      if (!repliesByParent.has(parentId)) repliesByParent.set(parentId, []);
+      repliesByParent.get(parentId).push(comment);
+    });
+    const renderComment = (comment, depth) => {
       let actions = '';
       if (comment.editable) {
         actions += `<button type="button" class="fc-button fc-button-secondary fc-button-small" data-action="comment-edit" data-comment="${comment.id}">${esc(t('edit'))}</button>` +
@@ -1493,14 +1505,25 @@
       if (logged) {
         actions += `<button type="button" class="fc-button fc-button-secondary fc-button-small" data-action="comment-reply" data-comment="${comment.id}">${esc(t('reply', '回复'))}</button>`;
       }
-      const isReply = comment.parent_comment_id != null;
+      const isReply = depth > 0;
       const replyCls = isReply ? ' fc-comment-reply' : '';
-      commentSection += `<div class="fc-comment${replyCls}" data-comment-root="${comment.id}"${isReply ? ` data-parent="${comment.parent_comment_id}"` : ''}>` +
+      const parentComment = isReply ? commentById.get(Number(comment.parent_comment_id)) : null;
+      const parentName = parentComment && parentComment.author ? String(parentComment.author.username || '') : '';
+      const replyToHtml = isReply && parentName
+        ? `<div class="fc-comment-reply-to">${esc(t('reply_to', '回复'))} ${esc(parentName)}</div>`
+        : '';
+      const indentStyle = depth > 1 ? ` style="margin-left:${Math.min(depth, 3) * 22}px"` : '';
+      let html = `<div class="fc-comment${replyCls}" data-comment-root="${comment.id}"${isReply ? ` data-parent="${comment.parent_comment_id}"` : ''}${indentStyle}>` +
+        replyToHtml +
         `<div class="fc-comment-head">${userHtml(comment.author)}<span class="fc-comment-time">${esc(fmt(comment.created_at))}</span></div>` +
         `<div class="fc-comment-body">` +
         `<div class="fc-comment-text" data-comment-text="${comment.id}">${esc(comment.body)}</div>` +
         `<div class="fc-inline-actions">${actions}</div></div></div>`;
-    });
+      const children = repliesByParent.get(Number(comment.id)) || [];
+      children.forEach((child) => { html += renderComment(child, depth + 1); });
+      return html;
+    };
+    topLevelComments.forEach((comment) => { commentSection += renderComment(comment, 0); });
     if (detail.guest_comment_truncated) {
       commentSection += `<p class="fc-muted">${esc(t('guest_more', 'Sign in for more').replace('{0}', String(commentTotal)))}</p>`;
     }

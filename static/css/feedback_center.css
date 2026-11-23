@@ -901,6 +901,14 @@ button.fc-account-popover-link:focus-visible {
   border-left: 2px solid #d8dce2;
 }
 
+/* 回复行上方的“回复 @昵称”，标明这条挂在哪一楼 */
+.fc-comment-reply-to {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fc-text-soft);
+  margin-bottom: 2px;
+}
+
 .fc-reply-box {
   margin-top: 6px;
   padding: 6px 0;
