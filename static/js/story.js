@@ -6343,10 +6343,90 @@
         const count = Math.max(1, actors.length);
         group.classList.toggle('has-multiple-enemies', count > 1);
         group.style.setProperty('--story-enemy-count', String(count));
-        group.style.setProperty(
-            '--story-enemy-scale',
-            String(Math.max(.48, Math.min(.82, 1.03 - count * .13))),
-        );
+        const baseScale = Math.max(.48, Math.min(.82, 1.03 - count * .13));
+        group.style.setProperty('--story-enemy-scale', String(baseScale));
+        fitStoryEnemyActors(group, actors, baseScale);
+    }
+
+    // 手机竖屏时敌方区域只有一百多像素宽，怪物超过 3 只就会溢出竞技场列、
+    // 被 body 的 overflow:hidden 裁掉（第 5 只之后根本点不到）。
+    // 这里按「可用宽度 / 每行数量」算出每只的占位，必要时折成两行，
+    // 同时压低视觉缩放并用负外边距收回多出来的布局宽度。
+    const STORY_ENEMY_MAX_ROWS = 2;
+
+    function fitStoryEnemyActors(group, actors, baseScale) {
+        actors.forEach((actor) => {
+            actor.style.marginInline = '';
+            actor.style.removeProperty('--story-fighter-scale');
+        });
+        const count = actors.length;
+        const available = group.clientWidth;
+        if (!count || !available) return;
+        const gap = parseFloat(window.getComputedStyle(group).columnGap) || 0;
+        const widths = actors.map((actor) => actor.offsetWidth || 0);
+        const widest = Math.max(...widths);
+        if (widest * count + gap * (count - 1) <= available + .5) {
+            group.classList.remove('is-wrapped');
+            return;
+        }
+        const singleRowSlot = (available - gap * (count - 1)) / count;
+        const singleRowScale = Math.min(baseScale, singleRowSlot / widest);
+        const shouldWrap = count >= 3 && singleRowScale < .55;
+        const perRow = shouldWrap
+            ? Math.max(2, Math.ceil(count / STORY_ENEMY_MAX_ROWS))
+            : count;
+        group.classList.toggle('is-wrapped', perRow < count);
+        const slot = Math.max(28, (available - gap * (perRow - 1)) / perRow);
+        actors.forEach((actor, index) => {
+            const width = widths[index] || widest || slot;
+            const scale = Math.max(.3, Math.min(baseScale, slot / width));
+            actor.style.setProperty('--story-fighter-scale', String(scale));
+            // 外边距按「目标占位」而不是按缩放比计算：缩放下限会留着，
+            // 但每只的布局宽度必须刚好等于 slot，否则一行放不下就会多折一行。
+            actor.style.marginInline = `${((slot - width) / 2).toFixed(1)}px`;
+        });
+    }
+
+    // 手牌同理：扇形宽度只由 CSS 决定，10 张牌在 390px 竖屏下会到 700px 左右，
+    // 后面的牌落在视口外，永远点不到。超宽时用「卡宽 + 重叠步进」铺满整条手牌栏。
+    function fitStoryHandLayout(hand) {
+        const target = hand || $('story-hand');
+        if (!target) return;
+        const cards = [...target.querySelectorAll(':scope > .story-hand-card')];
+        if (!cards.length) return;
+        cards.forEach((card) => {
+            card.style.width = '';
+            card.style.marginInline = '';
+        });
+        const styles = window.getComputedStyle(target);
+        const paddingLeft = parseFloat(styles.paddingLeft) || 0;
+        const paddingRight = parseFloat(styles.paddingRight) || 0;
+        const available = Math.max(0, target.clientWidth - paddingLeft - paddingRight);
+        if (!available) return;
+        const count = cards.length;
+        const natural = Math.max(...cards.map(
+            (card) => parseFloat(window.getComputedStyle(card).width) || 0,
+        ));
+        if (!natural) return;
+        const naturalTotal = natural * count;
+        if (naturalTotal <= available + .5) return;
+        // 每张牌至少露出 26px 才点得到；先按这个下限推卡宽，卡太宽时再压缩。
+        const minVisibleStep = 26;
+        let width = Math.min(natural, Math.max(40, available - minVisibleStep * (count - 1)));
+        if (count === 1) {
+            cards[0].style.width = `${Math.min(natural, available).toFixed(1)}px`;
+            return;
+        }
+        let step = (available - width) / (count - 1);
+        if (step < 14) {
+            width = Math.max(30, available - 14 * (count - 1));
+            step = (available - width) / (count - 1);
+        }
+        const margin = (step - width) / 2;
+        cards.forEach((card) => {
+            card.style.width = `${width.toFixed(1)}px`;
+            card.style.marginInline = `${margin.toFixed(1)}px`;
+        });
     }
 
     function ensureStorySummonedActor(event, nextRun) {
@@ -14383,6 +14463,7 @@
             });
             hand?.append(wrapper);
         });
+        fitStoryHandLayout(hand);
         syncStoryCursorCard(state);
         const targetKind = selected ? cardTargetKind(selected) : '';
         const cursorMode = selected ? storyCursorCardMode(selected) : '';
@@ -17049,6 +17130,8 @@
         window.addEventListener('resize', () => {
             scheduleStoryAimUpdate();
             scheduleVisibleStoryCardEffectFits();
+            syncStoryEnemyGroupLayout();
+            fitStoryHandLayout();
         });
         window.addEventListener('keydown', (event) => {
             if (event.key === 'Escape' && storyChatOpen) {

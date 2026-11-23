@@ -3940,6 +3940,13 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
 .story-enemy-group.has-multiple-enemies .story-actor {
   --story-avatar-width: clamp(94px, 11.2vw, 170px);
 }
+/* 窄屏怪物过多时由脚本折行（fitStoryEnemyActors 添加 is-wrapped），
+   否则整排会溢出竞技场列、被视口裁掉点不到。 */
+.story-enemy-group.is-wrapped {
+  flex-wrap: wrap;
+  align-content: center;
+  row-gap: 2px;
+}
 .story-actor-name {
   padding: 4px 12px;
   border: 1px solid var(--story-line-soft);
