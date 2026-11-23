@@ -134,6 +134,21 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('M77.5,165.3', block, '遮罩必须复用 season-pass-pro.svg 里那片叶子')
         self.assertIn('viewBox=\'74.16 170 276.16 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
 
+    def test_exp_bar_is_clipped_by_the_leaf(self):
+        """经验条（深色圆角矩形）的左端也不能平切进金叶子，要按叶子轮廓裁。
+
+        做法：defs 里建一张 evenodd 裁剪路径（描边外框 65,165..361,210 挖掉叶子形状），
+        再把 <rect class="st1"> 包进 <g clip-path>。裁剪范围取描边外框而不是填充框，
+        否则 10px 奶油描边会被整圈切掉。
+        """
+        svg = (ROOT / 'static/assets/ui-icons/season-pass-pro.svg').read_text(encoding='utf-8')
+        self.assertIn('<clipPath id="exp-bar-clip">', svg)
+        clip = svg.split('<clipPath id="exp-bar-clip">', 1)[1].split('</clipPath>', 1)[0]
+        self.assertIn('fill-rule="evenodd"', clip, '要挖洞，默认 nonzero 会把叶子整块涂黑')
+        self.assertIn('M65,165H361V210H65Z', clip, '裁剪范围要覆盖 10px 描边外框')
+        self.assertIn('M77.5,165.3', clip, '裁剪路径里要含那片金叶子的轮廓')
+        self.assertIn('<g clip-path="url(#exp-bar-clip)">', svg, '经验条必须真的套上这张裁剪路径')
+
     def test_top_button_shows_level_reward_and_progress(self):
         html = read('templates/index.html')
         for anchor in ('id="pass-hud"', 'id="pass-hud-level"', 'id="pass-hud-next-icon"',
