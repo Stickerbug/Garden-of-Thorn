@@ -838,8 +838,22 @@ button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
   0%, 100% { opacity: .82; }
   50% { opacity: 1; }
 }
+/* 2026-11-23：进度条原来铺满整块深色矩形（x70..356），左右各溢出 5 单位——右侧盖住描边、
+   左侧压到金叶子与 EXP 角标上。现在只覆盖可见的深色轨道：右端止于描边内沿 350.3，
+   左端再往叶子底下探 1 个单位（74.2），让满级时 75.3 起的第一列黑轨也被绿条盖住——
+   只给到 75.3 时实测绿条从 77 才开始画，会留一道 1 像素的黑缝。
+   左端还用 mask 抠掉了金叶子的轮廓（同一份 SVG 里的 path），所以绿条的左上角不是一刀切，
+   而是顺着叶子右边那条弧线收进去，满级时看起来像是从叶子后面长出来的。 */
 .pass-top-btn-pro .pass-hud-bar,
-.pass-top-btn-pro .pass-hud-xp { left: 19.4%; top: 69.6%; width: 79.5%; height: 22.2%; }
+.pass-top-btn-pro .pass-hud-xp { left: 20.6%; top: 69.6%; width: 76.71%; height: 22.2%; }
+.pass-top-btn-pro .pass-hud-bar {
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='74.16 170 276.16 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M74.16,170H350.32V205.08H74.16Z M77.5,165.3s-.3,17.3-9.9,29.5c-8.9,11.3-25.2,10.1-31,2.7-5.8-7.4-3.7-25,9.9-29.5,14.6-4.8,31-2.7,31-2.7Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='74.16 170 276.16 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M74.16,170H350.32V205.08H74.16Z M77.5,165.3s-.3,17.3-9.9,29.5c-8.9,11.3-25.2,10.1-31,2.7-5.8-7.4-3.7-25,9.9-29.5,14.6-4.8,31-2.7,31-2.7Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
 @media (max-width: 700px) {
   button.pass-top-btn.pass-top-btn-pro { width: 196px; }
   .pass-top-btn-pro .pass-hud-level { font-size: 26px; }

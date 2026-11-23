@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -100,6 +101,39 @@ class PassHomeEntryTests(unittest.TestCase):
         css = read('static/css/battle-pass.css')
         self.assertIn(':is(#achievements-pass-panel, #pass-panel)', css)
         self.assertIn('#pass-popover {', css)
+    def test_progress_bar_fills_exactly_the_visible_track(self):
+        """Pro 图的进度条必须盖住整条可见深色轨道，且不压到奶油描边。
+
+        season-pass-pro.svg 的 viewBox 是 0 60 360 158；深色轨道矩形 x=70、宽 286，
+        带 10px 奶油描边，所以真正露出来的深色区是 75.3..350.3；金叶子右沿在 77.5。
+        旧值（19.4% / 79.5%）对应 70..356：右侧压到描边、左侧钻到叶子底下。
+        左端再往叶子底下探一点是必要的：只对齐 75.3 时实测绿条从 77 才开始画，
+        满级会留一道 1 像素的黑缝（用户报障「填上多余的黑色部分」）。
+        """
+        css = read('static/css/style.css')
+        block = css.split('.pass-top-btn-pro .pass-hud-bar,', 1)[1].split('}', 1)[0]
+        left = float(re.search(r'left:\s*([\d.]+)%', block).group(1))
+        width = float(re.search(r'width:\s*([\d.]+)%', block).group(1))
+        start_unit = left / 100 * 360
+        end_unit = (left + width) / 100 * 360
+        self.assertLessEqual(start_unit, 75.3, '左端不能停在黑轨起点右边，否则满级留黑缝')
+        self.assertGreaterEqual(start_unit, 73.2, '左端不能再往左，否则绿条压掉金叶子')
+        self.assertAlmostEqual(end_unit, 350.3, delta=0.4, msg='右端要贴住可见黑轨终点')
+        self.assertLessEqual(end_unit, 351, '进度条不能压到奶油色描边')
+
+    def test_progress_bar_left_end_follows_the_leaf_outline(self):
+        """左端不能用一条竖直边把金叶子切平，要顺着叶子的轮廓收进去。
+
+        做法是在 .pass-hud-bar 上叠一层同源 SVG mask：白底 + 叶子 path 挖洞
+        （fill-rule='evenodd'），这样绿条的左端就是叶子右缘那条弧线的补集。
+        """
+        css = read('static/css/style.css')
+        block = css.split('.pass-top-btn-pro .pass-hud-bar {', 1)[1].split('}', 1)[0]
+        self.assertIn('mask-image', block)
+        self.assertIn('evenodd', block)
+        self.assertIn('M77.5,165.3', block, '遮罩必须复用 season-pass-pro.svg 里那片叶子')
+        self.assertIn('viewBox=\'74.16 170 276.16 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
+
     def test_top_button_shows_level_reward_and_progress(self):
         html = read('templates/index.html')
         for anchor in ('id="pass-hud"', 'id="pass-hud-level"', 'id="pass-hud-next-icon"',
@@ -123,8 +157,8 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('left: 12%;', pro_level)
         self.assertIn('font-size: 30px;', pro_level)
         pro_bar = css2.split('.pass-top-btn-pro .pass-hud-bar,', 1)[1].split('}', 1)[0]
-        self.assertIn('left: 19.4%;', pro_bar)
-        self.assertIn('width: 79.5%;', pro_bar)
+        self.assertIn('left: 20.6%;', pro_bar)
+        self.assertIn('width: 76.71%;', pro_bar)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)

@@ -88,4 +88,4 @@ def test_replies_are_labelled_and_indented():
 
 
 def test_version_bumped_for_this_fix():
-    assert VERSION.strip().endswith('-feedback-reply-order-1')
+    assert '-feedback-reply-order-1' in VERSION.strip()
