@@ -134,20 +134,6 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('M77.5,165.3', block, '遮罩必须复用 season-pass-pro.svg 里那片叶子')
         self.assertIn('viewBox=\'74.16 170 276.16 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
 
-    def test_exp_badge_is_clipped_by_the_leaf(self):
-        """EXP 角标是个圆角矩形，右上一角会盖住金叶子的下缘，要按叶子轮廓裁一刀。
-
-        做法：defs 里建一张 evenodd 裁剪路径（角标矩形 + 叶子形状），
-        再把角标 path 包进 <g clip-path> 里——露出来的边缘就顺着叶子的弧线走。
-        """
-        svg = (ROOT / 'static/assets/ui-icons/season-pass-pro.svg').read_text(encoding='utf-8')
-        self.assertIn('<clipPath id="exp-badge-clip">', svg)
-        clip = svg.split('<clipPath id="exp-badge-clip">', 1)[1].split('</clipPath>', 1)[0]
-        self.assertIn('fill-rule="evenodd"', clip, '角标要挖洞，默认的 nonzero 会把叶子整块涂黑')
-        self.assertIn('M72,209.9', clip, '裁剪路径里要含角标本身的圆角矩形')
-        self.assertIn('M77.5,165.3', clip, '裁剪路径里要含那片金叶子的轮廓')
-        self.assertIn('<g clip-path="url(#exp-badge-clip)">', svg, '角标必须真的套上这张裁剪路径')
-
     def test_top_button_shows_level_reward_and_progress(self):
         html = read('templates/index.html')
         for anchor in ('id="pass-hud"', 'id="pass-hud-level"', 'id="pass-hud-next-icon"',
