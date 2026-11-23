@@ -116,17 +116,17 @@ class PassHomeEntryTests(unittest.TestCase):
         width = float(re.search(r'width:\s*([\d.]+)%', block).group(1))
         start_unit = left / 100 * 360
         end_unit = (left + width) / 100 * 360
-        self.assertLessEqual(start_unit, 75.3, '左端不能停在黑轨起点右边，否则满级留黑缝')
-        self.assertGreaterEqual(start_unit, 73.2, '左端不能再往左，否则绿条压掉金叶子')
+        self.assertLessEqual(start_unit, 75.3, '左端必须盖到黑轨起点，否则满级留黑缝')
+        self.assertGreaterEqual(start_unit, 64, '左端不能跑到奶油描边外沿 65 以外')
         self.assertAlmostEqual(end_unit, 350.3, delta=0.4, msg='右端要贴住可见黑轨终点')
         self.assertLessEqual(end_unit, 351, '进度条不能压到奶油色描边')
 
     def test_progress_bar_left_end_follows_the_leaf_outline(self):
         """左端不能用一条竖直边把金叶子切平，要顺着叶子的轮廓收进去。
 
-        做法是在 .pass-hud-bar 上叠一层同源 SVG mask：白底 + 叶子 path 挖洞
-        （fill-rule='evenodd'），这样绿条的左端就是叶子右缘那条弧线的补集。
-        洞的起点要从 77.5 右移 1.7 到 79.2：叶子本体还带 3.4 的描边，可见轮廓比
+        做法是在 .pass-hud-bar 上叠两层同源 SVG mask：白底 + 叶子 / 白底 + EXP 角标 各挖一个洞，
+        两层 mask-composite: intersect 求交，这样绿条的左端同时避开叶子和角标。
+        叶子那层洞的起点要从 77.5 右移 1.7 到 79.2：叶子本体还带 3.4 的描边，可见轮廓比
         path 外扩 1.7，不补偿的话绿条会啃掉叶子那一圈金色描边。
         """
         css = read('static/css/style.css')
@@ -135,7 +135,10 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('evenodd', block)
         self.assertIn('M79.2,165.3', block, '遮罩洞要右移 1.7，把叶子的 3.4 描边一起挖掉')
         self.assertNotIn('M77.5,165.3', block, '直接复用未外扩的叶子 path 会让绿条压在金色描边上')
-        self.assertIn('viewBox=\'74.3 170 276.02 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
+        self.assertIn('viewBox=\'65 170 285.32 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
+        self.assertIn('M75,195H47v16h28Z', block, '第二层遮罩要把 EXP 角标（50..72 / 196.7..209.9）挖掉')
+        self.assertIn('mask-composite: intersect', block, '两层不能塞进一条 evenodd：叶子与角标重叠处会被重新填上')
+        self.assertIn('source-in', block, '老 WebKit 只认 -webkit-mask-composite')
 
     def test_exp_bar_is_clipped_by_the_leaf(self):
         """经验条（深色圆角矩形）的左端也不能平切进金叶子，要按叶子轮廓裁。
@@ -175,8 +178,8 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('left: 12%;', pro_level)
         self.assertIn('font-size: 30px;', pro_level)
         pro_bar = css2.split('.pass-top-btn-pro .pass-hud-bar,', 1)[1].split('}', 1)[0]
-        self.assertIn('left: 20.6389%;', pro_bar)
-        self.assertIn('width: 76.6722%;', pro_bar)
+        self.assertIn('left: 18.0556%;', pro_bar)
+        self.assertIn('width: 79.2556%;', pro_bar)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)

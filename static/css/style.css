@@ -840,18 +840,25 @@ button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
 }
 /* 2026-11-23：进度条原来铺满整块深色矩形（x70..356），左右各溢出 5 单位——右侧盖住描边、
    左侧压到金叶子与 EXP 角标上。现在只覆盖可见的深色轨道：右端止于描边内沿 350.3，
-   左端止于轨道起点 75.3（罐体填充的左内沿），与经验条黑轨完全对齐。
-   左端再用 mask 抠掉金叶子：洞的起点从 77.5 右移 1.7 到 79.2，因为叶子本体还带 3.4 的描边，
-   可见轮廓比 path 外扩 1.7——不补偿的话绿条会啃掉叶子那一圈金色描边。 */
+   左端一路探到 65（罐体那圈奶油描边的外沿），再用两层 mask 把金叶子和 EXP 角标抠掉，
+   于是绿条是从叶子/角标后面长出来的，而不是在它们旁边切一刀。
+   · 叶子那一层：洞的起点从 77.5 右移到 79.2，因为叶子本体还带 3.4 的描边、可见轮廓外扩 1.7，
+     不补偿的话绿条会啃掉叶子那圈金色描边。
+   · 角标那一层：洞盖住 47..75 × 195..211（角标本体 50..72 / 196.7..209.9，右沿留到轨道填充起点
+     75，避免绿条压到奶油描边的内圈）。
+   两层用 mask-composite: intersect 求交（不能塞进同一条 evenodd 路径：叶子与角标会重叠，
+   双负区域会被重新填上）。 */
 .pass-top-btn-pro .pass-hud-bar,
-.pass-top-btn-pro .pass-hud-xp { left: 20.6389%; top: 69.6%; width: 76.6722%; height: 22.2%; }
+.pass-top-btn-pro .pass-hud-xp { left: 18.0556%; top: 69.6%; width: 79.2556%; height: 22.2%; }
 .pass-top-btn-pro .pass-hud-bar {
-  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='74.3 170 276.02 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M74.3,170H350.32V205.08H74.3Z M79.2,165.3s-.3,17.3-9.9,29.5c-8.9,11.3-25.2,10.1-31,2.7-5.8-7.4-3.7-25,9.9-29.5,14.6-4.8,31-2.7,31-2.7Z'/%3E%3C/svg%3E");
-  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='74.3 170 276.02 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M74.3,170H350.32V205.08H74.3Z M79.2,165.3s-.3,17.3-9.9,29.5c-8.9,11.3-25.2,10.1-31,2.7-5.8-7.4-3.7-25,9.9-29.5,14.6-4.8,31-2.7,31-2.7Z'/%3E%3C/svg%3E");
-  -webkit-mask-size: 100% 100%;
-  mask-size: 100% 100%;
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='65 170 285.32 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M65,170H350.32V205.08H65Z M79.2,165.3s-.3,17.3-9.9,29.5c-8.9,11.3-25.2,10.1-31,2.7-5.8-7.4-3.7-25,9.9-29.5,14.6-4.8,31-2.7,31-2.7Z'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='65 170 285.32 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M65,170H350.32V205.08H65Z M75,195H47v16h28Z'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='65 170 285.32 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M65,170H350.32V205.08H65Z M79.2,165.3s-.3,17.3-9.9,29.5c-8.9,11.3-25.2,10.1-31,2.7-5.8-7.4-3.7-25,9.9-29.5,14.6-4.8,31-2.7,31-2.7Z'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='65 170 285.32 35.08' preserveAspectRatio='none'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M65,170H350.32V205.08H65Z M75,195H47v16h28Z'/%3E%3C/svg%3E");
+  -webkit-mask-size: 100% 100%, 100% 100%;
+  mask-size: 100% 100%, 100% 100%;
+  -webkit-mask-repeat: no-repeat, no-repeat;
+  mask-repeat: no-repeat, no-repeat;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }
 @media (max-width: 700px) {
   button.pass-top-btn.pass-top-btn-pro { width: 196px; }
