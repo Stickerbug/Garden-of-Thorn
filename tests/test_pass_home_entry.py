@@ -126,13 +126,16 @@ class PassHomeEntryTests(unittest.TestCase):
 
         做法是在 .pass-hud-bar 上叠一层同源 SVG mask：白底 + 叶子 path 挖洞
         （fill-rule='evenodd'），这样绿条的左端就是叶子右缘那条弧线的补集。
+        洞的起点要从 77.5 右移 1.7 到 79.2：叶子本体还带 3.4 的描边，可见轮廓比
+        path 外扩 1.7，不补偿的话绿条会啃掉叶子那一圈金色描边。
         """
         css = read('static/css/style.css')
         block = css.split('.pass-top-btn-pro .pass-hud-bar {', 1)[1].split('}', 1)[0]
         self.assertIn('mask-image', block)
         self.assertIn('evenodd', block)
-        self.assertIn('M77.5,165.3', block, '遮罩必须复用 season-pass-pro.svg 里那片叶子')
-        self.assertIn('viewBox=\'74.16 170 276.16 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
+        self.assertIn('M79.2,165.3', block, '遮罩洞要右移 1.7，把叶子的 3.4 描边一起挖掉')
+        self.assertNotIn('M77.5,165.3', block, '直接复用未外扩的叶子 path 会让绿条压在金色描边上')
+        self.assertIn('viewBox=\'74.3 170 276.02 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
 
     def test_exp_bar_is_clipped_by_the_leaf(self):
         """经验条（深色圆角矩形）的左端也不能平切进金叶子，要按叶子轮廓裁。
@@ -172,8 +175,8 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('left: 12%;', pro_level)
         self.assertIn('font-size: 30px;', pro_level)
         pro_bar = css2.split('.pass-top-btn-pro .pass-hud-bar,', 1)[1].split('}', 1)[0]
-        self.assertIn('left: 20.6%;', pro_bar)
-        self.assertIn('width: 76.71%;', pro_bar)
+        self.assertIn('left: 20.6389%;', pro_bar)
+        self.assertIn('width: 76.6722%;', pro_bar)
         js = read('static/js/game.js')
         self.assertIn('function applyPassEntryHud(payload)', js)
         self.assertIn("Math.max(1, Number(payload.xp_per_level) || 100)", js)
