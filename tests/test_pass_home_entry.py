@@ -134,6 +134,19 @@ class PassHomeEntryTests(unittest.TestCase):
         self.assertIn('M77.5,165.3', block, '遮罩必须复用 season-pass-pro.svg 里那片叶子')
         self.assertIn('viewBox=\'74.16 170 276.16 35.08\'', block.replace('%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 ', '%3Csvg '))
 
+    def test_track_starts_behind_the_leaf(self):
+        """深色轨道（EXP 栏）的左端也要藏到金叶子后面，不能是 70 起的直角。
+
+        叶子最右点是 77.5，所以轨道矩形要伸到它左边（55），并且画在内侧底色块之后、
+        叶子分组之前——这样叶子本身就成了轨道的左边界，黑轨顺着弧线收进去。
+        """
+        svg = (ROOT / 'static/assets/ui-icons/season-pass-pro.svg').read_text(encoding='utf-8')
+        track = re.search(r'<rect class="st1" x="([\d.]+)" y="170" width="[\d.]+" height="35"/>', svg)
+        self.assertIsNotNone(track, '深色轨道的矩形丢了')
+        self.assertLess(float(track.group(1)), 77.5, '轨道左端必须在金叶子最右点左边，否则会露出直角')
+        self.assertLess(svg.index('<rect class="st11"'), track.start(), '内侧底色块要画在轨道之前')
+        self.assertLess(track.start(), svg.index('<g class="st12">'), '轨道要画在金叶子之前（叶子盖住它的左端）')
+
     def test_top_button_shows_level_reward_and_progress(self):
         html = read('templates/index.html')
         for anchor in ('id="pass-hud"', 'id="pass-hud-level"', 'id="pass-hud-next-icon"',
