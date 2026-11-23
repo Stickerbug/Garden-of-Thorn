@@ -4634,11 +4634,11 @@ def _resolve_effect(state, card, values, effect, targets, payload, seed, events,
         durability = max(1, int(effect.get('durability') or 1))
         # 表15 红标（蛋白石）：可限制只把某些类型的牌（攻击/技能）放入轨道。
         allowed_types = tuple(effect.get('card_types') or ())
-        remaining = []
+        # 反馈：放上轨道的是弃牌堆里这些牌的「复制」，弃牌堆本身不该被摘走
+        # ——此前会把牌从弃牌堆移除，玩家看到的是牌凭空消失、战后也找不回来。
         for item in list(combat.get('discard_pile') or []):
             item_values = _card_values(item)
             if allowed_types and item_values.get('type') not in allowed_types:
-                remaining.append(item)
                 continue
             _orbit_new_petal(
                 state, combat, item.get('def_id'), item_values,
@@ -4646,7 +4646,6 @@ def _resolve_effect(state, card, values, effect, targets, payload, seed, events,
                 source=str(effect.get('source') or 'discard_to_orbit'),
                 effects_override=(),
             )
-        combat['discard_pile'] = remaining
         events.append({'type': 'orbit_from_discard', 'durability': durability})
         return
     if effect_type == 'shield_plus_orbit_count':

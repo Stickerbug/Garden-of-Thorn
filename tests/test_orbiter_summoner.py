@@ -100,6 +100,29 @@ class TestOrbit:
         if state.get('phase') == 'combat':
             assert state['combat']['orbit']['petals'][0]['durability'] == durability_before
 
+    def test_opal_petals_are_copies_and_keep_the_discard_pile(self):
+        """反馈：蛋白石只是把弃牌堆里的攻/技牌「复制」成花瓣，不该把它们从弃牌堆摘走。"""
+        state = _orbiter_combat('opal-discard')
+        attack = _new_card(state, 'basic', False)
+        skill = _new_card(state, 'rose', False)
+        equipment = _new_card(state, 'sponge', False)
+        state['combat']['discard_pile'] = [attack, skill, equipment]
+        opal = _new_card(state, 'magic_quantum', False)
+        state['combat']['hand'] = [opal]
+        state['combat']['elixir'] = 9
+        state['combat']['magic'] = 9
+        state, _ = apply_story_action(
+            state, 'play_card', {'card_instance_id': opal['instance_id']}, 'opal-discard'
+        )
+        combat = state['combat']
+        assert [card['def_id'] for card in combat['discard_pile']] == [
+            'basic', 'rose', 'sponge', 'magic_quantum',
+        ]
+        assert [(petal['def_id'], petal['durability']) for petal in combat['orbit']['petals']] == [
+            ('basic', 1),
+            ('rose', 1),
+        ]
+
     def test_orbital_surround_rotates_once(self):
         """表15 天赋表：环绕轨道=回合结束时轨道旋转一次（不是一圈）。"""
         from story_engine import _prepare_player_turn_end
