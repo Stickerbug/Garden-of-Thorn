@@ -99,7 +99,7 @@ class TestTalentIconRendering(unittest.TestCase):
         # 天赋三选一
         self.assertRegex(
             self.js,
-            r"mark\.className = 'story-choice-mark';[\s\S]{0,500}mark\.dataset\.order",
+            r"mark\.className = 'story-choice-mark';[\s\S]{0,400}createStoryRelicIcon",
         )
         # 术语徽标 / 合作商店 / 历史记录
         self.assertIn("const badgeIcon = createStoryRelicIcon(item.id);", self.js)
@@ -109,8 +109,8 @@ class TestTalentIconRendering(unittest.TestCase):
     def test_css_sizes_the_icons(self):
         self.assertIn('.story-talent-overview-marker.has-icon', self.css)
         self.assertIn('.story-codex-talent-marker.has-icon', self.css)
-        self.assertIn('.story-choice-mark.has-icon::after', self.css)
-        self.assertIn('content: attr(data-order);', self.css)
+        self.assertIn('.story-choice-mark.has-icon img', self.css)
+        self.assertNotIn('.story-choice-mark.has-icon::after', self.css)
         self.assertIn('.story-history-relic-chip img', self.css)
         self.assertIn('.story-coop-shop-relic img', self.css)
         self.assertRegex(

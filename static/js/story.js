@@ -12673,10 +12673,9 @@
             const markIcon = createStoryRelicIcon(id);
             if (markIcon) {
                 mark.classList.add('has-icon');
-                mark.dataset.order = String(index + 1);
                 mark.append(markIcon);
             } else {
-                mark.textContent = String(index + 1);
+                mark.textContent = '★';
             }
             const name = document.createElement('strong');
             name.textContent = localize(relic.name) || id;

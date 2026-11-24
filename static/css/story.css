@@ -8746,7 +8746,6 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
 }
 
 .story-choice-mark.has-icon {
-  position: relative;
   padding: 3px;
 }
 
@@ -8755,21 +8754,6 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
   height: 100%;
   display: block;
   object-fit: contain;
-}
-
-.story-choice-mark.has-icon::after {
-  content: attr(data-order);
-  position: absolute;
-  top: -6px;
-  right: -7px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--story-gold, #d8b24a);
-  color: #2b220b;
-  font: 700 11px/17px system-ui, sans-serif;
-  text-align: center;
 }
 
 .story-term-relic img,
