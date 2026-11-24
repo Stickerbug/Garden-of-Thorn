@@ -11622,7 +11622,7 @@ ADMIN_COMMAND_TREE = {
                     'getgolden': {'summary': '查看金露余额', 'usage': 'account dew getgolden <账号>'},
                     'add': {'summary': '增减普通荆露', 'usage': 'account dew add <账号> <数量> [原因]'},
                     'addgolden': {'summary': '调整金露（正数发放、负数扣除）', 'usage': 'account dew addgolden <账号> <数量> [原因]'},
-                    'addpaid': {'summary': '', 'usage': 'account dew addpaid <账号> <数量> [原因]', 'hidden': True},
+                    'addpaid': {'summary': '调整金露（addgolden 的旧别名）', 'usage': 'account dew addpaid <账号> <数量> [原因]', 'hidden': True},
                     'spend': {'summary': '扣除荆露', 'usage': 'account dew spend <账号> <数量> [原因]'},
                     'tx': {'summary': '查看最近荆露流水', 'usage': 'account dew tx <账号>'},
                     'txgolden': {'summary': '查看最近金露流水', 'usage': 'account dew txgolden <账号>'},
@@ -12194,7 +12194,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'room': {
-        'hidden': True,
         'summary': '房间与对局',
         'usage': 'room <list|get|players|log|chat|state|skip|end|set|history> ...',
         'children': {
@@ -12211,7 +12210,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'card': {
-        'hidden': True,
         'summary': '对局内卡牌操作',
         'usage': 'card <add|remove> ...',
         'children': {
@@ -12220,7 +12218,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'mod': {
-        'hidden': True,
         'summary': '模组与卡池',
         'usage': 'mod <list|loadout> ...',
         'children': {
@@ -12229,7 +12226,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'rating': {
-        'hidden': True,
         'summary': '花阶分与排行榜（后台）',
         'usage': 'rating <season|list|info|set|add|snapshot|rebuild> ...',
         'children': {
@@ -12243,7 +12239,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'chat': {
-        'hidden': True,
         'summary': '聊天与广播',
         'usage': 'chat <broadcast|lobby|mute> ...',
         'children': {
@@ -12283,7 +12278,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'storage': {
-        'hidden': True,
         'summary': '数据、统计与回放',
         'usage': 'storage <summary|draftstats|rebuildstats|dewbackfill|achievementbackfill> ...',
         'children': {
@@ -12295,7 +12289,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'report': {
-        'hidden': True,
         'summary': '举报与安全记录',
         'usage': 'report <suspicious> ...',
         'children': {
@@ -12303,7 +12296,6 @@ ADMIN_COMMAND_TREE = {
         },
     },
     'diagnose': {
-        'hidden': True,
         'summary': '一键诊断',
         'usage': 'diagnose <server|room|player|stuck> ...',
         'children': {
@@ -12495,6 +12487,41 @@ ADMIN_COMMAND_DIRECT_TRANSLATIONS = {
     ('replay', 'export'): 'replayexport',
     ('replay', 'hold'): 'replayhold',
     ('replay', 'release'): 'replayrelease',
+    # 运维快捷命令族：与 /server、/data、/moderation 下的同名功能等价
+    ('room', 'list'): 'rooms',
+    ('room', 'get'): 'roomget',
+    ('room', 'players'): 'roomplayers',
+    ('room', 'log'): 'roomlog',
+    ('room', 'chat'): 'roomchat',
+    ('room', 'state'): 'roomstate',
+    ('room', 'skip'): 'skip',
+    ('room', 'end'): 'endgame',
+    ('room', 'set'): 'set',
+    ('room', 'history'): 'history',
+    ('card', 'add'): 'givecard',
+    ('card', 'remove'): 'delcard',
+    ('mod', 'list'): 'modlist',
+    ('mod', 'loadout'): 'modloadout',
+    ('rating', 'season'): 'rating-season',
+    ('rating', 'list'): 'rating-list',
+    ('rating', 'info'): 'rating-info',
+    ('rating', 'set'): 'rating-set',
+    ('rating', 'add'): 'rating-add',
+    ('rating', 'snapshot'): 'rating-snapshot',
+    ('rating', 'rebuild'): 'rating-rebuild',
+    ('chat', 'broadcast'): 'broadcast',
+    ('chat', 'lobby'): 'lobbychat',
+    ('chat', 'mute'): 'mutechat',
+    ('storage', 'summary'): 'storagesummary',
+    ('storage', 'draftstats'): 'draftstat',
+    ('storage', 'rebuildstats'): 'rebuildstats',
+    ('storage', 'dewbackfill'): 'dewbackfill',
+    ('storage', 'achievementbackfill'): 'achievementbackfill',
+    ('report', 'suspicious'): 'suspicious',
+    ('diagnose', 'server'): 'diagnose-server',
+    ('diagnose', 'room'): 'diagnose-room',
+    ('diagnose', 'player'): 'diagnose-player',
+    ('diagnose', 'stuck'): 'diagnose-stuck',
 }
 
 
@@ -12543,6 +12570,9 @@ def render_admin_help(parts=None):
             if meta.get('hidden'):
                 continue
             lines.append(f"/{name:<8} {meta.get('summary', '')}")
+        lines.append('')
+        lines.append('运维快捷命令：/room /chat /card /mod /rating /report /diagnose /storage')
+        lines.append('（与 /server、/data、/moderation 下的同名功能等价，用法见 /help <命令>）')
         lines.append('')
         lines.append('输入 /help <命令> 逐级查看子命令，例如：/help game player')
         return '\n'.join(lines)

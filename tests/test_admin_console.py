@@ -157,12 +157,66 @@ class AdminConsoleCommandTests(unittest.TestCase):
             'data storage community-delete community/trash/a.zip confirm':
                 'storage-community-delete community/trash/a.zip confirm',
             'server pull confirm': 'gitpull confirm',
+            # 运维快捷命令族（原先对 help 隐藏）
+            'room list': 'rooms',
+            'room get 7': 'roomget 7',
+            'room players 7': 'roomplayers 7',
+            'room log 7 20': 'roomlog 7 20',
+            'room chat 7 10': 'roomchat 7 10',
+            'room state 7': 'roomstate 7',
+            'room skip 7': 'skip 7',
+            'room end 7 1': 'endgame 7 1',
+            'room set 7 0 h 12': 'set 7 0 h 12',
+            'room history 5': 'history 5',
+            'card add 7 0 Basic 2': 'givecard 7 0 Basic 2',
+            'card remove 7 0 hand all': 'delcard 7 0 hand all',
+            'mod list': 'modlist',
+            'mod loadout Alice': 'modloadout Alice',
+            'rating season': 'rating-season',
+            'rating list season 10': 'rating-list season 10',
+            'rating info Alice': 'rating-info Alice',
+            'rating set Alice both 1200 补偿': "rating-set Alice both 1200 '补偿'",
+            'rating add Alice season +30': 'rating-add Alice season +30',
+            'rating snapshot Alice': 'rating-snapshot Alice',
+            'rating rebuild preview': 'rating-rebuild preview',
+            'chat broadcast hello': 'broadcast hello',
+            'chat lobby 20': 'lobbychat 20',
+            'chat mute Alice 600': 'mutechat Alice 600',
+            'storage summary': 'storagesummary',
+            'storage draftstats 1v1': 'draftstat 1v1',
+            'storage rebuildstats confirm': 'rebuildstats confirm',
+            'storage dewbackfill preview': 'dewbackfill preview',
+            'storage achievementbackfill confirm': 'achievementbackfill confirm',
+            'report suspicious 5': 'suspicious 5',
+            'diagnose server': 'diagnose-server',
+            'diagnose room 7': 'diagnose-room 7',
+            'diagnose player Alice': 'diagnose-player Alice',
+            'diagnose stuck': 'diagnose-stuck',
         }
         for line, expected in cases.items():
             with self.subTest(line=line):
                 translated, help_text = app._translate_structured_admin_command(shlex.split(line))
                 self.assertEqual(translated, expected)
                 self.assertIsNone(help_text)
+
+    def test_root_help_lists_the_operator_families(self):
+        text = app.render_admin_help([])
+        for name in ('room', 'card', 'mod', 'rating', 'chat', 'storage', 'report', 'diagnose'):
+            with self.subTest(name=name):
+                self.assertIn(f'/{name}', text)
+        self.assertIn('运维快捷命令', text)
+        self.assertEqual([k for k, v in app.ADMIN_COMMAND_TREE.items() if v.get('hidden')], [])
+
+    def test_operator_families_have_usage_and_summary(self):
+        for name in ('room', 'card', 'mod', 'rating', 'chat', 'storage', 'report', 'diagnose'):
+            meta = app.ADMIN_COMMAND_TREE[name]
+            with self.subTest(name=name):
+                self.assertTrue(meta.get('summary'))
+                self.assertTrue(meta.get('usage'))
+                for child_name, child in (meta.get('children') or {}).items():
+                    self.assertTrue(child.get('summary'), f'{name} {child_name}')
+                    self.assertTrue(child.get('usage'), f'{name} {child_name}')
+                    self.assertTrue(child.get('internal_parts'), f'{name} {child_name}')
 
     def test_report_resolution_options_are_strict_and_preserve_notes(self):
         options = app.parse_report_resolution_options([
