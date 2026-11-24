@@ -64,7 +64,8 @@ class StoryMobileCombatFitTest(unittest.TestCase):
 
     def test_version_bumped(self):
         version = VERSION_FILE.read_text(encoding="utf-8").strip()
-        self.assertTrue(version.endswith("-story-mobile-fit-1"), version)
+        # 版本号会持续追加新后缀，这里只校验该轮标记仍在串里
+        self.assertIn("-story-mobile-fit-1", version)
 
 
 if __name__ == "__main__":

@@ -720,7 +720,17 @@ def test_story_run_deck_and_talents_remain_available_during_combat():
     assert '.story-run-deck-command {' in STORY_CSS
 
 
-def test_story_talent_overview_sits_before_deck_and_is_self_explanatory():
+def test_story_talent_overview_sits_between_map_and_deck_in_the_hud():
+    hud_actions = STORY_TEMPLATE.split(
+        '<nav class="story-persistent-actions"',
+        1,
+    )[1].split(
+        "</nav>",
+        1,
+    )[0]
+    assert 'id="story-talent-overview"' in hud_actions
+    assert STORY_TEMPLATE.index('id="story-hud-map"') < STORY_TEMPLATE.index('id="story-talent-overview"')
+    assert STORY_TEMPLATE.index('id="story-talent-overview"') < STORY_TEMPLATE.index('id="story-hud-deck"')
     status_actions = STORY_TEMPLATE.split(
         '<div class="story-status-actions">',
         1,
@@ -728,9 +738,8 @@ def test_story_talent_overview_sits_before_deck_and_is_self_explanatory():
         '</div>',
         1,
     )[0]
-    assert 'id="story-talent-overview"' in status_actions
+    assert 'id="story-talent-overview"' not in status_actions
     assert 'id="story-run-deck"' not in status_actions
-    assert STORY_TEMPLATE.index('id="story-hud-deck"') < STORY_TEMPLATE.index('id="story-talent-overview"')
     assert 'id="story-talent-overview-label"' in STORY_TEMPLATE
     assert '/static/assets/ui-icons/achievements.svg' in STORY_TEMPLATE
     assert 'function openStoryTalentOverview()' in STORY_JS
