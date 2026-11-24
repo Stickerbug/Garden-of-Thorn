@@ -3836,6 +3836,8 @@
                 button.type = 'button';
                 button.className = 'story-coop-progression-choice story-coop-shop-relic';
                 button.disabled = !canBuy || !available || !affordable;
+                const shopIcon = createStoryRelicIcon(relicId);
+                if (shopIcon) button.prepend(shopIcon);
                 const name = document.createElement('strong');
                 name.textContent = localize(definition.name) || relicId || '遗物';
                 const description = document.createElement('small');
@@ -6102,7 +6104,11 @@
             for (const relicId of relics) {
                 const chip = document.createElement('span');
                 chip.className = 'story-history-relic-chip';
-                chip.textContent = localize(storyContent?.relics?.[String(relicId)]?.name) || String(relicId);
+                const chipIcon = createStoryRelicIcon(relicId);
+                if (chipIcon) chip.append(chipIcon);
+                chip.append(document.createTextNode(
+                    localize(storyContent?.relics?.[String(relicId)]?.name) || String(relicId),
+                ));
                 chip.title = t.codexViewRelated;
                 chip.addEventListener('contextmenu', (event) => {
                     event.preventDefault();
@@ -9321,7 +9327,13 @@
 
         const marker = document.createElement('span');
         marker.className = 'story-talent-overview-marker';
-        marker.textContent = '★';
+        const markerIcon = createStoryRelicIcon(key);
+        if (markerIcon) {
+            marker.classList.add('has-icon');
+            marker.append(markerIcon);
+        } else {
+            marker.textContent = '★';
+        }
         marker.setAttribute('aria-hidden', 'true');
 
         const copy = document.createElement('span');
@@ -10023,7 +10035,13 @@
             row.style.setProperty('--story-relic-color', color);
             badge.className = 'story-term-relic';
             badge.style.setProperty('--story-relic-color', color);
-            badge.textContent = localize(item.definition.name);
+            const badgeIcon = createStoryRelicIcon(item.id);
+            if (badgeIcon) {
+                badge.append(badgeIcon);
+            }
+            const badgeName = document.createElement('span');
+            badgeName.textContent = localize(item.definition.name);
+            badge.append(badgeName);
             heading.append(badge);
         } else {
             const badge = document.createElement('span');
@@ -10396,6 +10414,22 @@
 
     function storyRelicDefinition(relicKey) {
         return storyContent?.relics?.[String(relicKey || '')] || null;
+    }
+
+    function storyRelicIconUrl(relicKey) {
+        return String(storyRelicDefinition(relicKey)?.image_url || '').trim();
+    }
+
+    function createStoryRelicIcon(relicKey, className) {
+        const url = storyRelicIconUrl(relicKey);
+        if (!url) return null;
+        const icon = document.createElement('img');
+        icon.className = className || 'story-relic-icon';
+        icon.src = url;
+        icon.alt = '';
+        icon.loading = 'lazy';
+        icon.setAttribute('aria-hidden', 'true');
+        return icon;
     }
 
     function storyRelicRarityColor(definition) {
@@ -12053,7 +12087,13 @@
             const marker = document.createElement('span');
             marker.className = 'story-codex-talent-marker';
             marker.style.setProperty('--story-relic-color', storyRelicRarityColor(record.definition));
-            marker.textContent = '★';
+            const markerIcon = createStoryRelicIcon(record.id);
+            if (markerIcon) {
+                marker.classList.add('has-icon');
+                marker.append(markerIcon);
+            } else {
+                marker.textContent = '★';
+            }
             const list = document.createElement('div');
             list.className = 'story-card-terms-list';
             appendStoryTermRow(list, {
@@ -12630,7 +12670,14 @@
             button.dataset.relicId = id;
             const mark = document.createElement('span');
             mark.className = 'story-choice-mark';
-            mark.textContent = String(index + 1);
+            const markIcon = createStoryRelicIcon(id);
+            if (markIcon) {
+                mark.classList.add('has-icon');
+                mark.dataset.order = String(index + 1);
+                mark.append(markIcon);
+            } else {
+                mark.textContent = String(index + 1);
+            }
             const name = document.createElement('strong');
             name.textContent = localize(relic.name) || id;
             const description = document.createElement('span');

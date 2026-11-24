@@ -8729,3 +8729,63 @@ body[data-action-in-flight='true'] #story-end-turn { pointer-events: none; }
 .story-chat-channel-switch button[aria-pressed='false']:hover {
   background: rgba(74, 90, 62, .4);
 }
+
+/* 天赋贴图：static/assets/talents/<relic id>.svg（策划提供的 AI 导出 SVG）。
+   契约由 tests/test_story_talent_icons.py 守护。 */
+.story-talent-overview-marker.has-icon,
+.story-codex-talent-marker.has-icon {
+  padding: 2px;
+}
+
+.story-talent-overview-marker img,
+.story-codex-talent-marker img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.story-choice-mark.has-icon {
+  position: relative;
+  padding: 3px;
+}
+
+.story-choice-mark.has-icon img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.story-choice-mark.has-icon::after {
+  content: attr(data-order);
+  position: absolute;
+  top: -6px;
+  right: -7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--story-gold, #d8b24a);
+  color: #2b220b;
+  font: 700 11px/17px system-ui, sans-serif;
+  text-align: center;
+}
+
+.story-term-relic img,
+.story-history-relic-chip img {
+  width: 1.15em;
+  height: 1.15em;
+  margin-right: 4px;
+  display: inline-block;
+  vertical-align: -0.2em;
+  object-fit: contain;
+}
+
+.story-coop-shop-relic img {
+  width: 44px;
+  height: 44px;
+  display: block;
+  object-fit: contain;
+  justify-self: center;
+}

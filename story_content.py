@@ -3626,6 +3626,15 @@ STORY_RELICS = {
     ),
 }
 
+# 天赋贴图：策划提供的 SVG 按 relic id 命名放在 static/assets/talents/ 下，
+# 名称对不上的「至臻化境」按 perfection 的 id 归位。
+# miracle_spring 暂无素材，不写 image_url，前端回落为 ★。
+STORY_RELIC_IMAGE_URLS = {
+    relic_id: f'/static/assets/talents/{relic_id}.svg'
+    for relic_id in STORY_RELICS
+    if relic_id != 'miracle_spring'
+}
+
 
 STORY_EASY_RELIC_IDS = (
     'easy_miracle',
@@ -4715,6 +4724,11 @@ def story_content_payload(card_defs=None, asset_version=''):
                     source_flavor = str(getattr(source, 'description', '') or '').strip()
                     if source_flavor:
                         definition['flavor'] = {'zh': source_flavor, 'en': source_flavor}
+    # 天赋贴图只进故事模式的 payload，不改 STORY_RELICS 本体：
+    # 协作模式编译器要求遗物字段集合严格等于 7 个字段，多一个就拒绝加载。
+    relics_payload = deepcopy(STORY_RELICS)
+    for _relic_id, _relic_image_url in STORY_RELIC_IMAGE_URLS.items():
+        relics_payload[_relic_id]['image_url'] = _relic_image_url
     payload = {
         'rules': deepcopy(STORY_RULES),
         'characters': deepcopy(STORY_CHARACTERS),
@@ -4733,7 +4747,7 @@ def story_content_payload(card_defs=None, asset_version=''):
         'events': deepcopy(STORY_EVENTS),
         'events12': deepcopy(STORY_EVENTS_12_SOURCE),
         'cards': cards,
-        'relics': deepcopy(STORY_RELICS),
+        'relics': relics_payload,
         'boss_relic_ids': list(STORY_BOSS_RELIC_IDS),
         'easy_relic_ids': list(STORY_EASY_RELIC_IDS),
         'enemies': deepcopy(STORY_ENEMIES),

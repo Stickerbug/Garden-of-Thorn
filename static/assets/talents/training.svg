@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="16.40 13.65 250.09 258.50">
+  <!-- Generator: Adobe Illustrator 29.0.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 186)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #231815;
+        stroke: #231815;
+      }
+
+      .st0, .st1, .st2, .st3, .st4 {
+        stroke-width: 5px;
+      }
+
+      .st0, .st1, .st4, .st5 {
+        stroke-miterlimit: 10;
+      }
+
+      .st1 {
+        fill: #2b2447;
+      }
+
+      .st1, .st2, .st4 {
+        stroke: #0f1836;
+      }
+
+      .st2, .st3 {
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .st2, .st4 {
+        fill: #131e3d;
+      }
+
+      .st3 {
+        fill: #686767;
+        stroke: #545251;
+      }
+
+      .st5 {
+        fill: #9d9d9e;
+        stroke: #727171;
+        stroke-width: 2px;
+      }
+    </style>
+  </defs>
+  <rect class="st5" x="61.2" y="80.5" width="93.4" height="5.8" rx="2.9" ry="2.9" transform="translate(199.2 -17.9) rotate(94.3)"/>
+  <g>
+    <rect class="st1" x="20.4" y="196.4" width="179.5" height="15" rx="7.5" ry="7.5" transform="translate(126.3 -27.3) rotate(32.4)"/>
+    <rect class="st4" x="83.2" y="164.9" width="179.5" height="15" rx="7.5" ry="7.5" transform="translate(119.2 -65.8) rotate(32.4)"/>
+    <g>
+      <g>
+        <g>
+          <polygon class="st2" points="115.9 128.3 54.9 159.9 44.9 153.9 106.6 122.4 115.9 128.3"/>
+          <polygon class="st2" points="125.4 133.6 64.4 165.2 54.4 159.2 116.1 127.7 125.4 133.6"/>
+        </g>
+        <g>
+          <polygon class="st2" points="134.7 139.9 73.7 171.6 63.7 165.6 125.4 134 134.7 139.9"/>
+          <polygon class="st2" points="144.1 145.2 83.2 176.9 73.2 170.9 134.9 139.3 144.1 145.2"/>
+        </g>
+      </g>
+      <g>
+        <g>
+          <polygon class="st2" points="153.3 152.1 92.3 183.8 82.3 177.8 144 146.2 153.3 152.1"/>
+          <polygon class="st2" points="162.8 157.4 101.8 189 91.8 183 153.5 151.5 162.8 157.4"/>
+        </g>
+        <g>
+          <polygon class="st2" points="172 163.7 111 195.4 101 189.4 162.7 157.9 172 163.7"/>
+          <polygon class="st2" points="181.5 169 120.5 200.7 110.5 194.7 172.2 163.1 181.5 169"/>
+        </g>
+      </g>
+    </g>
+    <g>
+      <g>
+        <polygon class="st2" points="190.6 175.2 129.6 206.9 119.6 200.9 181.3 169.3 190.6 175.2"/>
+        <polygon class="st2" points="200.1 180.5 139.1 212.1 129.1 206.1 190.8 174.6 200.1 180.5"/>
+      </g>
+      <g>
+        <polygon class="st2" points="209.4 186.8 148.4 218.5 138.4 212.5 200.1 181 209.4 186.8"/>
+        <polygon class="st2" points="218.8 192.1 157.8 223.8 147.8 217.8 209.5 186.2 218.8 192.1"/>
+      </g>
+    </g>
+    <g>
+      <polygon class="st2" points="228 199 167 230.7 157 224.7 218.7 193.1 228 199"/>
+      <polygon class="st2" points="237.5 204.3 176.5 235.9 166.5 229.9 228.2 198.4 237.5 204.3"/>
+    </g>
+    <polygon class="st2" points="246.7 210.7 185.7 242.3 175.7 236.3 237.4 204.8 246.7 210.7"/>
+    <polygon class="st2" points="249.9 218.9 186.9 250.9 185.2 241.6 246.9 210 249.9 218.9"/>
+    <polygon class="st2" points="108.3 121.9 45.3 153.9 36.9 152.9 101.2 121 108.3 121.9"/>
+    <polygon class="st2" points="244.3 223.9 180.9 255.9 188.5 250.5 250.2 219 244.3 223.9"/>
+    <circle class="st0" cx="41.4" cy="160.4" r="4.5"/>
+    <circle class="st0" cx="177.9" cy="246.9" r="5"/>
+  </g>
+  <rect class="st5" x="-2.1" y="112.3" width="93.4" height="5.8" rx="2.9" ry="2.9" transform="translate(162.8 79.4) rotate(94.3)"/>
+  <polygon class="st3" points="118.9 59.9 47.9 92.9 42.3 58.4 112.7 27.5 118.9 59.9"/>
+</svg>

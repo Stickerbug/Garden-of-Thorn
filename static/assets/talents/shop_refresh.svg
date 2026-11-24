@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="68.89 65.53 158.75 158.75">
+  <!-- Generator: Adobe Illustrator 29.0.0, SVG Export Plug-In . SVG Version: 2.1.0 Build 186)  -->
+  <defs>
+    <style>
+      .st0 {
+        opacity: .75;
+      }
+
+      .st1, .st2 {
+        fill: #f4ec3d;
+      }
+
+      .st3 {
+        fill: #b89815;
+        stroke: #f5d42e;
+        stroke-miterlimit: 10;
+        stroke-width: 15px;
+      }
+
+      .st2 {
+        font-family: Ubuntu-Bold, Ubuntu;
+        font-size: 95.17px;
+        font-weight: 700;
+      }
+
+      .st4 {
+        fill: none;
+        stroke: #faf7c1;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-width: 10px;
+      }
+    </style>
+  </defs>
+  <circle class="st3" cx="148.26" cy="144.9" r="70.87"/>
+  <g>
+    <text class="st2" transform="translate(111.78 178.19)"><tspan x="0" y="0">G</tspan></text>
+    <rect class="st1" x="142.04" y="98.39" width="12.45" height="17.17"/>
+    <rect class="st1" x="142.04" y="174.25" width="12.45" height="17.17"/>
+  </g>
+  <g class="st0">
+    <path class="st4" d="M111.36,183.22c22.38,22.38,55.05,20.19,75.24,0,21.6-21.6,21.03-54.22,0-75.24s-52.03-23.16-75.24,0"/>
+    <polyline class="st4" points="140.5 113.42 105.5 116.48 102.5 82.27"/>
+  </g>
+</svg>
