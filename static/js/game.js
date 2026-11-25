@@ -7399,8 +7399,6 @@ function updateStaticText() {
     renderAboutRulesBody();
     const btnLobbyBack = $('btn-lobby-back');
     if (btnLobbyBack) btnLobbyBack.textContent = UI.back_to_home;
-    const btnLobbySettings = $('btn-lobby-settings');
-    if (btnLobbySettings) btnLobbySettings.textContent = UI.settings_btn;
     const btnConnect = $('btn-connect');
     if (btnConnect) btnConnect.textContent = UI.enter_lobby;
     const btnStoryMode = $('btn-story-mode');
@@ -43427,7 +43425,6 @@ async function init() {
             }
         });
     });
-    if ($('btn-lobby-settings')) $('btn-lobby-settings').addEventListener('click', () => openSettings({ hideServer: true }));
     if ($('btn-mod-draw-confirm')) $('btn-mod-draw-confirm').addEventListener('click', () => {
         if (!socket || !modDrawState || phase !== 'mod_draw') return;
         const submitted = modDrawState.submitted || {};

@@ -123,13 +123,11 @@ class LobbyRouteTests(unittest.TestCase):
         self._login()
         body = self.client.get('/').get_data(as_text=True)
         back = body.find('id="btn-lobby-back"')
-        settings = body.find('id="btn-lobby-settings"')
         leisure = body.find('id="btn-lobby-leisure"')
         self.assertGreater(back, -1, '大厅缺少"返回主页"按钮')
-        self.assertGreater(settings, -1, '大厅缺少"设置"按钮')
         self.assertGreater(leisure, -1, '大厅缺少"休闲花园"按钮')
-        self.assertLess(back, settings)
-        self.assertLess(settings, leisure, '休闲花园按钮应该在设置按钮右边')
+        self.assertLess(back, leisure, '休闲花园按钮应该在返回主页按钮右边')
+        self.assertEqual(body.find('id="btn-lobby-settings"'), -1, '大厅底部不应再有"设置"按钮（设置已并入左上角小组件栏）')
 
     def test_page_links_carry_from(self):
         self._login()
