@@ -8091,8 +8091,6 @@ function updateTopActionButtons(viewId = activeViewId) {
     if (titleShopTop) titleShopTop.classList.toggle('hidden', !onHome);
     const leaderboardTop = $('btn-leaderboard-top');
     if (leaderboardTop) leaderboardTop.classList.toggle('hidden', !onHome);
-    const qqTop = $('btn-qq-top');
-    if (qqTop) qqTop.classList.toggle('hidden', !onHome);
 }
 
 function showView(viewId) {
@@ -43138,9 +43136,6 @@ async function init() {
         btn.addEventListener('click', () => switchSkinPageTab(btn.dataset.skinTab));
     });
     if ($('btn-changelog-top')) $('btn-changelog-top').addEventListener('click', openChangelog);
-    if ($('btn-qq-top')) $('btn-qq-top').addEventListener('click', () => {
-        window.open('https://qm.qq.com/q/KngslbBBmM', '_blank', 'noopener');
-    });
     if ($('btn-changelog-popover-close')) $('btn-changelog-popover-close').addEventListener('click', () => toggleChangelogPopover(false));
     if ($('btn-replays-top')) $('btn-replays-top').addEventListener('click', () => toggleStatsPopover());
     if ($('btn-achievements-top')) $('btn-achievements-top').addEventListener('click', () => toggleAchievementsPopover());
@@ -43445,6 +43440,7 @@ async function init() {
     if ($('about-tab-credits')) $('about-tab-credits').addEventListener('click', () => setAboutPage('credits'));
     if ($('btn-about-close')) $('btn-about-close').addEventListener('click', closeAbout);
     if ($('btn-credit-discord')) $('btn-credit-discord').addEventListener('click', () => window.open('https://discord.gg/JgjnsAEXMC', '_blank', 'noopener'));
+    if ($('btn-qq-group-join')) $('btn-qq-group-join').addEventListener('click', () => window.open('https://qm.qq.com/q/KngslbBBmM', '_blank', 'noopener'));
     if ($('btn-credit-bilibili')) $('btn-credit-bilibili').addEventListener('click', () => window.open('https://space.bilibili.com/1490695733', '_blank', 'noopener'));
     if ($('btn-credit-github')) $('btn-credit-github').addEventListener('click', () => window.open('https://github.com/Stickerbug', '_blank', 'noopener'));
     document.querySelectorAll('[data-copy-text]').forEach(btn => {
