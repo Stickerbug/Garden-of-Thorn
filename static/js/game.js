@@ -7361,8 +7361,8 @@ function updateStaticText() {
     }
     const btnSettings = $('btn-open-settings');
     if (btnSettings) btnSettings.textContent = UI.settings_btn;
-    const btnCardGallery = $('btn-card-gallery');
-    if (btnCardGallery) btnCardGallery.textContent = UI.gallery_title;
+    const btnLobbyGallery = $('btn-lobby-gallery-label');
+    if (btnLobbyGallery) btnLobbyGallery.textContent = UI.gallery_title;
     const galleryTitle = $('gallery-title');
     if (galleryTitle) galleryTitle.textContent = UI.gallery_title;
     const galleryTabCards = $('gallery-tab-cards');
@@ -7415,7 +7415,8 @@ function updateStaticText() {
     setIconButtonLabel('btn-skin-top', UI.skin);
     setIconButtonLabel('btn-changelog-top', UI.about_changelog || '更新日志');
     setIconButtonLabel('btn-title-shop-top', lt({ zh: '商店', en: 'Shop', fr: 'Boutique', ja: 'ショップ' }));
-    setIconButtonLabel('btn-card-gallery', UI.card_gallery || UI.gallery || '图鉴');
+    const lobbyGalleryLabel = document.getElementById('btn-lobby-gallery-label');
+    if (lobbyGalleryLabel) lobbyGalleryLabel.textContent = UI.card_gallery || UI.gallery || '图鉴';
     setIconButtonLabel('btn-replays-top', UI.account_replays || UI.replay || '回放');
     setIconButtonLabel('btn-achievements-top', UI.achievements || '成就');
     const achievementsTopText = document.querySelector('#btn-achievements-top .top-icon-text');
@@ -8081,8 +8082,6 @@ function updateTopActionButtons(viewId = activeViewId) {
     if (skinTop) skinTop.classList.toggle('hidden', !onHome);
     const changelogTop = $('btn-changelog-top');
     if (changelogTop) changelogTop.classList.toggle('hidden', !onHome);
-    const galleryTop = $('btn-card-gallery');
-    if (galleryTop) galleryTop.classList.toggle('hidden', !onHome);
     const replaysTop = $('btn-replays-top');
     if (replaysTop) replaysTop.classList.toggle('hidden', viewId !== 'view-lobby');
     const achievementsTop = $('btn-achievements-top');
@@ -43091,7 +43090,7 @@ async function init() {
     });
     initAi1v1TestHealthInput();
     bindClickOnce('btn-open-settings', openSettings);
-    bindClickOnce('btn-card-gallery', () => showCardGallery());
+    bindClickOnce('btn-lobby-gallery', () => showCardGallery());
     bindClickOnce('btn-open-about', openAbout);
     bindSelectedBattleContextMenuPriority();
     bindCardTextTokenContextMenu();
@@ -43401,7 +43400,7 @@ async function init() {
         });
     }
     bindClickOnce('btn-solo-training', showSoloTraining);
-    bindClickOnce('btn-card-gallery', () => showCardGallery());
+    bindClickOnce('btn-lobby-gallery', () => showCardGallery());
     bindClickOnce('btn-open-about', openAbout);
     const savedNick = localStorage.getItem('gtn_nickname') || '';
     const nickInput = $('input-nickname');
