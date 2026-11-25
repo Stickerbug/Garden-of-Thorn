@@ -7416,7 +7416,10 @@ function updateStaticText() {
     setIconButtonLabel('btn-changelog-top', UI.about_changelog || '更新日志');
     setIconButtonLabel('btn-title-shop-top', lt({ zh: '商店', en: 'Shop', fr: 'Boutique', ja: 'ショップ' }));
     setIconButtonLabel('btn-card-gallery', UI.card_gallery || UI.gallery || '图鉴');
-    setIconButtonLabel('btn-replays-top', UI.account_replays || UI.replay || '回放');
+    const lobbyReplayLabel = $('lobby-replay-label');
+    if (lobbyReplayLabel) lobbyReplayLabel.textContent = UI.account_replays || UI.replay || '回放';
+    const lobbyReplayBtn = $('btn-lobby-replays');
+    if (lobbyReplayBtn) lobbyReplayBtn.setAttribute('aria-label', UI.account_replays || UI.replay || '回放');
     setIconButtonLabel('btn-achievements-top', UI.achievements || '成就');
     const achievementsTopText = document.querySelector('#btn-achievements-top .top-icon-text');
     if (achievementsTopText) achievementsTopText.textContent = UI.achievements || '成就';
@@ -8083,8 +8086,6 @@ function updateTopActionButtons(viewId = activeViewId) {
     if (changelogTop) changelogTop.classList.toggle('hidden', !onHome);
     const galleryTop = $('btn-card-gallery');
     if (galleryTop) galleryTop.classList.toggle('hidden', !onHome);
-    const replayTop = $('btn-replays-top');
-    if (replayTop) replayTop.classList.toggle('hidden', !onHome);
     const achievementsTop = $('btn-achievements-top');
     if (achievementsTop) achievementsTop.classList.toggle('hidden', !onHome);
     const titleShopTop = $('btn-title-shop-top');
@@ -24103,7 +24104,27 @@ function toggleAccountPopover(force) {
     }
 }
 
-function toggleStatsPopover(force) {
+function positionStatsPopover(anchor) {
+    const pop = $('stats-popover');
+    if (!pop) return;
+    pop.style.top = '';
+    pop.style.left = '';
+    if (!anchor || typeof anchor.getBoundingClientRect !== 'function') return;
+    const rect = anchor.getBoundingClientRect();
+    const width = pop.offsetWidth || 380;
+    const height = pop.offsetHeight || 0;
+    const margin = 14;
+    const maxLeft = Math.max(margin, window.innerWidth - width - margin);
+    const left = Math.max(margin, Math.min(maxLeft, Math.round(rect.right - width)));
+    let top = Math.round(rect.bottom + 8);
+    if (height && top + height > window.innerHeight - margin) {
+        top = Math.max(margin, window.innerHeight - height - margin);
+    }
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+}
+
+function toggleStatsPopover(force, anchor) {
     const pop = $('stats-popover');
     if (!pop) return;
     const show = typeof force === 'boolean' ? force : pop.classList.contains('hidden');
@@ -24111,6 +24132,7 @@ function toggleStatsPopover(force) {
     const title = $('stats-popover-title');
     if (title) title.textContent = UI.account_replays || UI.replay || '回放';
     if (show) {
+        positionStatsPopover(anchor);
         toggleAccountPopover(false);
         toggleFriendsPopover(false);
         toggleLeaderboardPopover(false);
@@ -43137,7 +43159,7 @@ async function init() {
     });
     if ($('btn-changelog-top')) $('btn-changelog-top').addEventListener('click', openChangelog);
     if ($('btn-changelog-popover-close')) $('btn-changelog-popover-close').addEventListener('click', () => toggleChangelogPopover(false));
-    if ($('btn-replays-top')) $('btn-replays-top').addEventListener('click', () => toggleStatsPopover());
+    if ($('btn-lobby-replays')) $('btn-lobby-replays').addEventListener('click', () => toggleStatsPopover(undefined, $('btn-lobby-replays')));
     if ($('btn-achievements-top')) $('btn-achievements-top').addEventListener('click', () => toggleAchievementsPopover());
     if ($('home-entry-achievements')) $('home-entry-achievements').addEventListener('click', () => toggleAchievementsPopover(true));
     if ($('btn-pass-top')) $('btn-pass-top').addEventListener('click', () => togglePassPopover());

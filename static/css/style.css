@@ -679,7 +679,6 @@ html.home-touhou-active .top-action-buttons {
 .title-shop-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/shop.svg"); }
 .gallery-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/gallery.svg"); }
 .achievements-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/achievements.svg"); }
-.replay-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/replay.svg"); }
 .leaderboard-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/rank.svg"); }
 /* 2026-11-17：通行证从成就弹层移到主界面，拥有黄金之路时换成 Season Pass Pro */
 .pass-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/season-pass.svg"); }
@@ -15393,6 +15392,31 @@ html[data-theme="dark"].home-touhou-active .home-id-top {
   align-items: center;
   gap: 16px;
   flex-wrap: wrap;
+}
+
+/* 回放入口放在多人大厅右上角，与顶栏那排解耦。 */
+.lobby-replay-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.lobby-replay-btn img {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+.lobby-replay-btn:hover img {
+  filter: brightness(1.1);
+}
+
+@media (max-width: 720px) {
+  .lobby-replay-btn {
+    margin-left: 0;
+  }
 }
 
 .mode-tabs {
