@@ -1,69 +1,48 @@
 import io
-import pathlib
+import os
 import unittest
 
-ROOT = pathlib.Path(__file__).resolve().parent.parent
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATE = io.open(os.path.join(ROOT, 'templates', 'index.html'), encoding='utf-8').read()
+SCRIPT = io.open(os.path.join(ROOT, 'static', 'js', 'game.js'), encoding='utf-8').read()
+STYLES = io.open(os.path.join(ROOT, 'static', 'css', 'style.css'), encoding='utf-8').read()
+VERSION = io.open(os.path.join(ROOT, 'static_version.txt'), encoding='utf-8').read().strip()
+
+BAR_START = TEMPLATE.index('class="top-action-buttons"')
+BAR_END = TEMPLATE.index('</div>', TEMPLATE.index('id="btn-friends-top"', BAR_START))
+BAR = TEMPLATE[BAR_START:BAR_END]
 
 
-def read(rel):
-    return io.open(ROOT / rel, encoding='utf-8').read()
+class LobbyGalleryEntryTest(unittest.TestCase):
+    def test_gallery_lives_in_the_top_icon_bar(self):
+        self.assertIn('<button id="btn-card-gallery" class="top-icon-btn gallery-top-btn hidden"', BAR)
+        self.assertIn('ui-icons/gallery.svg', BAR)
+        self.assertLess(BAR.index('id="btn-replays-top"'), BAR.index('id="btn-card-gallery"'))
+        self.assertLess(BAR.index('id="btn-card-gallery"'), BAR.index('id="btn-friends-top"'))
 
+    def test_lobby_header_no_longer_hosts_the_gallery_button(self):
+        self.assertNotIn('btn-lobby-gallery', TEMPLATE)
+        self.assertNotIn('lobby-gallery-btn', TEMPLATE)
+        self.assertNotIn('lobby-gallery-btn', STYLES)
+        self.assertNotIn('btn-lobby-gallery', SCRIPT)
 
-class LobbyGalleryEntry(unittest.TestCase):
-    def setUp(self):
-        self.index = read('templates/index.html')
-        self.game = read('static/js/game.js')
-        self.style = read('static/css/style.css')
-        self.version = read('static_version.txt')
+    def test_button_is_only_visible_in_the_lobby(self):
+        self.assertIn(
+            "const galleryTop = $('btn-card-gallery');\n"
+            "    if (galleryTop) galleryTop.classList.toggle('hidden', viewId !== 'view-lobby');",
+            SCRIPT,
+        )
+        self.assertEqual(SCRIPT.count("bindClickOnce('btn-card-gallery', () => showCardGallery())"), 2)
+        self.assertIn(
+            "setIconButtonLabel('btn-card-gallery', UI.card_gallery || UI.gallery || '图鉴');", SCRIPT
+        )
 
-    def _top_bar(self):
-        start = self.index.index('class="top-action-buttons"')
-        end = self.index.index('id="changelog-popover"')
-        return self.index[start:end]
-
-    def _lobby_block(self):
-        start = self.index.index('id="view-lobby"')
-        end = self.index.index('id="view-draft"')
-        return self.index[start:end]
-
-    def test_gallery_button_left_the_main_menu_icon_bar(self):
-        top_bar = self._top_bar()
-        self.assertNotIn('id="btn-card-gallery"', top_bar)
-        self.assertNotIn('gallery-top-btn', top_bar)
-
-    def test_gallery_button_sits_in_the_lobby_header(self):
-        lobby = self._lobby_block()
-        self.assertIn('id="btn-lobby-gallery"', lobby)
-        self.assertIn('class="btn btn-secondary btn-small lobby-gallery-btn"', lobby)
-        self.assertIn('id="btn-lobby-gallery-label">图鉴<', lobby)
-        self.assertIn('ui-icons/gallery.svg', lobby)
-        header = lobby.index('lobby-header lobby-header-with-tabs')
-        button = lobby.index('id="btn-lobby-gallery"')
-        tabs = lobby.index('id="lobby-mode-tabs"')
-        self.assertLess(header, button)
-        self.assertLess(button, tabs)
-
-    def test_button_opens_the_card_gallery(self):
-        self.assertIn("bindClickOnce('btn-lobby-gallery', () => showCardGallery());", self.game)
-        self.assertNotIn("bindClickOnce('btn-card-gallery'", self.game)
-        self.assertIn("const lobbyGalleryLabel = document.getElementById('btn-lobby-gallery-label');", self.game)
-        self.assertIn("const btnLobbyGallery = $('btn-lobby-gallery-label');", self.game)
-
-    def test_gallery_button_has_no_home_only_visibility_toggle(self):
-        self.assertNotIn("const galleryTop = $('btn-card-gallery');", self.game)
-        self.assertIn("if (replaysTop) replaysTop.classList.toggle('hidden', viewId !== 'view-lobby');", self.game)
-
-    def test_lobby_gallery_button_is_positioned_top_right(self):
-        self.assertIn('.lobby-gallery-btn {', self.style)
-        block_start = self.style.index('.lobby-gallery-btn {')
-        block_end = self.style.index('}', block_start)
-        block = self.style[block_start:block_end]
-        self.assertIn('position: absolute;', block)
-        self.assertIn('right: 0;', block)
-        self.assertIn('.lobby-gallery-icon {', self.style)
+    def test_icon_rule_exists(self):
+        self.assertIn('.gallery-top-btn::before', STYLES)
+        self.assertIn('--ui-icon-url: url("/static/assets/ui-icons/gallery.svg");', STYLES)
 
     def test_version_bumped(self):
-        self.assertIn('-lobby-gallery-entry-1', self.version)
+        self.assertIn('-lobby-gallery-topbar-1', VERSION)
 
 
 if __name__ == '__main__':

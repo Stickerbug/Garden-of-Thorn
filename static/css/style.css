@@ -15473,43 +15473,6 @@ html[data-theme="dark"].home-touhou-active .home-id-top {
     gap: 8px;
 }
 
-.lobby-header-with-tabs {
-    position: relative;
-}
-
-/* 图鉴入口挪到多人大厅右上方：与大厅标题同一行、贴右边缘 */
-.lobby-gallery-btn {
-    position: absolute;
-    top: 2px;
-    right: 0;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    font-size: 13px;
-    line-height: 1.2;
-}
-
-.lobby-gallery-icon {
-    width: 18px;
-    height: 18px;
-    object-fit: contain;
-    pointer-events: none;
-}
-
-@media (max-width: 720px) {
-    .lobby-gallery-btn {
-        top: 0;
-        padding: 5px 9px;
-        gap: 4px;
-    }
-
-    .lobby-gallery-icon {
-        width: 16px;
-        height: 16px;
-    }
-}
-
 .lobby-header-with-tabs h2 {
     text-align: center;
     width: 100%;
