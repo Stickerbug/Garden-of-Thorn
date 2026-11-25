@@ -7448,7 +7448,6 @@ function updateStaticText() {
         renderChangelogItems(changelogCache.items);
     }
     if (!$('title-shop-popover')?.classList.contains('hidden')) renderTitleShop();
-    setIconButtonLabel('btn-leaderboard-top', UI.leaderboard || '排行榜');
     const skinTitle = $('skin-title');
     if (skinTitle) skinTitle.textContent = UI.skin_title || UI.skin;
     const skinBack = $('btn-skin-back');
@@ -7570,6 +7569,8 @@ function updateStaticText() {
     if (accountDeleteCancelBtn) accountDeleteCancelBtn.textContent = UI.cancel || '取消';
     const accountPopoverLogout = $('btn-account-popover-logout');
     if (accountPopoverLogout) accountPopoverLogout.textContent = UI.account_logout;
+    const accountLeaderboardBtn = $('btn-account-leaderboard');
+    if (accountLeaderboardBtn) accountLeaderboardBtn.textContent = UI.leaderboard || '排行榜';
     const accountReplaysTitle = $('account-replays-title');
     if (accountReplaysTitle) accountReplaysTitle.textContent = UI.account_replays;
     const accountReplaysRefresh = $('btn-account-replays-refresh');
@@ -8088,8 +8089,6 @@ function updateTopActionButtons(viewId = activeViewId) {
     if (achievementsTop) achievementsTop.classList.toggle('hidden', !onHome);
     const titleShopTop = $('btn-title-shop-top');
     if (titleShopTop) titleShopTop.classList.toggle('hidden', !onHome);
-    const leaderboardTop = $('btn-leaderboard-top');
-    if (leaderboardTop) leaderboardTop.classList.toggle('hidden', !onHome);
 }
 
 function showView(viewId) {
@@ -43192,7 +43191,7 @@ async function init() {
     document.querySelectorAll('[data-achievement-tab]').forEach((btn) => {
         btn.addEventListener('click', () => setAchievementTab(btn.dataset.achievementTab || 'dew'));
     });
-    if ($('btn-leaderboard-top')) $('btn-leaderboard-top').addEventListener('click', () => toggleLeaderboardPopover());
+    if ($('btn-account-leaderboard')) $('btn-account-leaderboard').addEventListener('click', () => toggleLeaderboardPopover());
     document.querySelectorAll('[data-leaderboard-scope]').forEach((btn) => {
         btn.addEventListener('click', () => setLeaderboardScope(btn.dataset.leaderboardScope || 'total'));
     });
