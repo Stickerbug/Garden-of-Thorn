@@ -8069,25 +8069,28 @@ function updateBattlePanelTabs(gs = gameState) {
 
 function updateTopActionButtons(viewId = activeViewId) {
     const onHome = viewId === 'view-login';
+    const onLobby = viewId === 'view-lobby';
+    // 主菜单那排小组件同样出现在多人大厅，按原顺序排列。
+    const menuWidgets = onHome || onLobby;
     updateHomeTouhouActiveClass(viewId);
     const settingsTop = $('btn-open-settings');
-    if (settingsTop) settingsTop.classList.toggle('hidden', !onHome);
+    if (settingsTop) settingsTop.classList.toggle('hidden', !menuWidgets);
     const accountTop = $('btn-account-top');
-    if (accountTop) accountTop.classList.toggle('hidden', !onHome);
+    if (accountTop) accountTop.classList.toggle('hidden', !menuWidgets);
     const friendsTop = $('btn-friends-top');
-    if (friendsTop) friendsTop.classList.toggle('hidden', !onHome || !currentAccount);
+    if (friendsTop) friendsTop.classList.toggle('hidden', !menuWidgets || !currentAccount);
     const skinTop = $('btn-skin-top');
-    if (skinTop) skinTop.classList.toggle('hidden', !onHome);
+    if (skinTop) skinTop.classList.toggle('hidden', !menuWidgets);
     const changelogTop = $('btn-changelog-top');
-    if (changelogTop) changelogTop.classList.toggle('hidden', !onHome);
+    if (changelogTop) changelogTop.classList.toggle('hidden', !menuWidgets);
     const replaysTop = $('btn-replays-top');
     if (replaysTop) replaysTop.classList.toggle('hidden', viewId !== 'view-lobby');
     const galleryTop = $('btn-card-gallery');
     if (galleryTop) galleryTop.classList.toggle('hidden', viewId !== 'view-lobby');
     const achievementsTop = $('btn-achievements-top');
-    if (achievementsTop) achievementsTop.classList.toggle('hidden', !onHome);
+    if (achievementsTop) achievementsTop.classList.toggle('hidden', !menuWidgets);
     const titleShopTop = $('btn-title-shop-top');
-    if (titleShopTop) titleShopTop.classList.toggle('hidden', !onHome);
+    if (titleShopTop) titleShopTop.classList.toggle('hidden', !menuWidgets);
 }
 
 function showView(viewId) {

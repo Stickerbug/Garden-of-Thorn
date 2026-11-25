@@ -697,7 +697,8 @@ button.pass-top-btn {
 }
 button.pass-top-btn::before { width: 100%; height: 100%; }
 /* 2026-11-17：通行证只挂在主界面（#view-login 可见时），对局/大厅/故事/图鉴等视图一律不显示 */
-body:has(#view-login:not(.hidden)) button.pass-top-btn { display: block; }
+body:has(#view-login:not(.hidden)) button.pass-top-btn,
+body:has(#view-lobby:not(.hidden)) button.pass-top-btn { display: block; }
 /* 2026-11-17：图标上叠三层信息——叶子上的当前等级、虚线右侧的下一级奖励、黄金叶右边进度条上的升级进度 */
 .pass-hud {
   position: absolute;
