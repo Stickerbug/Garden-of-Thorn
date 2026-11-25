@@ -1,9 +1,5 @@
-.community-popover {
-  left: 14px;
-  width: min(520px, calc(100vw - 28px));
-  max-height: min(680px, calc(100vh - 76px));
-  overflow: hidden;
-}
+/* 2026-11-25：投票并入公告面板（#changelog-popover 内的 .changelog-popover-section），
+   独立弹层样式已移除；下面的宽度/滚动约束由公告面板统一负责。 */
 
 .community-head-actions {
   display: flex;
@@ -172,22 +168,8 @@
 }
 
 @media (max-width: 620px) {
-  .community-popover {
-    top: 52px;
-    left: 8px;
-    width: calc(100vw - 16px);
-    max-height: calc(100vh - 64px);
-    padding: 12px;
-  }
-
   .community-feed {
     max-height: calc(100vh - 132px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .community-popover:not(.hidden) {
-    animation: none;
   }
 }
 

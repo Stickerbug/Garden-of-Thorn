@@ -115,14 +115,16 @@
   }
 
   function updateAnnouncementBadge() {
-    const button = byId('btn-community-top');
+    // 2026-11-25：投票并入公告面板，独立入口按钮已移除；社区未读改成
+    // 公告按钮上的一个小圆点（数字角标仍由 game.js 的更新日志徽标负责，
+    // 两者共用同一个按钮但写入不同 class，避免互相覆盖）。
+    const button = byId('btn-changelog-top');
     if (!button) return;
     const read = readAnnouncementReceipts();
     const hasUnread = currentFeedItems().some((item) => (
       !read.has(item.receipt) && !serverReadIds(item.type).has(item.id)
     ));
-    button.classList.toggle('has-unread', hasUnread);
-    button.setAttribute('aria-label', hasUnread ? '投票（有新内容）' : '投票');
+    button.classList.toggle('has-community-unread', hasUnread);
   }
 
   async function markCommunityItemsRead() {
@@ -154,7 +156,8 @@
   }
 
   function isCommunityPopoverOpen() {
-    const popover = byId('community-popover');
+    // 合并后社区内容寄生在公告面板里，面板开合由 game.js 的 toggleChangelogPopover 负责。
+    const popover = byId('changelog-popover');
     return Boolean(popover && !popover.classList.contains('hidden'));
   }
 
@@ -440,30 +443,25 @@
   }
 
   function closePopover() {
-    const popover = byId('community-popover');
-    if (!popover) return;
-    popover.classList.add('hidden');
+    if (!isCommunityPopoverOpen()) return;
+    if (typeof window.toggleChangelogPopover === 'function') window.toggleChangelogPopover(false);
+    else byId('changelog-popover')?.classList.add('hidden');
     state.epoch += 1;
   }
 
   function openPopover() {
-    const popover = byId('community-popover');
-    if (!popover) return;
-    document.querySelectorAll('.account-popover:not(#community-popover)').forEach((node) => node.classList.add('hidden'));
+    if (typeof window.toggleChangelogPopover === 'function') window.toggleChangelogPopover(true);
+    else byId('changelog-popover')?.classList.remove('hidden');
     state.epoch += 1;
-    popover.classList.remove('hidden');
     loadFeed();
   }
 
   function togglePopover() {
-    const popover = byId('community-popover');
-    if (!popover || popover.classList.contains('hidden')) openPopover();
-    else closePopover();
+    if (isCommunityPopoverOpen()) closePopover();
+    else openPopover();
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    byId('btn-community-top')?.addEventListener('click', togglePopover);
-    byId('btn-community-close')?.addEventListener('click', closePopover);
     byId('btn-community-refresh')?.addEventListener('click', () => loadFeed());
     byId('community-feed')?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-poll-id][data-option-id]');
@@ -478,15 +476,15 @@
       joinChain(button.dataset.chainId, input?.value || '');
     });
     document.addEventListener('click', (event) => {
-      const otherTopButton = event.target.closest('.top-icon-btn:not(#btn-community-top)');
+      const otherTopButton = event.target.closest('.top-icon-btn:not(#btn-changelog-top)');
       if (otherTopButton) closePopover();
     }, true);
     document.addEventListener('keydown', (event) => {
-      if (event.key !== 'Escape' || byId('community-popover')?.classList.contains('hidden')) return;
+      if (event.key !== 'Escape' || !isCommunityPopoverOpen()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       closePopover();
-      byId('btn-community-top')?.focus();
+      byId('btn-changelog-top')?.focus();
     }, true);
     updateAnnouncementBadge();
     loadFeed({ silent: true });
@@ -494,11 +492,19 @@
       if (document.visibilityState === 'visible') loadFeed({ silent: true });
     }, 60000);
     window.addEventListener('focus', () => loadFeed({ silent: true }));
+    if (isCommunityPopoverOpen()) loadFeed();
   });
 
   window.toggleCommunityPopover = (force) => {
     if (force === true) openPopover();
     else if (force === false) closePopover();
     else togglePopover();
+  };
+
+  // 投票已并入公告面板（2026-11-25），公告打开时由 game.js 调它刷新一次。
+  window.GtnCommunity = {
+    refresh: () => loadFeed(),
+    isOpen: () => isCommunityPopoverOpen(),
+    markRead: () => markCommunityItemsRead(),
   };
 })();

@@ -2851,7 +2851,7 @@ function setupHomeExtraEntries() {
     /* 图标项 → 原按钮同款行为（点击源按钮即打开对应弹层） */
     const sourceClickPairs = [
         ['home-entry-account', 'btn-account-top'],
-        ['home-entry-ann', 'btn-community-top'],
+        ['home-entry-ann', 'btn-changelog-top'],
         ['home-entry-shop', 'btn-title-shop-top'],
         ['home-entry-media', 'btn-friends-top'],
     ];
@@ -7287,7 +7287,7 @@ function updateStaticText() {
     if (communityCurrentLabel) communityCurrentLabel.textContent = UI.community_current;
     const communityDisable = $('btn-community-disable');
     if (communityDisable) communityDisable.textContent = UI.community_disable;
-    const refreshCommunity = $('btn-community-refresh');
+    const refreshCommunity = $('btn-settings-community-refresh');
     if (refreshCommunity) refreshCommunity.textContent = UI.refresh;
     const uploadCommunity = $('btn-community-upload');
     if (uploadCommunity) uploadCommunity.textContent = UI.community_upload || '上传模组';
@@ -8091,8 +8091,6 @@ function updateTopActionButtons(viewId = activeViewId) {
     if (titleShopTop) titleShopTop.classList.toggle('hidden', !onHome);
     const leaderboardTop = $('btn-leaderboard-top');
     if (leaderboardTop) leaderboardTop.classList.toggle('hidden', !onHome);
-    const communityTop = $('btn-community-top');
-    if (communityTop) communityTop.classList.toggle('hidden', !onHome);
     const qqTop = $('btn-qq-top');
     if (qqTop) qqTop.classList.toggle('hidden', !onHome);
 }
@@ -8988,6 +8986,9 @@ function toggleChangelogPopover(force) {
         if (typeof toggleAccountPopover === 'function') toggleAccountPopover(false);
         if (typeof toggleFriendsPopover === 'function') toggleFriendsPopover(false);
         Promise.resolve(loadChangelog()).then(markChangelogRead);
+        if (window.GtnCommunity && typeof window.GtnCommunity.refresh === 'function') {
+            try { window.GtnCommunity.refresh(); } catch (err) { console.warn('[community] refresh failed', err); }
+        }
     }
 }
 
@@ -43376,7 +43377,7 @@ async function init() {
     if ($('settings-mod-tab-official')) $('settings-mod-tab-official').addEventListener('click', () => setSettingsModSourceTab('official'));
     if ($('settings-mod-tab-entertainment')) $('settings-mod-tab-entertainment').addEventListener('click', () => setSettingsModSourceTab('entertainment'));
     if ($('settings-mod-tab-community')) $('settings-mod-tab-community').addEventListener('click', () => setSettingsModSourceTab('community'));
-    if ($('btn-community-refresh')) $('btn-community-refresh').addEventListener('click', loadSettingsCommunityMods);
+    if ($('btn-settings-community-refresh')) $('btn-settings-community-refresh').addEventListener('click', loadSettingsCommunityMods);
     if ($('btn-community-disable')) $('btn-community-disable').addEventListener('click', clearCommunityModSelection);
     if ($('btn-community-upload')) $('btn-community-upload').addEventListener('click', () => $('community-mod-file-input')?.click());
     if ($('community-mod-file-input')) $('community-mod-file-input').addEventListener('change', async (event) => {

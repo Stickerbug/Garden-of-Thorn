@@ -673,7 +673,6 @@ html.home-touhou-active .top-action-buttons {
 
 .top-settings-btn::before { --ui-icon-url: url("/static/assets/ui-icons/settings.svg"); }
 .account-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/account.svg"); }
-.community-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/announcement.svg"); }
 .qq-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/qq.svg"); }
 .friends-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/friends.svg"); }
 .skin-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/skins.svg"); }
@@ -1083,18 +1082,6 @@ button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
   font-weight: 900;
 }
 
-.community-top-btn.has-unread::after {
-  content: "";
-  position: absolute;
-  top: -3px;
-  right: -4px;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: #d32f2f;
-  border: 2px solid var(--bg-card);
-  box-shadow: var(--shadow-sm);
-}
 
 .top-icon-btn.hidden {
   display: none;
@@ -1288,15 +1275,64 @@ button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
 
 .changelog-popover {
   left: 14px;
-  width: min(420px, calc(100vw - 28px));
-  max-height: min(520px, calc(100vh - 76px));
-  overflow: hidden;
+  width: min(560px, calc(100vw - 28px));
+  max-height: min(680px, calc(100vh - 76px));
+  overflow: auto;
 }
 
 .changelog-popover-body {
-  max-height: calc(min(520px, calc(100vh - 76px)) - 54px);
-  overflow: auto;
   padding-right: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
+}
+
+/* 2026-11-25：投票与公告合并成一个面板，投票接在更新日志下方同屏滚动。 */
+.changelog-popover-section {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.changelog-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.changelog-section-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  color: color-mix(in srgb, var(--text-color) 72%, transparent);
+}
+
+/* 刷新按钮在 28px 见方里只有单个字符，压暗一点避免抢标题的注意力。 */
+.changelog-section-head .account-close-btn {
+  color: color-mix(in srgb, var(--text-color) 58%, transparent);
+}
+
+.changelog-section-head .account-close-btn:hover {
+  color: var(--text-color);
+}
+
+.changelog-popover-section .community-feed {
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+}
+
+/* 社区（投票/接龙）有未读时在公告按钮上点一个小圆点；数字角标仍归更新日志。 */
+.changelog-top-btn.has-community-unread::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d9893c;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-bg, #fff) 88%, transparent);
 }
 
 .leaderboard-popover {

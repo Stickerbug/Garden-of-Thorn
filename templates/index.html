@@ -103,7 +103,6 @@
 <div class="top-action-buttons">
 <button id="btn-open-settings" class="top-icon-btn top-settings-btn" type="button" aria-label="设置"><img src="/static/assets/ui-icons/settings.svg" alt="" aria-hidden="true"><span class="top-icon-label">设置</span></button>
 <button id="btn-account-top" class="top-icon-btn account-top-btn" type="button" aria-label="账号"><img src="/static/assets/ui-icons/account.svg" alt="" aria-hidden="true"><span class="top-icon-label">账号</span></button>
-<button id="btn-community-top" class="top-icon-btn community-top-btn" type="button" aria-label="投票"><img src="/static/assets/ui-icons/announcement.svg" alt="" aria-hidden="true"><span class="top-icon-label">投票</span></button>
 <button id="btn-qq-top" class="top-icon-btn qq-top-btn" type="button" aria-label="QQ交流群"><img src="/static/assets/ui-icons/qq.svg" alt="" aria-hidden="true"><span class="top-icon-label">QQ群</span></button>
 <button id="btn-changelog-top" class="top-icon-btn changelog-top-btn" type="button" aria-label="公告"><img src="/static/assets/ui-icons/log.svg" alt="" aria-hidden="true"><span class="top-icon-label">公告</span></button>
 <button id="btn-skin-top" class="top-icon-btn skin-top-btn" type="button" aria-label="皮肤"><img src="/static/assets/ui-icons/skins.svg" alt="" aria-hidden="true"><span class="top-icon-label">皮肤</span></button>
@@ -115,18 +114,6 @@
 <button id="btn-friends-top" class="top-icon-btn friends-top-btn hidden" type="button" aria-label="好友"><img src="/static/assets/ui-icons/friends.svg" alt="" aria-hidden="true"><span class="top-icon-label">好友</span></button>
 <button id="btn-leaderboard-top" class="top-icon-btn leaderboard-top-btn" type="button" aria-label="排行榜"><img src="/static/assets/ui-icons/rank.svg" alt="" aria-hidden="true"><span class="top-icon-label">排行榜</span></button>
 </div>
-<section id="community-popover" class="community-popover account-popover hidden" aria-labelledby="community-popover-title">
-  <div class="account-popover-head">
-    <div id="community-popover-title" class="account-popover-title">投票</div>
-    <div class="community-head-actions">
-      <a id="community-manage-link" class="community-manage-link hidden" href="/community-ops" target="_blank" rel="noopener">运营后台</a>
-      <button id="btn-community-refresh" class="account-close-btn" type="button" aria-label="刷新公告">↻</button>
-      <button id="btn-community-close" class="account-close-btn" type="button" aria-label="关闭公告">×</button>
-    </div>
-  </div>
-  <div id="community-status" class="community-status muted" role="status" aria-live="polite">正在加载…</div>
-  <div id="community-feed" class="community-feed"></div>
-</section>
 <div id="changelog-popover" class="changelog-popover account-popover hidden">
   <div class="account-popover-head">
     <div id="changelog-popover-title" class="account-popover-title">公告</div>
@@ -134,6 +121,17 @@
   </div>
   <div id="changelog-popover-body" class="changelog-popover-body">
     <p class="muted">暂无公告。</p>
+  </div>
+  <div class="changelog-popover-section">
+    <div class="changelog-section-head">
+      <div class="changelog-section-title">投票与接龙</div>
+      <div class="community-head-actions">
+        <a id="community-manage-link" class="community-manage-link hidden" href="/community-ops" target="_blank" rel="noopener">运营后台</a>
+        <button id="btn-community-refresh" class="account-close-btn" type="button" aria-label="刷新投票">↻</button>
+      </div>
+    </div>
+    <div id="community-status" class="community-status muted" role="status" aria-live="polite">正在加载…</div>
+    <div id="community-feed" class="community-feed"></div>
   </div>
 </div>
 <div id="account-popover" class="account-popover hidden">
@@ -1263,7 +1261,7 @@
 <div class="community-upload-actions community-refresh-row">
 <input id="community-mod-file-input" type="file" accept=".json,.gtnmod,application/json,application/zip" hidden>
 <button id="btn-community-upload" type="button" class="btn btn-primary">上传模组</button>
-<button id="btn-community-refresh" type="button" class="btn btn-secondary">??</button>
+<button id="btn-settings-community-refresh" type="button" class="btn btn-secondary">??</button>
 </div>
 <div id="community-upload-progress" class="community-upload-progress hidden" aria-live="polite">
 <div class="community-upload-progress-track">
