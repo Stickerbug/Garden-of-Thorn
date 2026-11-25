@@ -7416,10 +7416,7 @@ function updateStaticText() {
     setIconButtonLabel('btn-changelog-top', UI.about_changelog || '更新日志');
     setIconButtonLabel('btn-title-shop-top', lt({ zh: '商店', en: 'Shop', fr: 'Boutique', ja: 'ショップ' }));
     setIconButtonLabel('btn-card-gallery', UI.card_gallery || UI.gallery || '图鉴');
-    const lobbyReplayLabel = $('lobby-replay-label');
-    if (lobbyReplayLabel) lobbyReplayLabel.textContent = UI.account_replays || UI.replay || '回放';
-    const lobbyReplayBtn = $('btn-lobby-replays');
-    if (lobbyReplayBtn) lobbyReplayBtn.setAttribute('aria-label', UI.account_replays || UI.replay || '回放');
+    setIconButtonLabel('btn-replays-top', UI.account_replays || UI.replay || '回放');
     setIconButtonLabel('btn-achievements-top', UI.achievements || '成就');
     const achievementsTopText = document.querySelector('#btn-achievements-top .top-icon-text');
     if (achievementsTopText) achievementsTopText.textContent = UI.achievements || '成就';
@@ -8086,6 +8083,8 @@ function updateTopActionButtons(viewId = activeViewId) {
     if (changelogTop) changelogTop.classList.toggle('hidden', !onHome);
     const galleryTop = $('btn-card-gallery');
     if (galleryTop) galleryTop.classList.toggle('hidden', !onHome);
+    const replaysTop = $('btn-replays-top');
+    if (replaysTop) replaysTop.classList.toggle('hidden', viewId !== 'view-lobby');
     const achievementsTop = $('btn-achievements-top');
     if (achievementsTop) achievementsTop.classList.toggle('hidden', !onHome);
     const titleShopTop = $('btn-title-shop-top');
@@ -43159,7 +43158,7 @@ async function init() {
     });
     if ($('btn-changelog-top')) $('btn-changelog-top').addEventListener('click', openChangelog);
     if ($('btn-changelog-popover-close')) $('btn-changelog-popover-close').addEventListener('click', () => toggleChangelogPopover(false));
-    if ($('btn-lobby-replays')) $('btn-lobby-replays').addEventListener('click', () => toggleStatsPopover(undefined, $('btn-lobby-replays')));
+    if ($('btn-replays-top')) $('btn-replays-top').addEventListener('click', () => toggleStatsPopover(undefined, $('btn-replays-top')));
     if ($('btn-achievements-top')) $('btn-achievements-top').addEventListener('click', () => toggleAchievementsPopover());
     if ($('home-entry-achievements')) $('home-entry-achievements').addEventListener('click', () => toggleAchievementsPopover(true));
     if ($('btn-pass-top')) $('btn-pass-top').addEventListener('click', () => togglePassPopover());

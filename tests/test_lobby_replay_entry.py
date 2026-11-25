@@ -16,42 +16,39 @@ class LobbyReplayEntry(unittest.TestCase):
         self.game = read('static/js/game.js')
         self.style = read('static/css/style.css')
 
+    def _top_bar(self):
+        start = self.index.index('class="top-action-buttons"')
+        end = self.index.index('id="changelog-popover"')
+        return self.index[start:end]
+
     def _lobby_block(self):
         start = self.index.index('id="view-lobby"')
         end = self.index.index('id="view-draft"')
         return self.index[start:end]
 
-    def test_top_bar_no_longer_carries_a_replay_button(self):
-        top_bar = self.index[self.index.index('class="top-action-buttons"') : self.index.index('id="changelog-popover"')]
-        self.assertNotIn('btn-replays-top', top_bar)
-        self.assertNotIn("$/('btn-replays-top')", self.game)
-        self.assertNotIn("$('btn-replays-top')", self.game)
+    def test_replay_button_lives_in_the_main_menu_icon_bar(self):
+        top_bar = self._top_bar()
+        self.assertIn('id="btn-replays-top"', top_bar)
+        self.assertIn('class="top-icon-btn replay-top-btn hidden"', top_bar)
+        self.assertIn('class="top-icon-label">回放<', top_bar)
+        self.assertNotIn('btn-lobby-replays', self.index)
 
-    def test_replay_button_sits_in_the_lobby_header(self):
-        block = self._lobby_block()
-        self.assertIn('id="btn-lobby-replays"', block)
-        self.assertIn('id="lobby-replay-label"', block)
-        header_start = block.index('class="lobby-header')
-        header_end = block.index('id="lobby-rank-cards"') if 'id="lobby-rank-cards"' in block else len(block)
-        header = block[header_start:header_end]
-        self.assertIn('id="btn-lobby-replays"', header)
-        # 按钮在模式页签之前，才能靠 margin-left:auto 落到标题行右端
-        self.assertLess(header.index('id="btn-lobby-replays"'), header.index('id="lobby-mode-tabs"'))
+    def test_replay_button_only_shows_in_the_lobby(self):
+        self.assertIn("const replaysTop = $('btn-replays-top');", self.game)
+        self.assertIn("if (replaysTop) replaysTop.classList.toggle('hidden', viewId !== 'view-lobby');", self.game)
+        self.assertNotIn('btn-lobby-replays', self.game)
 
-    def test_replay_button_styles_are_scoped_and_aligned_right(self):
-        self.assertIn('.lobby-replay-btn {', self.style)
-        rule_start = self.style.index('.lobby-replay-btn {')
-        rule_end = self.style.index('}', rule_start)
-        self.assertIn('margin-left: auto', self.style[rule_start:rule_end])
-        self.assertNotIn('.replay-top-btn', self.style)
+    def test_icon_button_style_is_restored(self):
+        self.assertIn('.replay-top-btn::before', self.style)
+        self.assertIn('url("/static/assets/ui-icons/replay.svg")', self.style)
+        self.assertNotIn('.lobby-replay-btn', self.style)
 
-    def test_popover_anchors_under_the_lobby_button(self):
+    def test_popover_anchors_under_the_replay_button(self):
         self.assertIn('function positionStatsPopover(anchor)', self.game)
-        self.assertIn("$('btn-lobby-replays')", self.game)
-        self.assertRegex(self.game, re.compile(r"toggleStatsPopover\(undefined, \$\('btn-lobby-replays'\)\)"))
+        self.assertRegex(self.game, re.compile(r"toggleStatsPopover\(undefined, \$\('btn-replays-top'\)\)"))
 
     def test_version_bumped(self):
-        self.assertIn('-lobby-replay-entry-1', read('static_version.txt'))
+        self.assertIn('-lobby-replay-entry-2', read('static_version.txt'))
 
 
 if __name__ == '__main__':
