@@ -972,7 +972,7 @@ const I18N = {
         card_type_thorn: 'Thorn', card_type_bloom: 'Bloom', card_type_root: 'Root', card_type_guard: 'Guard', fusion_layer: 'Fusion', fission_layer: 'Fission',
         settings_title: 'Settings', settings_appearance: 'Appearance', settings_theme: 'Theme', settings_lang: 'Language', settings_mods: 'Mods', settings_audio: 'Audio', settings_theme_light: 'Light', settings_theme_dark: 'Dark',
         settings_audio_enabled: 'Enable audio', settings_volume_master: 'Master volume', settings_volume_music: 'Music', settings_volume_menu_music: 'Home/Lobby music', settings_volume_battle_music: 'Battle music', settings_volume_ui: 'Buttons', settings_volume_sfx: 'Effects', settings_audio_test: 'Test sound', settings_audio_hint: 'Music starts after your first click or key press.',
-        no_games: 'No ongoing games', back_to_home: 'Back to Home', settings_btn: 'Settings', settings_server: 'Server', settings_server_addr: 'Address', not_your_turn: 'Not your turn',
+        no_games: 'No ongoing games', back_to_home: 'Back to Home', back_to_lobby: 'Back to Lobby', settings_btn: 'Settings', settings_server: 'Server', settings_server_addr: 'Address', not_your_turn: 'Not your turn',
         counter_insufficient: 'Tip: counter cards are not affordable', default_status: 'Garden of Thorn', game_loading: 'Loading...', server_no_response: 'Server is not responding. Check the connection or refresh.',
     spectator_prefix: 'Spectate', lobby_title: 'Lobby', online_count: 'Online: {0}', chat_title: 'Chat', chat_origin_multiplayer: 'Multiplayer', chat_origin_story: 'Story', chat_origin_leisure: 'Casual', leisure_garden: 'Leisure Garden', solo_training: 'Solo Training', solo_mods: 'Mod Settings', load_last: 'Load Last', save_decks: 'Save Decks', start_training: 'Start Training', clear_deck: 'Clear Deck', shuffle_deck: 'Shuffle',
         solo_deck_a: 'Your Deck', solo_deck_b: 'Opponent Deck', search_cards: 'Search cards', pause_edit: 'Pause & Edit', set_next_draw: 'Set Next Draw', solo_saved: 'Training decks saved',
@@ -1108,7 +1108,7 @@ I18N.zh = { ...I18N.en,
     select_event_desc: '选择一个配装倾向', start_draft: '开始选牌', opponent_selected: '对方已选择', opponent_selecting: '对方选择中...',
     settings_title: '设置', settings_appearance: '外观', settings_theme: '主题', settings_lang: '语言', settings_mods: '模组', settings_audio: '音频', settings_theme_light: '明亮', settings_theme_dark: '黑暗',
     settings_audio_enabled: '启用音频', settings_volume_master: '主音量', settings_volume_music: '背景音乐', settings_volume_menu_music: '主页/大厅音乐', settings_volume_battle_music: '对局音乐', settings_volume_ui: '按钮', settings_volume_sfx: '效果', settings_audio_test: '测试音效', settings_audio_hint: '音乐会在首次点击或按键后开始播放。',
-    no_games: '暂无进行中的对局', back_to_home: '返回主页', settings_btn: '设置', settings_server: '服务器', settings_server_addr: '地址', not_your_turn: '还没轮到你',
+    no_games: '暂无进行中的对局', back_to_home: '返回主页', back_to_lobby: '返回大厅', settings_btn: '设置', settings_server: '服务器', settings_server_addr: '地址', not_your_turn: '还没轮到你',
     counter_insufficient: '提示：当前没有可支付的反制牌', default_status: 'Garden of Thorn', game_loading: '加载中...', server_no_response: '服务器没有响应，请检查连接或刷新页面。',
     spectator_prefix: '观战', lobby_title: '大厅', online_count: '在线：{0}', chat_title: '聊天', chat_origin_multiplayer: '多人', chat_origin_story: '故事', chat_origin_leisure: '休闲', leisure_garden: '休闲花园',
     lobby_phase_event_select: '配装选择', lobby_phase_draw: '抽牌',
@@ -1243,7 +1243,7 @@ I18N.fr = { ...I18N.en,
     card_type_thorn: 'Thorn', card_type_bloom: 'Bloom', card_type_root: 'Root', card_type_guard: 'Guard',
     settings_title: 'Paramètres', settings_appearance: 'Apparence', settings_theme: 'Thème', settings_lang: 'Langue', settings_mods: 'Mods', settings_audio: 'Audio', settings_theme_light: 'Clair', settings_theme_dark: 'Sombre',
     settings_audio_enabled: 'Activer l’audio', settings_volume_master: 'Volume général', settings_volume_music: 'Musique', settings_volume_menu_music: 'Accueil/Salon', settings_volume_battle_music: 'Combat', settings_volume_ui: 'Boutons', settings_volume_sfx: 'Effets', settings_audio_test: 'Tester le son', settings_audio_hint: 'La musique démarre après le premier clic ou appui.',
-    no_games: 'Aucune partie en cours', back_to_home: "Retour à l'accueil", settings_btn: 'Paramètres', settings_server: 'Serveur', settings_server_addr: 'Adresse',
+    no_games: 'Aucune partie en cours', back_to_home: "Retour à l'accueil", back_to_lobby: "Retour au salon", settings_btn: 'Paramètres', settings_server: 'Serveur', settings_server_addr: 'Adresse',
     not_your_turn: "Ce n'est pas votre tour", counter_insufficient: 'Conseil : Ressources insuffisantes pour les cartes de contre', default_status: 'Garden of Thorn',
     game_loading: 'Chargement...', server_no_response: 'Le serveur ne répond pas. Vérifiez votre connexion.',
     spectator_prefix: 'Spectateur', lobby_title: 'Salon', online_count: 'En ligne: {0}', chat_title: 'Chat', chat_origin_multiplayer: 'Multijoueur', chat_origin_story: 'Histoire', chat_origin_leisure: 'Détente', leisure_garden: 'Jardin détente',
@@ -1332,7 +1332,7 @@ I18N.ja = { ...I18N.en,
     card_type_thorn: 'Thorn', card_type_bloom: 'Bloom', card_type_root: 'Root', card_type_guard: 'Guard',
     settings_title: '設定', settings_appearance: '外観', settings_theme: 'テーマ', settings_lang: '言語', settings_mods: 'Mod', settings_audio: '音声', settings_theme_light: 'ライト', settings_theme_dark: 'ダーク',
     settings_audio_enabled: '音声を有効化', settings_volume_master: 'マスター音量', settings_volume_music: 'BGM', settings_volume_menu_music: 'ホーム/ロビーBGM', settings_volume_battle_music: '対戦BGM', settings_volume_ui: 'ボタン', settings_volume_sfx: '効果音', settings_audio_test: 'テスト再生', settings_audio_hint: '音楽は最初のクリックまたはキー入力後に再生されます。',
-    no_games: '進行中の対戦なし', back_to_home: 'ホームに戻る', settings_btn: '設定', settings_server: 'サーバー', settings_server_addr: 'アドレス',
+    no_games: '進行中の対戦なし', back_to_home: 'ホームに戻る', back_to_lobby: 'ロビーに戻る', settings_btn: '設定', settings_server: 'サーバー', settings_server_addr: 'アドレス',
     not_your_turn: 'あなたのターンではありません', counter_insufficient: 'ヒント：カウンターに必要なリソースが不足しています', default_status: 'Garden of Thorn',
     game_loading: '読み込み中...', server_no_response: 'サーバーが応答しません。接続を確認してください。',
     spectator_prefix: '観戦', lobby_title: 'ロビー', online_count: 'オンライン: {0}', chat_title: 'チャット', chat_origin_multiplayer: 'マルチ', chat_origin_story: 'ストーリー', chat_origin_leisure: 'レジャー', leisure_garden: 'レジャーガーデン',
@@ -8343,6 +8343,19 @@ let gallerySelectedId = null;
 let galleryMode = 'cards';
 let rulesScrollTop = 0;
 let galleryReturnToRules = false;
+// 从多人大厅打开皮肤/图鉴等子页面时，退出应回到大厅而不是主页。
+let subViewReturn = 'view-login';
+function rememberSubViewReturn() {
+    subViewReturn = activeViewId === 'view-lobby' ? 'view-lobby' : 'view-login';
+}
+function returnFromSubView() {
+    const target = subViewReturn === 'view-lobby' ? 'view-lobby' : 'view-login';
+    subViewReturn = 'view-login';
+    showView(target);
+}
+function subViewBackLabel(fallback) {
+    return subViewReturn === 'view-lobby' ? (UI.back_to_lobby || fallback) : fallback;
+}
 let galleryShowMultiPetalPreview = false;
 let gallerySelectedModKeys = null;
 let gallerySelectedTypeKeys = null;
@@ -9237,8 +9250,9 @@ async function showCardGallery(selectedId = null, mode = 'cards') {
     phase = 'gallery';
     gallerySelectedModKeys = null;
     setGalleryMode(mode);
+    if (!galleryReturnToRules) rememberSubViewReturn();
     const backBtn = $('btn-gallery-back');
-    if (backBtn) backBtn.textContent = galleryReturnToRules ? UI.gallery_back_rules : UI.back_to_home;
+    if (backBtn) backBtn.textContent = galleryReturnToRules ? UI.gallery_back_rules : subViewBackLabel(UI.back_to_home);
     if (selectedId) gallerySelectedId = selectedId;
     showView('view-card-gallery');
     const list = $('gallery-card-list');
@@ -22503,6 +22517,9 @@ function renderCardSkinInventory() {
 function openSkinEditor() {
     setSkinError('');
     syncSkinFormFromCurrent();
+    rememberSubViewReturn();
+    const skinBack = $('btn-skin-back');
+    if (skinBack) skinBack.textContent = subViewBackLabel(UI.back_to_home);
     showView('view-skin');
 }
 
@@ -43198,7 +43215,7 @@ async function init() {
     if ($('btn-leaderboard-hide-titles')) {
         $('btn-leaderboard-hide-titles').addEventListener('click', toggleLeaderboardHideTitles);
     }
-    if ($('btn-skin-back')) $('btn-skin-back').addEventListener('click', () => showView('view-login'));
+    if ($('btn-skin-back')) $('btn-skin-back').addEventListener('click', () => returnFromSubView());
     if ($('btn-skin-save')) $('btn-skin-save').addEventListener('click', saveSkinFromEditor);
     if ($('btn-skin-reset')) $('btn-skin-reset').addEventListener('click', resetSkinEditor);
     if ($('skin-preset-list')) $('skin-preset-list').addEventListener('click', (event) => {
@@ -43670,7 +43687,7 @@ async function init() {
             showView('view-login');
             openAbout();
         } else {
-            showView('view-login');
+            returnFromSubView();
         }
     });
     $('btn-leave-spectate').addEventListener('click', leaveSpectateAction);
