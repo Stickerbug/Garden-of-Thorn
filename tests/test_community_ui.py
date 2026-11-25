@@ -11,12 +11,12 @@ OPS_STYLE = (ROOT / 'static' / 'css' / 'community_ops.css').read_text(encoding='
 
 
 def test_main_page_has_one_announcement_surface_with_polls_inside():
-    """公告与投票已合并成一个面板（2026-11-25），只保留顶栏「公告」入口。"""
+    """公告与投票已合并成一个可折叠列表（2026-11-25），只保留顶栏「公告」入口。"""
     required = (
         'id="btn-changelog-top"',
         'id="changelog-popover"',
-        'id="changelog-popover-body"',
-        'id="community-feed"',
+        'id="ann-list"',
+        'id="community-status"',
         'id="community-manage-link"',
         'id="btn-community-refresh"',
         '/static/js/community.js',
@@ -24,9 +24,12 @@ def test_main_page_has_one_announcement_surface_with_polls_inside():
     )
     for marker in required:
         assert marker in INDEX
-    # 独立的投票入口与投票弹层都必须彻底移除，避免两个入口展示同一份内容。
+    # 独立的投票入口、投票弹层、旧的「更新日志正文 / 投票区」容器都必须彻底移除。
     assert 'id="btn-community-top"' not in INDEX
     assert 'id="community-popover"' not in INDEX
+    assert 'id="changelog-popover-body"' not in INDEX
+    assert 'id="community-feed"' not in INDEX
+    assert 'class="changelog-popover-section"' not in INDEX
     assert '.community-top-btn' not in STYLE
     assert '.changelog-top-btn::before { --ui-icon-url: url("/static/assets/ui-icons/log.svg"); }' in STYLE
 
@@ -87,26 +90,31 @@ def test_new_announcements_and_polls_have_a_persistent_unread_dot():
     assert '.changelog-top-btn.has-community-unread::after' in STYLE
 
 
-def test_announcement_panel_hosts_the_poll_section():
-    """单一「公告」面板：上面是更新日志，下面挂投票与接龙。"""
+def test_announcement_panel_is_a_single_collapsible_list():
+    """单一「公告」面板：每条公告 / 投票只露标题，点开看正文。"""
     assert 'aria-label="公告"' in INDEX
     assert 'id="changelog-popover-title" class="account-popover-title">公告</div>' in INDEX
-    assert 'class="changelog-popover-section"' in INDEX
-    assert 'class="changelog-section-title">投票与接龙</div>' in INDEX
-    # 投票区必须在公告面板内部，而不是另一层弹窗。
+    assert 'id="ann-list" class="ann-list"' in INDEX
+    # 列表必须在公告面板内部，而不是另一层弹窗。
     start = INDEX.index('id="changelog-popover"')
-    end = INDEX.index('id="changelog-popover-body"', start)
-    later = INDEX.index('id="community-feed"', end)
-    assert start < end < later
+    later = INDEX.index('id="ann-list"', start)
+    assert start < later
     game = (ROOT / 'static/js/game.js').read_text(encoding='utf-8')
-    assert 'const community = (Array.isArray(announcements)' in game
-    assert 'pinned: true' in game
+    assert 'function renderChangelogItems(items, announcements = null)' in game
+    assert "document.createElement('details')" in game
+    assert "details.className = 'ann-item'" in game
+    assert 'function sortAnnouncementList()' in game
+    assert 'window.GtnAnnouncementList' in game
     assert 'const entries = [...community, ...logs]' in game
     assert "body: JSON.stringify({ types: ['announcement'] })" in game
     assert 'communityReadIds' in game
     assert 'window.GtnCommunity' in game
+    assert 'function announcementAccordion(node, meta)' in PUBLIC_JS
+    assert "details.ann-item[data-source=\"community\"]" in PUBLIC_JS
     assert "body: JSON.stringify({ types: ['poll', 'chain'] })" in PUBLIC_JS
-    assert '目前没有正在展示的投票或接龙。' in PUBLIC_JS
+    # 旧的「公告正文容器 + 投票区块」两段式结构已经不存在。
+    assert 'community-feed' not in PUBLIC_JS
+    assert 'changelog-popover-body' not in game
 
 
 def test_changelog_api_includes_announcements_and_scoped_read():

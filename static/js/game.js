@@ -8707,15 +8707,65 @@ function formatChangelogDate(dateText) {
     }
 }
 
+function announcementFirstLine(text) {
+    const source = String(text || '').replace(/\s+/g, ' ').trim();
+    if (!source) return '';
+    return source.length > 60 ? `${source.slice(0, 60)}…` : source;
+}
+
+function announcementDateLabel(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    return formatChangelogDate(raw);
+}
+
+function refreshAnnouncementEmpty() {
+    const list = $('ann-list');
+    if (!list) return;
+    const items = list.querySelectorAll(':scope > details.ann-item');
+    const empty = list.querySelector(':scope > .ann-empty');
+    if (items.length) {
+        if (empty) empty.remove();
+        return;
+    }
+    if (!empty) {
+        const node = document.createElement('p');
+        node.className = 'ann-empty muted';
+        node.textContent = UI.changelog_empty || '暂无公告。';
+        list.appendChild(node);
+    }
+}
+
+function sortAnnouncementList() {
+    const list = $('ann-list');
+    if (!list) return;
+    const items = Array.from(list.querySelectorAll(':scope > details.ann-item'));
+    items.sort((left, right) => {
+        const leftPinned = left.dataset.pinned === '1' ? 0 : 1;
+        const rightPinned = right.dataset.pinned === '1' ? 0 : 1;
+        if (leftPinned !== rightPinned) return leftPinned - rightPinned;
+        return String(right.dataset.time || '').localeCompare(String(left.dataset.time || ''));
+    });
+    items.forEach(node => list.appendChild(node));
+    refreshAnnouncementEmpty();
+}
+
+window.GtnAnnouncementList = {
+    sort: sortAnnouncementList,
+    refreshEmpty: refreshAnnouncementEmpty,
+};
+
 function renderChangelogItems(items, announcements = null) {
-    const body = $('changelog-popover-body');
-    if (!body) return;
-    body.textContent = '';
+    const list = $('ann-list');
+    if (!list) return;
+    list.querySelectorAll(':scope > details.ann-item[data-source="changelog"]').forEach(node => node.remove());
     const logs = (Array.isArray(items) ? items : []).map(item => ({
         date: item && item.date || '',
         title: '',
         content: String(item && item.content || '').trim(),
-        pinned: true,
+        pinned: false,
     }));
     const community = (Array.isArray(announcements) ? announcements : (changelogCache?.announcements || [])).map(item => ({
         date: item.published_at || item.starts_at || '',
@@ -8727,41 +8777,42 @@ function renderChangelogItems(items, announcements = null) {
         if (left.pinned !== right.pinned) return left.pinned ? -1 : 1;
         return String(right.date).localeCompare(String(left.date));
     });
-    if (!entries.length) {
-        const empty = document.createElement('p');
-        empty.className = 'muted';
-        empty.textContent = UI.changelog_empty || '暂无公告。';
-        body.appendChild(empty);
-        return;
-    }
     entries.slice(0, 50).forEach(item => {
-        const entry = document.createElement('article');
-        entry.className = 'changelog-entry';
-        const meta = document.createElement('div');
-        meta.className = 'changelog-entry-meta';
+        const details = document.createElement('details');
+        details.className = 'ann-item';
+        details.dataset.source = 'changelog';
+        details.dataset.kind = item.title ? 'announcement' : 'changelog';
+        details.dataset.time = String(item.date || '');
+        if (item.pinned) details.dataset.pinned = '1';
+
+        const summary = document.createElement('summary');
+        summary.className = 'ann-summary';
         if (item.pinned) {
-            const badge = document.createElement('span');
-            badge.className = 'changelog-pin';
-            badge.textContent = '置顶';
-            meta.appendChild(badge);
+            const pin = document.createElement('span');
+            pin.className = 'ann-pin';
+            pin.textContent = '置顶';
+            summary.appendChild(pin);
         }
-        const date = document.createElement('h4');
-        date.className = 'changelog-date';
-        date.textContent = formatChangelogDate(item.date);
-        meta.appendChild(date);
-        entry.appendChild(meta);
-        if (item.title) {
-            const title = document.createElement('h3');
-            title.className = 'changelog-announcement-title';
-            title.textContent = item.title;
-            entry.appendChild(title);
-        }
+        const title = document.createElement('span');
+        title.className = 'ann-title';
+        title.textContent = item.title || announcementFirstLine(item.content) || '公告';
+        summary.appendChild(title);
+        const meta = document.createElement('span');
+        meta.className = 'ann-meta';
+        meta.textContent = announcementDateLabel(item.date);
+        summary.appendChild(meta);
+        details.appendChild(summary);
+
+        const body = document.createElement('div');
+        body.className = 'ann-body';
         const content = document.createElement('p');
         content.className = 'changelog-content';
         content.textContent = item.content;
-        entry.appendChild(content);
-        body.appendChild(entry);
+        body.appendChild(content);
+        details.appendChild(body);
+        list.appendChild(details);
     });
+    sortAnnouncementList();
 }
 
 function getChangelogUnreadCount(cache = changelogCache) {
@@ -8891,7 +8942,7 @@ async function loadChangelog(force = false, options = {}) {
         updateChangelogBadge();
         return;
     }
-    const body = $('changelog-popover-body');
+    const list = $('ann-list');
     const cacheVersion = currentChangelogCacheVersion();
     if (!force) {
         const cached = loadCachedChangelog();
@@ -8901,8 +8952,9 @@ async function loadChangelog(force = false, options = {}) {
             return;
         }
     }
-    if (body && !changelogLoaded && !options.silent) {
-        body.innerHTML = `<p class="muted">${escapeHtml(UI.loading || 'Loading...')}</p>`;
+    if (list && !changelogLoaded && !options.silent) {
+        const empty = list.querySelector(':scope > .ann-empty');
+        if (empty) empty.textContent = UI.loading || 'Loading...';
     }
     changelogLoadingPromise = fetchCurrentChangelog(cacheVersion)
         .then(data => {
@@ -8934,12 +8986,16 @@ async function loadChangelog(force = false, options = {}) {
             if (hasFallback && (!options.silent || isChangelogPopoverOpen())) {
                 renderChangelogItems(changelogCache.items);
                 updateChangelogBadge();
-            } else if (body && !options.silent) {
-                body.textContent = '';
-                const error = document.createElement('p');
-                error.className = 'error-text';
-                error.textContent = UI.changelog_error || '更新日志加载失败。';
-                body.appendChild(error);
+            } else if (list && !options.silent) {
+                const empty = list.querySelector(':scope > .ann-empty');
+                const target = empty || (() => {
+                    const node = document.createElement('p');
+                    node.className = 'ann-empty muted';
+                    list.appendChild(node);
+                    return node;
+                })();
+                target.classList.add('error-text');
+                target.textContent = UI.changelog_error || '更新日志加载失败。';
             }
             return false;
         })

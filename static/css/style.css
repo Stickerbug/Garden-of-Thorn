@@ -1280,46 +1280,163 @@ button.pass-top-btn.pass-top-btn-pro { width: 232px; aspect-ratio: 360 / 158; }
   overflow: auto;
 }
 
-.changelog-popover-body {
-  padding-right: 4px;
-  padding-bottom: 12px;
+/* 2026-11-25：公告与投票共用一套「只露标题、点开看内容」的折叠列表。 */
+.ann-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 2px 2px 6px;
   border-bottom: 1px solid color-mix(in srgb, var(--border-color) 55%, transparent);
 }
 
-/* 2026-11-25：投票与公告合并成一个面板，投票接在更新日志下方同屏滚动。 */
-.changelog-popover-section {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.changelog-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.changelog-section-title {
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: .04em;
-  color: color-mix(in srgb, var(--text-color) 72%, transparent);
+.ann-toolbar .community-status {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 /* 刷新按钮在 28px 见方里只有单个字符，压暗一点避免抢标题的注意力。 */
-.changelog-section-head .account-close-btn {
+.ann-toolbar .account-close-btn {
   color: color-mix(in srgb, var(--text-color) 58%, transparent);
 }
 
-.changelog-section-head .account-close-btn:hover {
+.ann-toolbar .account-close-btn:hover {
   color: var(--text-color);
 }
 
-.changelog-popover-section .community-feed {
-  max-height: none;
-  overflow: visible;
+.ann-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 8px;
+}
+
+.ann-empty {
+  margin: 4px 2px;
+  font-size: 13px;
+}
+
+.ann-item {
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  overflow: hidden;
+}
+
+.ann-item[open] {
+  border-color: color-mix(in srgb, var(--border-color) 85%, transparent);
+}
+
+.ann-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 34px 9px 12px;
+  cursor: pointer;
+  list-style: none;
+  position: relative;
+  user-select: none;
+}
+
+.ann-summary::-webkit-details-marker {
+  display: none;
+}
+
+.ann-summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-color, #2f9e8f) 60%, transparent);
+  outline-offset: -2px;
+}
+
+.ann-summary::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid color-mix(in srgb, var(--text-color) 45%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, var(--text-color) 45%, transparent);
+  transform: translateY(-70%) rotate(45deg);
+  transition: transform .18s ease;
+}
+
+.ann-item[open] > .ann-summary::after {
+  transform: translateY(-30%) rotate(225deg);
+}
+
+.ann-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ann-meta {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: color-mix(in srgb, var(--text-color) 55%, transparent);
+  white-space: nowrap;
+}
+
+.ann-pin {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent-color, #2f9e8f) 18%, transparent);
+  color: color-mix(in srgb, var(--accent-color, #2f9e8f) 88%, #000 12%);
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.ann-body {
+  padding: 0 12px 10px;
+  border-top: 1px dashed color-mix(in srgb, var(--border-color) 55%, transparent);
+}
+
+.ann-body .community-card,
+.ann-body .changelog-content {
+  margin: 8px 0 0;
+  border: 0;
+  background: none;
   padding: 0;
+}
+
+.ann-body .community-card-heading,
+.ann-body .community-card-meta {
+  display: none;
+}
+
+.ann-body .community-poll-options {
+  margin-top: 8px;
+}
+
+.ann-body .community-card-body {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.ann-body .changelog-content {
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 620px) {
+  .ann-title {
+    font-size: 13px;
+  }
+
+  .ann-meta {
+    display: none;
+  }
 }
 
 /* 社区（投票/接龙）有未读时在公告按钮上点一个小圆点；数字角标仍归更新日志。 */

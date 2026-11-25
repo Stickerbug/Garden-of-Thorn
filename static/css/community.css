@@ -1,4 +1,4 @@
-/* 2026-11-25：投票并入公告面板（#changelog-popover 内的 .changelog-popover-section），
+/* 2026-11-25：投票并入公告面板（#changelog-popover 内的折叠列表 #ann-list），
    独立弹层样式已移除；下面的宽度/滚动约束由公告面板统一负责。 */
 
 .community-head-actions {
@@ -39,14 +39,6 @@
 
 .community-status.is-success {
   color: #347a3d;
-}
-
-.community-feed {
-  display: grid;
-  gap: 12px;
-  overflow: auto;
-  max-height: calc(min(680px, calc(100vh - 76px)) - 66px);
-  padding: 1px 4px 4px 1px;
 }
 
 .community-card {

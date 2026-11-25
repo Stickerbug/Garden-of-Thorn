@@ -296,20 +296,76 @@
     return article;
   }
 
+  function announcementAccordion(node, meta) {
+    const details = createElement('details', 'ann-item');
+    details.dataset.source = 'community';
+    details.dataset.kind = meta.kind;
+    details.dataset.key = `${meta.kind}:${meta.id}`;
+    details.dataset.time = String(meta.time || '');
+    if (meta.pinned) details.dataset.pinned = '1';
+    const summary = createElement('summary', 'ann-summary');
+    if (meta.pinned) summary.appendChild(createElement('span', 'ann-pin', '置顶'));
+    summary.appendChild(createElement('span', 'ann-title', meta.title));
+    if (meta.note) summary.appendChild(createElement('span', 'ann-meta', meta.note));
+    details.appendChild(summary);
+    const body = createElement('div', 'ann-body');
+    const heading = node.querySelector('.community-card-heading');
+    if (heading) heading.remove();
+    body.appendChild(node);
+    details.appendChild(body);
+    return details;
+  }
+
+  function pollNote(item) {
+    if (item.effective_state === 'closed') return '已结束';
+    if (item.effective_state === 'scheduled') return '未开始';
+    const ends = item.ends_at ? formatTime(item.ends_at) : '';
+    if (item.reminder_due) return ends ? `即将截止 · ${ends}` : '即将截止';
+    return ends ? `截止 ${ends}` : '';
+  }
+
   function renderFeed() {
-    const feed = byId('community-feed');
-    if (!feed) return;
-    feed.textContent = '';
+    const list = byId('ann-list');
+    if (!list) return;
+    // 重新渲染（投票、刷新）时保留玩家已经展开的条目。
+    const openKeys = new Set(
+      Array.from(list.querySelectorAll(':scope > details.ann-item[data-source="community"][open]'))
+        .map((node) => node.dataset.key),
+    );
+    list.querySelectorAll(':scope > details.ann-item[data-source="community"]').forEach((node) => node.remove());
+
     const polls = Array.isArray(state.feed?.polls) ? state.feed.polls : [];
     const chains = Array.isArray(state.feed?.chains) ? state.feed.chains : [];
-    if (!polls.length && !chains.length) {
-      feed.appendChild(createElement('p', 'community-empty muted', '目前没有正在展示的投票或接龙。'));
-    } else {
-      const rank = (item) => (item.pinned ? 0 : 1);
-      polls.filter((item) => rank(item) === 0).forEach((item) => feed.appendChild(renderPoll(item)));
-      polls.filter((item) => rank(item) === 1).forEach((item) => feed.appendChild(renderPoll(item)));
-      chains.forEach((item) => feed.appendChild(renderChain(item)));
+    polls.forEach((item) => {
+      list.appendChild(announcementAccordion(renderPoll(item), {
+        kind: 'poll',
+        id: item.id,
+        title: item.question || '投票',
+        note: pollNote(item),
+        time: item.starts_at || item.published_at || '',
+        pinned: item.pinned,
+      }));
+    });
+    chains.forEach((item) => {
+      list.appendChild(announcementAccordion(renderChain(item), {
+        kind: 'chain',
+        id: item.id,
+        title: item.title || '接龙',
+        note: `${Number(item.entry_count || 0)} 人接龙`,
+        time: item.starts_at || item.published_at || '',
+        pinned: item.pinned,
+      }));
+    });
+
+    if (openKeys.size) {
+      list.querySelectorAll(':scope > details.ann-item[data-source="community"]').forEach((node) => {
+        if (openKeys.has(node.dataset.key)) node.open = true;
+      });
     }
+
+    const sorter = window.GtnAnnouncementList;
+    if (sorter && typeof sorter.sort === 'function') sorter.sort();
+
     const manage = byId('community-manage-link');
     if (manage) manage.classList.toggle('hidden', !state.feed?.viewer?.can_manage);
   }
@@ -463,12 +519,12 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     byId('btn-community-refresh')?.addEventListener('click', () => loadFeed());
-    byId('community-feed')?.addEventListener('click', (event) => {
+    byId('ann-list')?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-poll-id][data-option-id]');
       if (!button || button.disabled) return;
       vote(button.dataset.pollId, button.dataset.optionId);
     });
-    byId('community-feed')?.addEventListener('click', (event) => {
+    byId('ann-list')?.addEventListener('click', (event) => {
       const button = event.target.closest('[data-chain-id][data-chain-join]');
       if (!button || button.disabled) return;
       const article = button.closest('.community-chain');

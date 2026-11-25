@@ -119,19 +119,15 @@
     <div id="changelog-popover-title" class="account-popover-title">公告</div>
     <button id="btn-changelog-popover-close" class="account-close-btn" type="button">×</button>
   </div>
-  <div id="changelog-popover-body" class="changelog-popover-body">
-    <p class="muted">暂无公告。</p>
-  </div>
-  <div class="changelog-popover-section">
-    <div class="changelog-section-head">
-      <div class="changelog-section-title">投票与接龙</div>
-      <div class="community-head-actions">
-        <a id="community-manage-link" class="community-manage-link hidden" href="/community-ops" target="_blank" rel="noopener">运营后台</a>
-        <button id="btn-community-refresh" class="account-close-btn" type="button" aria-label="刷新投票">↻</button>
-      </div>
-    </div>
+  <div class="ann-toolbar">
     <div id="community-status" class="community-status muted" role="status" aria-live="polite">正在加载…</div>
-    <div id="community-feed" class="community-feed"></div>
+    <div class="community-head-actions">
+      <a id="community-manage-link" class="community-manage-link hidden" href="/community-ops" target="_blank" rel="noopener">运营后台</a>
+      <button id="btn-community-refresh" class="account-close-btn" type="button" aria-label="刷新公告">↻</button>
+    </div>
+  </div>
+  <div id="ann-list" class="ann-list">
+    <p class="ann-empty muted">暂无公告。</p>
   </div>
 </div>
 <div id="account-popover" class="account-popover hidden">
