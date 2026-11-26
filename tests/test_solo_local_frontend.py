@@ -52,5 +52,29 @@ class SoloLocalFrontendTests(unittest.TestCase):
             self.assertGreater(path.stat().st_size, 0, name)
 
 
+    def test_training_boot_reports_progress_and_can_be_preloaded(self):
+        """首局加载要 30-50 秒：必须有持续提示，并且在进入训练场时就开始预热。"""
+        bridge = (ROOT / 'static/js/solo-local.js').read_text(encoding='utf-8')
+        worker = (ROOT / 'static/js/solo-local-worker.js').read_text(encoding='utf-8')
+        source = (ROOT / 'static/js/game.js').read_text(encoding='utf-8')
+
+        self.assertIn("receive('solo_boot_status'", bridge)
+        self.assertIn("stage: 'done', loading: false, done: true", bridge)
+        self.assertIn('function preload()', bridge)
+        self.assertIn('preload, getDiagnostics', bridge)
+        self.assertIn("if (type === 'boot')", worker)
+
+        self.assertIn('function handleSoloBootStatus(', source)
+        self.assertIn('function registerSoloBootStatusHandler(', source)
+        self.assertIn("window.GTNSoloLocal.register('solo_boot_status', handleSoloBootStatus)", source)
+        self.assertIn('registerSoloBootStatusHandler();', source)
+        self.assertIn("viewId === 'view-solo' && window.GTNSoloLocal", source)
+        self.assertIn('SOLO_BOOT_STAGE_HINTS', source)
+        self.assertIn('start.disabled = true;', source)
+
+        for key in ('solo_boot_loading', 'solo_boot_hint'):
+            self.assertEqual(source.count(f'{key}:'), 4, key)
+
+
 if __name__ == '__main__':
     unittest.main()

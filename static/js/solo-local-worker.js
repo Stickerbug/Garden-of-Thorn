@@ -38,6 +38,10 @@ async function handle(message) {
   const { id, type } = message;
   try {
     await boot();
+    if (type === 'boot') {
+      self.postMessage({ id, type: 'boot_result', result: { success: true } });
+      return;
+    }
     if (type === 'initialize') {
       const result = runner.initialize(JSON.stringify(message.config || {}));
       self.postMessage({ id, type: 'initialize_result', result: JSON.parse(result) });

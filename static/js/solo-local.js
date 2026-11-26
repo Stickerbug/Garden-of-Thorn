@@ -12,6 +12,9 @@
   let initializePromise = null;
   let achievementSent = false;
   let workerStage = 'created';
+  // 首次启动要下载并解压 Pyodide 运行时，实测约 8-12 秒；这段时间必须有持续的提示，
+  // 否则玩家会以为「开始训练」没反应而反复点击（每次点击都会重启 generation）。
+  const LOADING_HINT = '正在加载本地训练场引擎…（首次约 10 秒）';
 
   function register(eventName, handler) {
     if (eventName && typeof handler === 'function') handlers.set(eventName, handler);
@@ -39,10 +42,15 @@
       const data = event.data || {};
       if (data.type === 'status') {
         workerStage = data.stage || workerStage;
-        if (data.stage === 'python' && typeof flashStatus === 'function') flashStatus('正在加载本地训练场引擎…', 1800);
+        if (typeof flashStatus === 'function') flashStatus(LOADING_HINT, 1800);
+        receive('solo_boot_status', { stage: workerStage, booting: true, loading: false });
         return;
       }
-      if (data.type === 'ready') { workerStage = 'ready'; return; }
+      if (data.type === 'ready') {
+        workerStage = 'ready';
+        receive('solo_boot_status', { stage: 'ready', booting: true, loading: false });
+        return;
+      }
       const request = pending.get(data.id);
       if (!request) return;
       pending.delete(data.id);
@@ -159,6 +167,7 @@
       for (const timer of v2Timers.values()) clearTimeout(timer);
       v2Timers.clear();
       const startGeneration = generation;
+      receive('solo_boot_status', { stage: 'starting', loading: true });
       try {
         await initialize(payload);
         if (startGeneration !== generation) return null;
@@ -167,6 +176,10 @@
         if (startGeneration === generation) active = false;
         receive('server_error', { message: `本地训练场启动失败：${error?.message || error}` });
         return null;
+      } finally {
+        if (startGeneration === generation) {
+          receive('solo_boot_status', { stage: 'done', loading: false, done: true });
+        }
       }
     }
     if (eventName === 'solo_pause') {
@@ -185,6 +198,12 @@
   }
 
   function isActive() { return active; }
+  // 进入训练场就预热运行时，避免点「开始训练」后才开始下载 Pyodide。
+  function preload() {
+    if (initialized) return Promise.resolve(null);
+    ensureWorker();
+    return request('boot').catch(() => null);
+  }
   function getDiagnostics() {
     return {
       active, initialized, generation, pendingRequests: pending.size,
@@ -193,5 +212,5 @@
     };
   }
 
-  window.GTNSoloLocal = Object.freeze({ register, dispatch, isActive, getDiagnostics });
+  window.GTNSoloLocal = Object.freeze({ register, dispatch, isActive, preload, getDiagnostics });
 })();
