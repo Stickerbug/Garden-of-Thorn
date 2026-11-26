@@ -120,7 +120,104 @@ class ExperimentalWiringTest(unittest.TestCase):
         self.assertIn('window.GtnExperimentalUi.syncAccount(currentAccount)', self.game)
 
     def test_version_bumped(self):
-        self.assertIn('-experimental-ui-1', VERSION.read_text(encoding='utf-8'))
+        self.assertIn('-experimental-ui-', VERSION.read_text(encoding='utf-8'))
+
+
+class ExperimentalBatchTwoTest(unittest.TestCase):
+    """第二批：顶栏单色图标、商店购买、公告筛选/搜索/逐条已读、大厅空态、其余子页。"""
+
+    def setUp(self):
+        self.css = CSS.read_text(encoding='utf-8')
+        self.js = JS.read_text(encoding='utf-8')
+
+    def test_top_icons_are_single_tone(self):
+        self.assertIn('html[data-ui-shell="experimental"] .top-icon-btn::before {', self.css)
+        self.assertIn('filter: grayscale(1) brightness(.38) contrast(1.05);', self.css)
+
+    def test_shop_cards_and_buy_buttons_are_styled(self):
+        for selector in [
+            '#title-shop-popover .title-shop-item',
+            '#title-shop-popover .title-shop-buy-btn',
+            '#title-shop-popover .title-shop-buy-btn:disabled',
+            '#title-shop-popover .title-shop-item.is-purchased .title-shop-buy-btn',
+        ]:
+            self.assertIn(selector, self.css)
+
+    def test_shop_purchase_asks_for_confirmation(self):
+        self.assertIn("var CONFIRM_SELECTOR = '[data-title-shop-buy]", self.js)
+        self.assertIn('function confirmPurchase(event)', self.js)
+        self.assertIn('confirmFn(', self.js)
+        self.assertIn('button.dataset.xuiConfirmed', self.js)
+
+    def test_announcement_toolbar_filter_search_and_per_item_read(self):
+        self.assertIn("var READ_KEY = 'gtn_ui_ann_read_v1';", self.js)
+        self.assertIn('function buildTools()', self.js)
+        self.assertIn("btn.dataset.annFilter = pair[0];", self.js)
+        self.assertIn('function applyFilter()', self.js)
+        self.assertIn('xui-ann-dot', self.js)
+        self.assertIn('function decorate()', self.js)
+        self.assertIn("item.addEventListener('toggle'", self.js)
+        for selector in ['.xui-ann-tools', '.xui-ann-tab', '.xui-ann-search', '.xui-ann-dot', '.ann-item.is-read']:
+            self.assertIn(selector, self.css)
+
+    def test_lobby_empty_states_and_chat_surface(self):
+        self.assertIn('#view-lobby .lobby-chat-log:empty::before', self.css)
+        self.assertIn('还没有人说话，打个招呼吧。', self.css)
+        self.assertIn('#view-lobby .player-list:empty::before', self.css)
+        self.assertIn('#view-lobby .game-list:empty::before', self.css)
+
+    def test_gallery_and_other_views_get_the_shell(self):
+        for selector in [
+            '#view-card-gallery .gallery-container',
+            '#view-card-gallery .gallery-tab',
+            '#view-card-gallery .gallery-tab.active',
+        ]:
+            self.assertIn(selector, self.css)
+
+    def test_background_covers_the_whole_screen(self):
+        """背景要铺满整屏：根节点与 body 都上色，并用整屏背景图而不是纯色。"""
+        self.assertIn('html[data-ui-shell="experimental"] {\n    background-color: #24443a;', self.css)
+        self.assertIn("url('/static/assets/backgrounds/theme-olive-nocturne.svg')", self.css)
+        self.assertIn('background-size: cover, cover;', self.css)
+        self.assertIn('background-attachment: fixed, fixed;', self.css)
+        self.assertIn('background-repeat: no-repeat, no-repeat;', self.css)
+
+    def test_panels_fill_the_whole_screen(self):
+        """奶油面板铺满全屏：去掉悬浮卡片的外边距、圆角、边框与投影。"""
+        block = self.css[self.css.index('奶油面板铺满全屏'):]
+        self.assertIn('#view-login .login-container,', block)
+        self.assertIn('#view-lobby .lobby-container,', block)
+        self.assertIn('#view-card-gallery .gallery-container {', block)
+        self.assertIn('width: 100%;', block)
+        self.assertIn('height: 100%;', block)
+        self.assertIn('margin: 0;', block)
+        self.assertIn('border-radius: 0;', block)
+        self.assertIn('border: 0;', block)
+        self.assertIn('box-shadow: none;', block)
+        self.assertIn('background: var(--xui-panel);', block)
+
+    def test_pass_entry_keeps_its_original_artwork(self):
+        """通行证入口不在顶栏方块那一排：宽度/描边/阴影都要回到游戏原样。"""
+        block = self.css[self.css.index('通行证入口恢复原样'):]
+        self.assertIn('.pass-top-btn {', block)
+        self.assertIn('width: 170px !important;', block)
+        self.assertIn('width: 232px !important;', block)
+        self.assertIn('aspect-ratio: 360 / 158;', block)
+        self.assertIn('background: none !important;', block)
+        self.assertIn('border: 0 !important;', block)
+        self.assertIn('box-shadow: none !important;', block)
+        self.assertIn('background: var(--ui-icon-url) center / contain no-repeat !important;', block)
+
+    def test_home_center_is_scaled_up(self):
+        """菜单中心区放大一档：标题 52px、模式牌 84px 高、表单 820px。"""
+        self.assertIn('max-width: 820px;', self.css)
+        self.assertIn('font-size: 52px;', self.css)
+        self.assertIn('min-height: 84px;', self.css)
+        self.assertIn('font-size: 20px;', self.css)
+        self.assertIn('white-space: nowrap;', self.css)
+
+    def test_version_bumped_to_batch_two(self):
+        self.assertIn('-experimental-ui-2', VERSION.read_text(encoding='utf-8'))
 
 
 if __name__ == '__main__':

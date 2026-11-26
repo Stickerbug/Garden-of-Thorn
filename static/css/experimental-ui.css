@@ -951,3 +951,850 @@ html[data-ui-shell="experimental"] #view-login .login-divider span {
     font-size: 12.5px;
     box-shadow: var(--xui-shadow-sm);
 }
+
+/* ---------- 第二批：顶栏图标、商店、大厅聊天、其余页面 ---------- */
+/* 1) 顶栏图标：彩色贴图统一压成墨色线性感 */
+html[data-ui-shell="experimental"] .top-icon-btn::before {
+    filter: grayscale(1) brightness(.38) contrast(1.05);
+    opacity: .9;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn:hover::before {
+    filter: grayscale(1) brightness(.22) contrast(1.1);
+    opacity: 1;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn.is-active,
+html[data-ui-shell="experimental"] .top-icon-btn[aria-pressed="true"] {
+    background: var(--xui-select);
+    border-color: var(--xui-line);
+}
+
+/* 2) 商店：商品卡、价格按钮与状态 */
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-grid {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 12px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--xui-panel-alt);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius-sm);
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-item.is-purchased {
+    opacity: .65;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-preview {
+    background: #f3e7c6;
+    border: 2px dashed rgba(36, 60, 52, .35);
+    border-radius: 8px;
+    padding: 10px 8px;
+    text-align: center;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-buy-btn {
+    width: 100%;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: var(--xui-primary);
+    color: #fffaf0;
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-buy-btn:hover:not(:disabled) {
+    background: var(--xui-primary-dark);
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-buy-btn:disabled {
+    background: #ddd3b8;
+    color: rgba(36, 60, 52, .55);
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-item.is-purchased .title-shop-buy-btn {
+    background: transparent;
+    color: rgba(36, 60, 52, .6);
+    border-style: dashed;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-item-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: #5b6b60;
+}
+
+/* 3) 大厅聊天：浅底滚动区与空态 */
+html[data-ui-shell="experimental"] #view-lobby .lobby-chat {
+    background: var(--xui-panel);
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-chat-log {
+    background: var(--xui-panel-alt);
+    border: 2px solid rgba(36, 60, 52, .25);
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-height: 120px;
+    max-height: 260px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13.5px;
+    line-height: 1.5;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-chat-log:empty::before {
+    content: "还没有人说话，打个招呼吧。";
+    color: rgba(36, 60, 52, .55);
+    font-size: 13px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .chat-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .chat-input-row input {
+    flex: 1;
+    min-height: 40px;
+    background: #fffdf5;
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    padding: 0 10px;
+    color: var(--xui-ink);
+    font-size: 14px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-players:empty::before,
+html[data-ui-shell="experimental"] #view-lobby .player-list:empty::before {
+    content: "暂时没有其他玩家在线。";
+    color: rgba(36, 60, 52, .55);
+    font-size: 13px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .game-list:empty::before {
+    content: "现在没有进行中的对局。";
+    color: rgba(36, 60, 52, .55);
+    font-size: 13px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-footer {
+    gap: 10px;
+}
+
+/* 4) 其余页面：统一的字体、面板与列表外观 */
+html[data-ui-shell="experimental"] .popover,
+html[data-ui-shell="experimental"] .modal-panel,
+html[data-ui-shell="experimental"] #settings-panel,
+html[data-ui-shell="experimental"] #achievements-popover,
+html[data-ui-shell="experimental"] #stats-popover,
+html[data-ui-shell="experimental"] #account-popover,
+html[data-ui-shell="experimental"] #changelog-popover,
+html[data-ui-shell="experimental"] #title-shop-popover {
+    background: var(--xui-panel);
+    color: var(--xui-ink-soft);
+}
+
+html[data-ui-shell="experimental"] input[type="text"],
+html[data-ui-shell="experimental"] input[type="search"],
+html[data-ui-shell="experimental"] input[type="password"],
+html[data-ui-shell="experimental"] input[type="number"],
+html[data-ui-shell="experimental"] select,
+html[data-ui-shell="experimental"] textarea {
+    background: #fffdf5;
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    color: var(--xui-ink);
+    min-height: 40px;
+    font-size: 14px;
+}
+
+html[data-ui-shell="experimental"] select {
+    min-height: 40px;
+}
+
+html[data-ui-shell="experimental"] .settings-panel .settings-tab.active,
+html[data-ui-shell="experimental"] .achievement-tab.active,
+html[data-ui-shell="experimental"] .stats-tab.active,
+html[data-ui-shell="experimental"] .pass-tab.active {
+    background: var(--xui-select);
+    color: var(--xui-ink);
+}
+
+html[data-ui-shell="experimental"] .section-title,
+html[data-ui-shell="experimental"] .panel-title {
+    color: var(--xui-ink);
+}
+
+/* 5) 图鉴 / 皮肤编辑器 / 结算等视图的底与面板 */
+html[data-ui-shell="experimental"] #view-card-gallery,
+html[data-ui-shell="experimental"] #view-skin,
+html[data-ui-shell="experimental"] #view-gameover,
+html[data-ui-shell="experimental"] #view-event-select,
+html[data-ui-shell="experimental"] #view-reality-ban,
+html[data-ui-shell="experimental"] #view-mod-draw,
+html[data-ui-shell="experimental"] #view-mod-editor,
+html[data-ui-shell="experimental"] #view-draft,
+html[data-ui-shell="experimental"] #view-solo {
+    background: transparent;
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-toolbar,
+html[data-ui-shell="experimental"] #view-card-gallery .card-gallery-toolbar,
+html[data-ui-shell="experimental"] #view-skin .skin-panel {
+    background: var(--xui-panel);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius);
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] .status-bar {
+    background: rgba(10, 22, 20, .78);
+    color: #f2ead2;
+}
+
+html[data-ui-shell="experimental"] .status-bar #status-text {
+    color: #f2ead2;
+    -webkit-text-fill-color: #f2ead2;
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+}
+
+/* 公告工具条与已读标记（第二批） */
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-tools {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0 10px;
+    border-bottom: 2px solid rgba(36, 60, 52, .18);
+    margin-bottom: 10px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-tab {
+    min-height: 34px;
+    padding: 0 14px;
+    background: var(--xui-panel-alt);
+    border: 2px solid var(--xui-line);
+    border-radius: 999px;
+    color: var(--xui-ink);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-tab.is-active {
+    background: var(--xui-primary);
+    color: #fffaf0;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-search {
+    flex: 1;
+    min-width: 120px;
+    min-height: 34px;
+    padding: 0 10px;
+    background: #fffdf5;
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    color: var(--xui-ink);
+    font-size: 13px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-count {
+    flex: 0 0 auto;
+    font-size: 12.5px;
+    color: #5b6b60;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-dot {
+    width: 8px;
+    height: 8px;
+    margin-left: 8px;
+    border-radius: 50%;
+    background: var(--xui-accent);
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 2px rgba(197, 139, 56, .25);
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item.is-read .xui-ann-dot {
+    display: none;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item.is-read .ann-title {
+    color: rgba(36, 60, 52, .62);
+    font-weight: 500;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-empty {
+    grid-column: 1 / -1;
+    margin: 10px 0;
+    color: #5b6b60;
+    font-size: 13px;
+}
+
+/* 图鉴与其它子页（第二批收尾） */
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-container,
+html[data-ui-shell="experimental"] #view-skin .skin-container,
+html[data-ui-shell="experimental"] #view-gameover .gameover-container {
+    background: var(--xui-panel);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius);
+    box-shadow: var(--xui-shadow);
+    color: var(--xui-ink-soft);
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-header h2 {
+    color: var(--xui-ink);
+    font-size: 26px;
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 2px solid rgba(36, 60, 52, .18);
+    background: transparent;
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-tab {
+    min-height: 36px;
+    padding: 0 16px;
+    background: var(--xui-panel-alt);
+    border: 2px solid var(--xui-line);
+    border-radius: 999px;
+    color: var(--xui-ink);
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-tab.active {
+    background: var(--xui-primary);
+    color: #fffaf0;
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-card,
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-item,
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-tag,
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-status {
+    background: var(--xui-panel-alt);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius-sm);
+    box-shadow: var(--xui-shadow-sm);
+    color: var(--xui-ink-soft);
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-sidebar,
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-detail {
+    background: var(--xui-panel-alt);
+    border-right: 2px solid rgba(36, 60, 52, .18);
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery input[type="search"],
+html[data-ui-shell="experimental"] #view-card-gallery input[type="text"] {
+    background: #fffdf5;
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    color: var(--xui-ink);
+}
+
+/* ---------- 第三轮：图标栏尺寸与单色化、页脚归位 ---------- */
+html[data-ui-shell="experimental"] .top-action-buttons {
+    flex-wrap: nowrap;
+    gap: 6px;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    padding: 0;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn::before {
+    inset: 24%;
+    background-size: contain;
+    background-position: center;
+    filter: grayscale(1) brightness(.34) contrast(1.1);
+    opacity: .95;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn:hover::before {
+    filter: grayscale(1) brightness(.16) contrast(1.1);
+}
+
+html[data-ui-shell="experimental"] #view-login .home-footer {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    margin: 12px auto 4px;
+    padding: 0;
+    text-align: center;
+}
+
+/* ---------- 第四轮：图标用原色贴图 + 奶油色外框，保证可辨识 ---------- */
+html[data-ui-shell="experimental"] .top-icon-btn {
+    width: 46px;
+    height: 46px;
+    background: var(--xui-panel);
+    border: 2px solid var(--xui-line);
+    border-radius: 12px;
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn::before {
+    inset: 5px;
+    border-radius: 8px;
+    background-size: contain;
+    background-position: center;
+    filter: none;
+    opacity: 1;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn:hover {
+    background: var(--xui-select);
+    border-color: var(--xui-ink);
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn:hover::before {
+    filter: none;
+    opacity: .9;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn.is-active,
+html[data-ui-shell="experimental"] .top-icon-btn[aria-pressed="true"] {
+    background: var(--xui-select);
+    border-color: var(--xui-ink);
+    box-shadow: inset 0 0 0 2px rgba(23, 45, 42, .18);
+}
+
+/* 图标单色化：只做去色，不再压暗，避免和奶油底糊在一起 */
+html[data-ui-shell="experimental"] .top-icon-btn::before {
+    filter: grayscale(1) contrast(1.05) brightness(1.02);
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn:hover::before,
+html[data-ui-shell="experimental"] .top-icon-btn.is-active::before {
+    filter: grayscale(1) contrast(1.15) brightness(.96);
+}
+
+/* 图标保留原色（素材本身是彩色贴图，去色会糊成一团） */
+html[data-ui-shell="experimental"] .top-icon-btn::before,
+html[data-ui-shell="experimental"] .top-icon-btn:hover::before,
+html[data-ui-shell="experimental"] .top-icon-btn.is-active::before {
+    filter: none;
+}
+
+/* 游客标签：奶油底上改成深字，去掉描边 */
+html[data-ui-shell="experimental"] #view-login .beta-mode-badge,
+html[data-ui-shell="experimental"] #view-login .login-divider span {
+    color: var(--xui-ink);
+    -webkit-text-fill-color: var(--xui-ink);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    background: var(--xui-select);
+    border: 2px solid rgba(36, 60, 52, .28);
+    border-radius: 999px;
+    padding: 2px 12px;
+    font-weight: 700;
+}
+
+/* 主页表单文字：奶油底上深字、无描边（原版是白字+黑圈，专为深色底设计） */
+html[data-ui-shell="experimental"] #view-login label,
+html[data-ui-shell="experimental"] #view-login .login-form label,
+html[data-ui-shell="experimental"] #view-login #guest-divider-label,
+html[data-ui-shell="experimental"] #view-login .login-divider span,
+html[data-ui-shell="experimental"] #view-login #login-error,
+html[data-ui-shell="experimental"] #view-login #account-nickname-display {
+    color: var(--xui-ink);
+    -webkit-text-fill-color: var(--xui-ink);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    font-weight: 700;
+}
+
+html[data-ui-shell="experimental"] #view-login #guest-divider-label,
+html[data-ui-shell="experimental"] #view-login .login-divider span {
+    background: var(--xui-select);
+    border: 2px solid rgba(36, 60, 52, .22);
+    border-radius: 999px;
+    padding: 2px 12px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-divider::before {
+    background: rgba(36, 60, 52, .22);
+}
+
+/* 主页底部两个次要入口 */
+html[data-ui-shell="experimental"] #view-login .login-utility-row .btn,
+html[data-ui-shell="experimental"] #view-login .home-extra-entry {
+    background: var(--xui-panel-alt);
+    color: var(--xui-ink);
+    border: 2px solid var(--xui-line);
+    border-radius: 10px;
+    box-shadow: var(--xui-shadow-sm);
+    font-weight: 700;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-utility-row .btn:hover,
+html[data-ui-shell="experimental"] #view-login .home-extra-entry:hover {
+    background: var(--xui-select);
+}
+
+/* 大厅：三列铺满高度、聊天占满一列、底部按钮归位 */
+html[data-ui-shell="experimental"] #view-lobby .lobby-container {
+    height: calc(100% - 16px);
+    margin-bottom: 8px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-left > .lobby-section,
+html[data-ui-shell="experimental"] #view-lobby .lobby-right {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-right {
+    height: 100%;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-chat {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-chat-log {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 160px;
+    overflow-y: auto;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-footer {
+    position: static;
+    margin: 10px 0 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    justify-content: center;
+    gap: 12px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-footer .btn {
+    min-width: 150px;
+    background: var(--xui-panel-alt);
+    color: var(--xui-ink);
+    border: 2px solid var(--xui-line);
+    border-radius: 10px;
+    box-shadow: var(--xui-shadow-sm);
+    font-weight: 700;
+}
+
+/* 底部状态条：深底用浅字，避免蓝色链接在暗底上看不清 */
+html[data-ui-shell="experimental"] .status-bar,
+html[data-ui-shell="experimental"] .status-bar #status-text,
+html[data-ui-shell="experimental"] .status-bar a,
+html[data-ui-shell="experimental"] .status-bar span {
+    color: #f4ecd8 !important;
+    -webkit-text-fill-color: #f4ecd8 !important;
+    -webkit-text-stroke: 0 !important;
+    text-shadow: none !important;
+}
+
+/* ---------- 背景铺满整屏：根节点也上色，渐变固定不再出现深色边角 ---------- */
+html[data-ui-shell="experimental"] {
+    background-color: #24443a;
+    min-height: 100%;
+}
+
+html[data-ui-shell="experimental"] body {
+    background-color: #24443a;
+    background-image:
+        radial-gradient(130% 110% at 50% -18%, #4a7361 0%, #2f5547 42%, #23443a 72%, #1e3b32 100%);
+    background-attachment: fixed;
+    background-size: cover;
+    background-repeat: no-repeat;
+    min-height: 100vh;
+}
+
+html[data-ui-shell="experimental"] #app,
+html[data-ui-shell="experimental"] #app > .view,
+html[data-ui-shell="experimental"] .view:not(.hidden) {
+    background-color: transparent;
+}
+
+/* 状态条融进背景，不再是一条独立的深色块 */
+html[data-ui-shell="experimental"] .status-bar {
+    background: rgba(20, 38, 33, .5) !important;
+    border-top: 1px solid rgba(255, 248, 230, .16) !important;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+/* ---------- 用整屏背景图替代纯色：橄榄夜色（与深绿外壳同色系） ---------- */
+html[data-ui-shell="experimental"] body {
+    background-color: #1b332c;
+    background-image:
+        linear-gradient(180deg, rgba(10, 24, 20, .62) 0%, rgba(10, 24, 20, .34) 38%, rgba(10, 24, 20, .58) 100%),
+        url('/static/assets/backgrounds/theme-olive-nocturne.svg');
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: fixed, fixed;
+}
+
+/* 有装备主题背景时让位给玩家自己的图（它已是 fixed inset:0） */
+html[data-ui-shell="experimental"] body.has-player-theme-background {
+    background-image: none;
+    background-color: #1b332c;
+}
+
+/* ---------- 奶油面板铺满全屏：去掉浮动卡片的外边距、圆角与投影 ---------- */
+html[data-ui-shell="experimental"] #view-login .login-container,
+html[data-ui-shell="experimental"] #view-lobby .lobby-container,
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-container {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--xui-panel);
+    overflow: auto;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-container {
+    padding: clamp(18px, 4vh, 44px) clamp(16px, 4vw, 48px);
+}
+
+html[data-ui-shell="experimental"] #view-login .login-form {
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-container {
+    padding: 14px clamp(14px, 2.4vw, 28px) 10px;
+}
+
+html[data-ui-shell="experimental"] #view-card-gallery .gallery-container {
+    padding: 14px clamp(14px, 2.4vw, 28px);
+}
+
+/* 手机端同样铺满，不再留 8px 外边距 */
+@media (max-width: 720px) {
+    html[data-ui-shell="experimental"] #view-login .login-container,
+    html[data-ui-shell="experimental"] #view-lobby .lobby-container,
+    html[data-ui-shell="experimental"] #view-card-gallery .gallery-container {
+        width: 100%;
+        margin: 0;
+        border-radius: 0;
+        padding: 12px;
+    }
+}
+
+/* 面板铺满后，顶栏图标贴着上沿也留一点呼吸 */
+html[data-ui-shell="experimental"] .top-action-buttons {
+    padding: 8px 10px 0;
+}
+
+/* ---------- 通行证入口恢复原样：它不在顶栏方块那一排，位置与尺寸由游戏原样式决定 ---------- */
+html[data-ui-shell="experimental"] .pass-top-btn {
+    width: 170px !important;
+    height: auto !important;
+    padding: 0 !important;
+    background: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+html[data-ui-shell="experimental"] .pass-top-btn.pass-top-btn-pro {
+    width: 232px !important;
+    aspect-ratio: 360 / 158;
+}
+
+html[data-ui-shell="experimental"] .pass-top-btn::before {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
+    background: var(--ui-icon-url) center / contain no-repeat !important;
+    filter: drop-shadow(0 2px 3px rgba(35, 45, 35, .18));
+}
+
+@media (max-width: 720px) {
+    html[data-ui-shell="experimental"] .pass-top-btn { width: 140px !important; }
+    html[data-ui-shell="experimental"] .pass-top-btn.pass-top-btn-pro { width: 196px !important; }
+}
+
+/* ---------- 放大菜单界面中心区：标题、模式牌、输入框与底部入口整体上提一档 ---------- */
+html[data-ui-shell="experimental"] #view-login .login-form {
+    max-width: 820px;
+    gap: 14px 16px;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-main {
+    font-size: 52px;
+    letter-spacing: .01em;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-sub {
+    font-size: 24px;
+}
+
+html[data-ui-shell="experimental"] #view-login .subtitle {
+    font-size: 17px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-divider {
+    font-size: 16px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-form label {
+    font-size: 17px;
+}
+
+html[data-ui-shell="experimental"] #view-login #login-nickname-row input,
+html[data-ui-shell="experimental"] #view-login .login-form input[type="text"] {
+    min-height: 52px;
+    font-size: 17px;
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-connect,
+html[data-ui-shell="experimental"] #view-login #btn-story-mode,
+html[data-ui-shell="experimental"] #view-login #btn-solo-training,
+html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 {
+    min-height: 84px;
+    font-size: 20px;
+    padding: 0 18px 0 22px;
+}
+
+html[data-ui-shell="experimental"] #view-login .home-extra-entry,
+html[data-ui-shell="experimental"] #view-login .login-utility-row .btn {
+    min-height: 52px;
+    font-size: 17px;
+}
+
+@media (max-width: 720px) {
+    html[data-ui-shell="experimental"] #view-login .title-main { font-size: 40px; }
+    html[data-ui-shell="experimental"] #view-login .title-sub { font-size: 20px; }
+    html[data-ui-shell="experimental"] #view-login #btn-connect,
+    html[data-ui-shell="experimental"] #view-login #btn-story-mode,
+    html[data-ui-shell="experimental"] #view-login #btn-solo-training,
+    html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 {
+        min-height: 72px;
+        font-size: 18px;
+    }
+}
+/* 模式牌文字：放大后仍然单行完整显示 */
+html[data-ui-shell="experimental"] #view-login #btn-connect,
+html[data-ui-shell="experimental"] #view-login #btn-story-mode,
+html[data-ui-shell="experimental"] #view-login #btn-solo-training,
+html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 {
+    line-height: 1.15;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* ---------- 菜单中心区再放一档：标题 62、表单 960、模式牌 100 ---------- */
+html[data-ui-shell="experimental"] #view-login .login-form {
+    max-width: 960px;
+    gap: 18px 20px;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-main {
+    font-size: 62px;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-sub {
+    font-size: 27px;
+}
+
+html[data-ui-shell="experimental"] #view-login .subtitle {
+    font-size: 19px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-divider {
+    font-size: 17px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-form label {
+    font-size: 19px;
+}
+
+html[data-ui-shell="experimental"] #view-login #login-nickname-row input,
+html[data-ui-shell="experimental"] #view-login .login-form input[type="text"] {
+    min-height: 60px;
+    font-size: 19px;
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-connect,
+html[data-ui-shell="experimental"] #view-login #btn-story-mode,
+html[data-ui-shell="experimental"] #view-login #btn-solo-training,
+html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 {
+    min-height: 100px;
+    font-size: 23px;
+    padding: 0 22px 0 26px;
+    border-left-width: 10px;
+}
+
+html[data-ui-shell="experimental"] #view-login .home-extra-entry,
+html[data-ui-shell="experimental"] #view-login .login-utility-row .btn {
+    min-height: 58px;
+    font-size: 19px;
+}
+
+@media (max-width: 720px) {
+    html[data-ui-shell="experimental"] #view-login .login-form {
+        gap: 12px 14px;
+    }
+    html[data-ui-shell="experimental"] #view-login .title-main { font-size: 44px; }
+    html[data-ui-shell="experimental"] #view-login .title-sub { font-size: 22px; }
+    html[data-ui-shell="experimental"] #view-login #btn-connect,
+    html[data-ui-shell="experimental"] #view-login #btn-story-mode,
+    html[data-ui-shell="experimental"] #view-login #btn-solo-training,
+    html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 {
+        min-height: 84px;
+        font-size: 20px;
+    }
+    html[data-ui-shell="experimental"] #view-login .home-extra-entry,
+    html[data-ui-shell="experimental"] #view-login .login-utility-row .btn {
+        min-height: 52px;
+        font-size: 17px;
+    }
+}
+/* 表单本身要占满 960 的可用宽度，否则会被内容挤成一小块 */
+html[data-ui-shell="experimental"] #view-login .login-form {
+    width: 100%;
+    margin: 0 auto;
+}

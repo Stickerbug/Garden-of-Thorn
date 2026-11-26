@@ -145,3 +145,187 @@
         apply: apply
     };
 })();
+
+/* 第二批增强：公告筛选/搜索/逐条已读、商店购买确认。
+ * 只在实验外壳启用时接管；关掉开关后完全回到原行为。 */
+(function () {
+    'use strict';
+
+    var READ_KEY = 'gtn_ui_ann_read_v1';
+    var state = { filter: 'all', query: '' };
+
+    function shellOn() {
+        return document.documentElement.getAttribute('data-ui-shell') === 'experimental';
+    }
+
+    function readSet() {
+        try {
+            var raw = window.localStorage.getItem(READ_KEY);
+            var list = raw ? JSON.parse(raw) : [];
+            return new Set(Array.isArray(list) ? list : []);
+        } catch (err) {
+            return new Set();
+        }
+    }
+
+    function writeRead(set) {
+        try {
+            window.localStorage.setItem(READ_KEY, JSON.stringify(Array.from(set).slice(-400)));
+        } catch (err) {
+            /* ignore */
+        }
+    }
+
+    function itemKey(item) {
+        var title = item.querySelector('.ann-title');
+        return [item.dataset.kind || '', item.dataset.time || '', title ? title.textContent : ''].join('|');
+    }
+
+    function decorate() {
+        var list = document.getElementById('ann-list');
+        if (!list) return;
+        var read = readSet();
+        Array.from(list.querySelectorAll('details.ann-item')).forEach(function (item) {
+            var key = itemKey(item);
+            if (read.has(key)) {
+                item.classList.add('is-read');
+            } else {
+                item.classList.remove('is-read');
+            }
+            var summary = item.querySelector('summary.ann-summary');
+            if (summary && !summary.querySelector('.xui-ann-dot')) {
+                var dot = document.createElement('span');
+                dot.className = 'xui-ann-dot';
+                dot.setAttribute('aria-hidden', 'true');
+                summary.appendChild(dot);
+            }
+            if (!item.dataset.xuiAnnBound) {
+                item.dataset.xuiAnnBound = '1';
+                item.addEventListener('toggle', function () {
+                    if (!item.open) return;
+                    var set = readSet();
+                    set.add(itemKey(item));
+                    writeRead(set);
+                    item.classList.add('is-read');
+                });
+            }
+        });
+        applyFilter();
+    }
+
+    function applyFilter() {
+        var list = document.getElementById('ann-list');
+        if (!list) return;
+        var query = state.query.trim().toLowerCase();
+        var shown = 0;
+        Array.from(list.querySelectorAll('details.ann-item')).forEach(function (item) {
+            var kindOk = state.filter === 'all' || (item.dataset.kind || '') === state.filter;
+            var text = (item.textContent || '').toLowerCase();
+            var queryOk = !query || text.indexOf(query) >= 0;
+            var visible = kindOk && queryOk;
+            item.hidden = !visible;
+            if (visible) shown += 1;
+        });
+        var count = document.querySelector('.xui-ann-count');
+        if (count) count.textContent = shown + ' 条';
+        var empty = list.querySelector(':scope > .xui-ann-empty');
+        if (!shown) {
+            if (!empty) {
+                empty = document.createElement('p');
+                empty.className = 'xui-ann-empty';
+                empty.textContent = '没有符合条件的条目。';
+                list.appendChild(empty);
+            }
+        } else if (empty) {
+            empty.remove();
+        }
+    }
+
+    function buildTools() {
+        var pop = document.getElementById('changelog-popover');
+        var list = document.getElementById('ann-list');
+        if (!pop || !list || pop.querySelector('.xui-ann-tools')) return;
+        var tools = document.createElement('div');
+        tools.className = 'xui-ann-tools';
+
+        [['all', '全部'], ['announcement', '公告'], ['changelog', '更新']].forEach(function (pair) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'xui-ann-tab' + (pair[0] === 'all' ? ' is-active' : '');
+            btn.dataset.annFilter = pair[0];
+            btn.textContent = pair[1];
+            btn.addEventListener('click', function () {
+                state.filter = pair[0];
+                tools.querySelectorAll('.xui-ann-tab').forEach(function (node) {
+                    node.classList.toggle('is-active', node === btn);
+                });
+                applyFilter();
+            });
+            tools.appendChild(btn);
+        });
+
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'xui-ann-search';
+        search.placeholder = '搜索公告…';
+        search.addEventListener('input', function () {
+            state.query = search.value || '';
+            applyFilter();
+        });
+        tools.appendChild(search);
+
+        var count = document.createElement('span');
+        count.className = 'xui-ann-count';
+        tools.appendChild(count);
+
+        list.parentNode.insertBefore(tools, list);
+
+        if (window.MutationObserver) {
+            var observer = new MutationObserver(function () { decorate(); });
+            observer.observe(list, { childList: true });
+        }
+    }
+
+    var CONFIRM_SELECTOR = '[data-title-shop-buy], [data-player-skin-buy], [data-eye-style-buy], [data-mouth-style-buy], [data-background-buy]';
+
+    function confirmPurchase(event) {
+        var button = event.target && event.target.closest ? event.target.closest(CONFIRM_SELECTOR) : null;
+        if (!button || button.disabled) return;
+        if (button.dataset.xuiConfirmed === '1') {
+            delete button.dataset.xuiConfirmed;
+            return;
+        }
+        if (button.getAttribute('data-xui-skip-confirm') === '1') return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        var price = (button.textContent || '').replace(/\s+/g, ' ').trim();
+        var card = button.closest('.title-shop-item');
+        var name = card ? (card.querySelector('.title-shop-preview-name') || {}).textContent || '' : '';
+        var message = (name ? name + '：' : '') + (price || '确认购买') + '\n购买后立即扣除，无法撤销。';
+        var confirmFn = window.gameConfirm;
+        var done = function (ok) {
+            if (!ok) return;
+            button.dataset.xuiConfirmed = '1';
+            button.click();
+        };
+        if (typeof confirmFn === 'function') {
+            confirmFn('确认购买', message).then(done);
+        } else if (window.confirm(message)) {
+            done(true);
+        }
+    }
+
+    function init() {
+        if (!shellOn()) return;
+        buildTools();
+        decorate();
+        document.addEventListener('click', confirmPurchase, true);
+        window.GtnExperimentalUi.debug = { applyFilter: applyFilter, decorate: decorate };
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
