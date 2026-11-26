@@ -23,6 +23,8 @@
     <link rel="stylesheet" href="/static/css/mouth-styles.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/backgrounds.css?v={{ static_version|default('dev')|urlencode }}">
     <link rel="stylesheet" href="/static/css/battle-pass.css?v={{ static_version|default('dev')|urlencode }}">
+    <link rel="stylesheet" href="/static/css/experimental-ui.css?v={{ static_version|default('dev')|urlencode }}">
+<script src="/static/js/experimental-ui.js?v={{ static_version|default('dev')|urlencode }}"></script>
 <script nonce="{{ csp_nonce }}">
 (() => {
   window.__GTN_BETA_MODE__ = {{ beta_mode|default(false)|tojson }};
@@ -1161,6 +1163,10 @@
 <option value="simple">简约</option>
 <option value="touhou">東方Project风</option>
 </select>
+        <div id="settings-experimental-ui-row" class="settings-check-row hidden">
+            <input type="checkbox" id="settings-experimental-ui">
+            <label id="settings-label-experimental-ui" for="settings-experimental-ui">实验性UI（管理员／测试员）</label>
+        </div>
 </div>
 <div class="settings-lang-row">
 <label id="settings-label-lang">语言</label>

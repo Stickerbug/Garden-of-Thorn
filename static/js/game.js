@@ -40,6 +40,7 @@ const GTN_BETA_STORAGE_EXACT_KEYS = new Set([
     'gtn_show_card_images',
     'gtn_fast_reward_animation',
     'gtn_home_ui',
+    'gtn_ui_shell',
     'gtn_landscape_mode',
     'gtn_lock_aspect_ratio',
     'gtn_story_hide_card_borders',
@@ -98,6 +99,7 @@ const GTN_COOKIE_FALLBACK_KEYS = new Set([
     'gtn_show_card_images',
     'gtn_fast_reward_animation',
     'gtn_home_ui',
+    'gtn_ui_shell',
     'gtn_landscape_mode',
     'gtn_lock_aspect_ratio',
     'gtn_story_hide_card_borders',
@@ -23818,6 +23820,10 @@ function renderAccountState() {
         feedbackState = { is_staff: false, unread_count: 0 };
     }
     if (activeViewId === 'view-skin') syncSkinFormFromCurrent();
+
+    if (window.GtnExperimentalUi && typeof window.GtnExperimentalUi.syncAccount === 'function') {
+        try { window.GtnExperimentalUi.syncAccount(currentAccount); } catch (err) { console.warn('[experimental-ui] sync failed', err); }
+    }
 }
 
 function renderAccountMode() {

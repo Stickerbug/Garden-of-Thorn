@@ -1,0 +1,953 @@
+/* 实验性 UI（Batch A：全局外壳 + 首页 / 大厅 / 公告 / 商店）
+ * 仅在 <html data-ui-shell="experimental"> 时生效，与既有的 data-home-ui /
+ * data-ui-style 互不影响：关掉开关即回到原版界面，不改任何既有偏好。
+ * 设计依据：荆棘花园实验 UI 设计方案 v1.0（第 02–07、18 节）。 */
+
+html[data-ui-shell="experimental"] {
+    --xui-ink: #172d2a;
+    --xui-ink-soft: #243c34;
+    --xui-panel: #fff6df;
+    --xui-panel-alt: #fbf1d6;
+    --xui-primary: #4d7551;
+    --xui-primary-dark: #3c5f42;
+    --xui-select: #e4e9d6;
+    --xui-accent: #c58b38;
+    --xui-danger: #b9434c;
+    --xui-line: #243c34;
+    --xui-shadow: 4px 4px 0 rgba(23, 45, 42, .45);
+    --xui-shadow-sm: 2px 2px 0 rgba(23, 45, 42, .4);
+    --xui-radius: 12px;
+    --xui-radius-sm: 8px;
+    --xui-gap: 12px;
+    color: var(--xui-ink-soft);
+}
+
+/* ---------- 全局外壳 ---------- */
+html[data-ui-shell="experimental"] body {
+    background:
+        radial-gradient(120% 90% at 12% 0%, #2c4c40 0%, #172d2a 46%, #10221f 100%);
+    color: var(--xui-ink-soft);
+    font-size: 16px;
+    line-height: 1.6;
+}
+
+html[data-ui-shell="experimental"] #app {
+    background:
+        radial-gradient(90% 70% at 50% 0%, rgba(77, 117, 81, .28), transparent 68%),
+        transparent;
+}
+
+html[data-ui-shell="experimental"] .view {
+    color: var(--xui-ink-soft);
+}
+
+html[data-ui-shell="experimental"] #view-login,
+html[data-ui-shell="experimental"] #view-lobby,
+html[data-ui-shell="experimental"] #view-card-gallery,
+html[data-ui-shell="experimental"] #view-skin {
+    background: transparent;
+}
+
+/* 通用面板：不透明浅面板 + 2px 深边 + 偏移阴影 */
+html[data-ui-shell="experimental"] .login-container,
+html[data-ui-shell="experimental"] .lobby-container,
+html[data-ui-shell="experimental"] .account-popover,
+html[data-ui-shell="experimental"] .settings-panel,
+html[data-ui-shell="experimental"] .lobby-section {
+    background: var(--xui-panel);
+    color: var(--xui-ink-soft);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius);
+    box-shadow: var(--xui-shadow);
+}
+
+/* 标题与正文 */
+html[data-ui-shell="experimental"] h1,
+html[data-ui-shell="experimental"] h2,
+html[data-ui-shell="experimental"] h3,
+html[data-ui-shell="experimental"] h4 {
+    color: var(--xui-ink);
+    letter-spacing: .01em;
+}
+
+html[data-ui-shell="experimental"] h2 {
+    font-size: 24px;
+}
+
+html[data-ui-shell="experimental"] .info-text,
+html[data-ui-shell="experimental"] .account-replay-sub,
+html[data-ui-shell="experimental"] .subtitle,
+html[data-ui-shell="experimental"] .pf-hint {
+    color: #5b6b60;
+    font-size: 13.5px;
+}
+
+/* 按钮：主操作绿实底，次要浅底，危险红 */
+html[data-ui-shell="experimental"] .btn,
+html[data-ui-shell="experimental"] .mini-btn,
+html[data-ui-shell="experimental"] .account-mode-tab,
+html[data-ui-shell="experimental"] .settings-tab {
+    min-height: 44px;
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius-sm);
+    box-shadow: var(--xui-shadow-sm);
+    background: var(--xui-panel);
+    color: var(--xui-ink);
+    font-weight: 700;
+    font-size: 15px;
+    transition: transform 90ms ease, box-shadow 90ms ease, background 120ms ease;
+}
+
+html[data-ui-shell="experimental"] .btn:active,
+html[data-ui-shell="experimental"] .mini-btn:active,
+html[data-ui-shell="experimental"] .account-mode-tab:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+}
+
+html[data-ui-shell="experimental"] .btn-primary,
+html[data-ui-shell="experimental"] .btn.btn-primary {
+    background: var(--xui-primary);
+    color: #fffaf0;
+    border-color: var(--xui-ink);
+    min-height: 52px;
+    font-size: 17px;
+}
+
+html[data-ui-shell="experimental"] .btn-primary:hover {
+    background: var(--xui-primary-dark);
+}
+
+html[data-ui-shell="experimental"] .btn.btn-danger,
+html[data-ui-shell="experimental"] .danger,
+html[data-ui-shell="experimental"] .btn-cancel {
+    background: var(--xui-danger);
+    color: #fff6f5;
+    border-color: var(--xui-ink);
+}
+
+html[data-ui-shell="experimental"] .account-mode-tab.active,
+html[data-ui-shell="experimental"] .settings-tab.active,
+html[data-ui-shell="experimental"] .mode-tab.active {
+    background: var(--xui-select);
+    box-shadow: inset 0 0 0 2px var(--xui-line), var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] .mode-tab {
+    background: var(--xui-panel-alt);
+    color: var(--xui-ink);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius-sm);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    box-shadow: var(--xui-shadow-sm);
+}
+
+/* 输入与选择 */
+html[data-ui-shell="experimental"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html[data-ui-shell="experimental"] select,
+html[data-ui-shell="experimental"] textarea {
+    min-height: 44px;
+    background: #fffcf2;
+    color: var(--xui-ink);
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius-sm);
+    padding: 0 12px;
+    font-size: 15px;
+}
+
+html[data-ui-shell="experimental"] select {
+    padding-right: 28px;
+}
+
+html[data-ui-shell="experimental"] input:focus-visible,
+html[data-ui-shell="experimental"] select:focus-visible,
+html[data-ui-shell="experimental"] button:focus-visible,
+html[data-ui-shell="experimental"] a:focus-visible {
+    outline: 3px solid var(--xui-accent);
+    outline-offset: 2px;
+}
+
+/* 底部状态条：并入深底外壳 */
+html[data-ui-shell="experimental"] .status-bar {
+    background: rgba(10, 22, 20, .72);
+    color: #f2ead2;
+    border-top: 1px solid rgba(255, 246, 223, .22);
+    font-size: 13.5px;
+}
+
+html[data-ui-shell="experimental"] #view-login:not(.hidden) ~ .status-bar,
+html[data-ui-shell="experimental"] #view-login:not(.hidden) ~ .status-bar #status-text {
+    color: #f2ead2;
+    -webkit-text-fill-color: #f2ead2;
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    font-size: 13.5px;
+}
+
+html[data-ui-shell="experimental"] #view-login:not(.hidden) ~ .status-bar {
+    background: rgba(10, 22, 20, .72);
+}
+
+/* 顶栏图标按钮：深底浅边 */
+html[data-ui-shell="experimental"] .top-action-buttons {
+    gap: 8px;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn {
+    width: 50px;
+    height: 50px;
+    border: 2px solid var(--xui-panel);
+    border-radius: 10px;
+    background: rgba(23, 45, 42, .82);
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn::before {
+    filter: brightness(0) saturate(100%) invert(94%) sepia(18%) saturate(420%) hue-rotate(2deg) brightness(103%);
+}
+
+/* 弹层统一外壳 */
+html[data-ui-shell="experimental"] .changelog-popover,
+html[data-ui-shell="experimental"] .stats-popover,
+html[data-ui-shell="experimental"] .achievements-popover,
+html[data-ui-shell="experimental"] .pass-popover,
+html[data-ui-shell="experimental"] .title-shop-popover,
+html[data-ui-shell="experimental"] .account-popover {
+    border: 2px solid var(--xui-line) !important;
+    border-radius: var(--xui-radius) !important;
+    box-shadow: var(--xui-shadow) !important;
+}
+
+/* ---------- 首页 ---------- */
+html[data-ui-shell="experimental"] #view-login .login-container {
+    width: min(760px, calc(100% - 32px));
+    margin: 28px auto 18px;
+    padding: 26px 26px 22px;
+    max-height: calc(100% - 46px);
+    overflow: auto;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-main,
+html[data-ui-shell="experimental"] #view-login .title-main .title-word,
+html[data-ui-shell="experimental"] #view-login .title-sub,
+html[data-ui-shell="experimental"] #view-login .subtitle {
+    color: var(--xui-ink);
+    -webkit-text-fill-color: var(--xui-ink);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-main {
+    font-size: 40px;
+    letter-spacing: .02em;
+}
+
+html[data-ui-shell="experimental"] #view-login .title-sub {
+    font-size: 20px;
+    color: var(--xui-primary-dark);
+    -webkit-text-fill-color: var(--xui-primary-dark);
+}
+
+html[data-ui-shell="experimental"] #view-login .login-divider {
+    color: var(--xui-ink);
+    font-size: 14px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-divider span {
+    background: var(--xui-select);
+    border: 2px solid var(--xui-line);
+    border-radius: 999px;
+    padding: 2px 12px;
+}
+
+html[data-ui-shell="experimental"] #view-login .login-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+}
+
+html[data-ui-shell="experimental"] #view-login #login-nickname-row,
+html[data-ui-shell="experimental"] #view-login .login-divider,
+html[data-ui-shell="experimental"] #view-login .login-utility-row,
+html[data-ui-shell="experimental"] #view-login #login-error {
+    grid-column: 1 / -1;
+}
+
+html[data-ui-shell="experimental"] #view-login .form-row {
+    margin: 0;
+}
+
+html[data-ui-shell="experimental"] #view-login .form-row > .btn {
+    width: 100%;
+    min-height: 64px;
+    font-size: 16px;
+    text-align: left;
+    padding: 0 16px 0 18px;
+    border-left: 8px solid var(--xui-primary);
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-connect,
+html[data-ui-shell="experimental"] #view-login #btn-story-mode {
+    grid-column: span 1;
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-connect {
+    border-left-color: var(--xui-accent);
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-story-mode {
+    background: #f6e9c6;
+    color: var(--xui-ink);
+    border-left-color: #8c6d2f;
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-solo-training {
+    background: #e9efe4;
+    color: var(--xui-ink);
+    border-left-color: var(--xui-primary-dark);
+}
+
+html[data-ui-shell="experimental"] #view-login .home-footer {
+    color: #d8cfb4;
+    font-size: 13.5px;
+}
+
+html[data-ui-shell="experimental"] #view-login .home-footer .home-copyright,
+html[data-ui-shell="experimental"] #view-login .home-footer .home-icp {
+    color: #d8cfb4;
+    -webkit-text-fill-color: #d8cfb4;
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    font-size: 13.5px;
+}
+
+/* ---------- 多人大厅：身份 | 名单与对局 | 聊天 ---------- */
+html[data-ui-shell="experimental"] #view-lobby .lobby-container {
+    width: min(1240px, calc(100% - 24px));
+    margin: 14px auto;
+    padding: 16px 18px 14px;
+    max-height: calc(100% - 22px);
+    overflow: auto;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-header {
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px dashed rgba(36, 60, 52, .35);
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-header h2 {
+    font-size: 26px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby #lobby-mode-tabs {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-body {
+    display: grid;
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(260px, 320px);
+    gap: 12px;
+    align-items: start;
+    margin-top: 12px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-left {
+    display: contents;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-left > .lobby-section:nth-child(1) {
+    grid-column: 1;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-left > .lobby-section:nth-child(2) {
+    grid-column: 2;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-right {
+    grid-column: 3;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-section {
+    padding: 12px 14px;
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-section h3 {
+    font-size: 15px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid rgba(36, 60, 52, .18);
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-footer {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 2px dashed rgba(36, 60, 52, .35);
+    gap: 10px;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .player-list .player-item,
+html[data-ui-shell="experimental"] #view-lobby .game-list .game-item {
+    border: 2px solid rgba(36, 60, 52, .22);
+    border-radius: var(--xui-radius-sm);
+    padding: 8px 10px;
+    background: #fffcf2;
+}
+
+html[data-ui-shell="experimental"] #view-lobby .lobby-chat-log {
+    background: #fffcf2;
+    border: 2px solid rgba(36, 60, 52, .2);
+    border-radius: var(--xui-radius-sm);
+    font-size: 13.5px;
+}
+
+/* ---------- 公告：左目录 + 右正文 ---------- */
+html[data-ui-shell="experimental"] #changelog-popover {
+    width: min(1000px, calc(100vw - 32px)) !important;
+    max-height: min(720px, calc(100vh - 72px)) !important;
+    padding: 14px 16px 12px !important;
+    background: var(--xui-panel) !important;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover-title {
+    color: var(--xui-ink);
+    font-size: 20px;
+    font-weight: 800;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-toolbar {
+    border-bottom: 2px dashed rgba(36, 60, 52, .3);
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover #ann-list {
+    display: grid;
+    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    grid-auto-rows: min-content;
+    gap: 8px 16px;
+    position: relative;
+    align-items: start;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item {
+    grid-column: 1;
+    margin: 0;
+    border: 2px solid rgba(36, 60, 52, .35);
+    border-radius: var(--xui-radius-sm);
+    background: #fffcf2;
+    box-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] {
+    border-color: var(--xui-line);
+    background: var(--xui-select);
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item .ann-body {
+    display: none;
+}
+
+/* 展开时的正文搬到右栏：节点仍留在 #ann-list 内，投票按钮的事件委托不受影响 */
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] .ann-body {
+    display: block;
+    position: absolute;
+    left: calc(min(240px, 320px) + 28px);
+    top: 0;
+    width: calc(100% - min(240px, 320px) - 28px);
+    max-height: min(600px, calc(100vh - 220px));
+    overflow: auto;
+    background: #fffcf2;
+    border: 2px solid var(--xui-line);
+    border-radius: var(--xui-radius-sm);
+    padding: 12px 14px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-summary {
+    padding: 8px 10px;
+    gap: 4px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-title {
+    font-size: 14px;
+    color: var(--xui-ink);
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-meta {
+    color: #5b6b60;
+    font-size: 12.5px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-pin {
+    background: var(--xui-accent);
+    color: #fffaf0;
+    border-radius: 4px;
+    padding: 1px 5px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-body .changelog-content,
+html[data-ui-shell="experimental"] #changelog-popover .ann-body .community-card {
+    color: var(--xui-ink-soft);
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-empty {
+    grid-column: 1 / -1;
+    color: #5b6b60;
+}
+
+/* ---------- 商店：分类 | 货架 | 预览 ---------- */
+html[data-ui-shell="experimental"] #title-shop-popover {
+    width: min(1080px, calc(100vw - 28px)) !important;
+    max-height: min(760px, calc(100vh - 64px)) !important;
+    padding: 14px 16px 12px !important;
+    background: var(--xui-panel) !important;
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    grid-template-areas:
+        "head head"
+        "tabs body"
+        "tabs foot";
+    gap: 10px 16px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .account-popover-head {
+    grid-area: head;
+    border-bottom: 2px dashed rgba(36, 60, 52, .3);
+    padding-bottom: 8px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-tabs {
+    grid-area: tabs;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 0;
+    background: none;
+    padding: 0;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-tabs .account-mode-tab {
+    width: 100%;
+    min-height: 40px;
+    text-align: left;
+    padding: 0 10px;
+    font-size: 14px;
+    box-shadow: none;
+    border-width: 2px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .achievement-tab-panel {
+    grid-area: body;
+    margin: 0;
+    overflow: auto;
+    max-height: min(560px, calc(100vh - 260px));
+    padding-right: 4px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-toolbar,
+html[data-ui-shell="experimental"] #title-shop-popover #title-shop-status,
+html[data-ui-shell="experimental"] #title-shop-popover #title-shop-afdian-panel {
+    grid-area: foot;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-toolbar {
+    border-top: 2px dashed rgba(36, 60, 52, .3);
+    padding-top: 8px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-grid {
+    gap: 10px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-item,
+html[data-ui-shell="experimental"] #title-shop-popover .skin-shop-item {
+    background: #fffcf2;
+    border: 2px solid rgba(36, 60, 52, .32);
+    border-radius: var(--xui-radius-sm);
+    box-shadow: var(--xui-shadow-sm);
+}
+
+/* ---------- 设置面板 ---------- */
+html[data-ui-shell="experimental"] .settings-panel {
+    background: var(--xui-panel);
+    color: var(--xui-ink-soft);
+}
+
+html[data-ui-shell="experimental"] .settings-panel .settings-tabs {
+    border-bottom: 2px dashed rgba(36, 60, 52, .3);
+    gap: 6px;
+}
+
+html[data-ui-shell="experimental"] .settings-panel .settings-tab {
+    min-height: 40px;
+    box-shadow: none;
+    border-width: 2px;
+}
+
+html[data-ui-shell="experimental"] #settings-experimental-ui-row {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border: 2px dashed rgba(197, 139, 56, .8);
+    border-radius: var(--xui-radius-sm);
+    background: rgba(197, 139, 56, .1);
+}
+
+html[data-ui-shell="experimental"] #settings-experimental-ui-row label {
+    color: var(--xui-ink);
+    font-weight: 700;
+}
+
+/* ---------- 手机 ---------- */
+@media (max-width: 720px) {
+    html[data-ui-shell="experimental"] #view-login .login-container {
+        width: calc(100% - 16px);
+        margin: 8px auto 10px;
+        padding: 16px 14px 14px;
+        max-height: calc(100% - 18px);
+    }
+
+    html[data-ui-shell="experimental"] #view-login .login-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    html[data-ui-shell="experimental"] #view-login .form-row > .btn {
+        min-height: 52px;
+    }
+
+    html[data-ui-shell="experimental"] #view-lobby .lobby-container {
+        width: calc(100% - 10px);
+        margin: 6px auto;
+        padding: 12px;
+    }
+
+    html[data-ui-shell="experimental"] #view-lobby .lobby-body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    html[data-ui-shell="experimental"] #view-lobby .lobby-left {
+        display: block;
+    }
+
+    html[data-ui-shell="experimental"] #view-lobby .lobby-left > .lobby-section,
+    html[data-ui-shell="experimental"] #view-lobby .lobby-right {
+        grid-column: auto;
+        margin-bottom: 10px;
+    }
+
+    html[data-ui-shell="experimental"] #changelog-popover {
+        width: calc(100vw - 12px) !important;
+        padding: 10px !important;
+    }
+
+    html[data-ui-shell="experimental"] #changelog-popover #ann-list {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] .ann-body {
+        position: static;
+        width: auto;
+        max-height: none;
+        margin: 6px 0 2px;
+    }
+
+    html[data-ui-shell="experimental"] #title-shop-popover {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "head"
+            "tabs"
+            "body"
+            "foot";
+        width: calc(100vw - 12px) !important;
+        padding: 10px !important;
+    }
+
+    html[data-ui-shell="experimental"] #title-shop-popover .title-shop-tabs {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    html[data-ui-shell="experimental"] #title-shop-popover .title-shop-tabs .account-mode-tab {
+        width: auto;
+        min-height: 36px;
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html[data-ui-shell="experimental"] .btn,
+    html[data-ui-shell="experimental"] .mini-btn,
+    html[data-ui-shell="experimental"] .account-mode-tab {
+        transition: none;
+    }
+}
+
+/* ---------- 第二轮修正：图标栏、提示条、公告分栏、商店工具条 ---------- */
+html[data-ui-shell="experimental"] .top-icon-btn {
+    background: var(--xui-panel);
+    border: 2px solid var(--xui-line);
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn::before {
+    filter: none;
+    opacity: .92;
+}
+
+html[data-ui-shell="experimental"] .top-icon-btn:hover {
+    background: var(--xui-select);
+}
+
+/* Tips 提示条：浅底深字，压在状态条上方 */
+html[data-ui-shell="experimental"] #gtn-tips {
+    bottom: 44px;
+    left: 18px;
+    max-width: min(520px, 44vw);
+}
+
+html[data-ui-shell="experimental"] #gtn-tips-panel {
+    background: rgba(255, 246, 223, .95);
+    border: 2px solid var(--xui-line);
+    border-radius: 10px;
+    box-shadow: var(--xui-shadow-sm);
+    padding: 7px 13px 8px;
+}
+
+html[data-ui-shell="experimental"] #gtn-tips-panel,
+html[data-ui-shell="experimental"] #gtn-tips-label,
+html[data-ui-shell="experimental"] #gtn-tips-text,
+html[data-ui-shell="experimental"] #gtn-tips-author {
+    color: var(--xui-ink);
+    -webkit-text-fill-color: var(--xui-ink);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #gtn-tips-label {
+    color: var(--xui-primary);
+}
+
+html[data-ui-shell="experimental"] #gtn-tips-author {
+    background: var(--xui-panel);
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    padding: 3px 9px;
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] #gtn-tips-text .gtn-tips-link {
+    color: var(--xui-primary);
+    text-decoration-color: rgba(77, 117, 81, .5);
+}
+
+/* 公告：目录单行 + 右侧正文浮层 */
+html[data-ui-shell="experimental"] #changelog-popover {
+    position: relative;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 10px;
+    align-items: center;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] .ann-body {
+    position: absolute;
+    left: 352px;
+    right: 18px;
+    top: 86px;
+    bottom: 18px;
+    width: auto;
+    max-height: none;
+    overflow: auto;
+    margin: 0;
+    padding: 16px 18px;
+    background: var(--xui-panel-alt);
+    border: 2px solid var(--xui-line);
+    border-radius: 10px;
+    box-shadow: var(--xui-shadow-sm);
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-toolbar {
+    padding-bottom: 6px;
+}
+
+/* 商店：工具条按钮与分类栏 */
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-toolbar .btn,
+html[data-ui-shell="experimental"] #title-shop-popover .account-popover-head .btn {
+    color: var(--xui-ink);
+    background: var(--xui-panel);
+    padding: 0 12px;
+    font-size: 13px;
+    min-height: 34px;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-tabs {
+    gap: 8px;
+    overflow-y: auto;
+}
+
+html[data-ui-shell="experimental"] #title-shop-popover .title-shop-tabs .account-mode-tab {
+    width: 100%;
+    min-height: 42px;
+    justify-content: flex-start;
+    text-align: left;
+    padding: 0 12px;
+    font-size: 14px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item,
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] {
+    position: static;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] .ann-body {
+    top: 78px;
+    bottom: 16px;
+    height: auto;
+    max-height: calc(100% - 96px);
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] .ann-body {
+    top: 82px;
+    left: 352px;
+    right: 18px;
+    bottom: auto;
+    height: min(560px, calc(100vh - 240px));
+    max-height: none;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .ann-item[open] .ann-body {
+    top: 70px;
+    height: min(470px, calc(100vh - 320px));
+}
+
+/* ---------- 第三轮修正：首页模式牌、页脚、提示条选择器 ---------- */
+html[data-ui-shell="experimental"] #view-login #btn-connect,
+html[data-ui-shell="experimental"] #view-login #btn-story-mode,
+html[data-ui-shell="experimental"] #view-login #btn-solo-training,
+html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 {
+    background: var(--xui-panel-alt);
+    background-image: none;
+    color: var(--xui-ink);
+    border: 2px solid var(--xui-line);
+    border-left-width: 8px;
+    border-radius: var(--xui-radius-sm);
+    box-shadow: var(--xui-shadow-sm);
+    min-height: 64px;
+    font-size: 17px;
+    font-weight: 700;
+    text-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #view-login #btn-connect { border-left-color: #2f7f6b; }
+html[data-ui-shell="experimental"] #view-login #btn-story-mode { border-left-color: var(--xui-accent); }
+html[data-ui-shell="experimental"] #view-login #btn-solo-training { border-left-color: #6f7f4a; }
+html[data-ui-shell="experimental"] #view-login #btn-minigame-2048 { border-left-color: #6a5aa8; }
+
+html[data-ui-shell="experimental"] #view-login #btn-connect:hover,
+html[data-ui-shell="experimental"] #view-login #btn-story-mode:hover,
+html[data-ui-shell="experimental"] #view-login #btn-solo-training:hover,
+html[data-ui-shell="experimental"] #view-login #btn-minigame-2048:hover {
+    background: var(--xui-select);
+    background-image: none;
+}
+
+html[data-ui-shell="experimental"] #view-login .home-footer,
+html[data-ui-shell="experimental"] #view-login .home-footer * {
+    color: rgba(36, 60, 52, .72);
+    -webkit-text-fill-color: rgba(36, 60, 52, .72);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #view-login .home-footer a:hover,
+html[data-ui-shell="experimental"] #view-login .home-icp:hover {
+    color: var(--xui-ink);
+    -webkit-text-fill-color: var(--xui-ink);
+}
+
+/* 提示条：浅底深字（外层是 #gtn-tips，里面才是 .gtn-tips-panel） */
+html[data-ui-shell="experimental"] #gtn-tips {
+    bottom: 42px;
+    left: 16px;
+    max-width: min(540px, 46vw);
+    z-index: 70;
+}
+
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-panel {
+    background: rgba(255, 246, 223, .96);
+    border: 2px solid var(--xui-line);
+    border-radius: 10px;
+    box-shadow: var(--xui-shadow-sm);
+    padding: 7px 13px 8px;
+    gap: 6px;
+}
+
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-panel,
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-label,
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-text,
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-author,
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-text * {
+    color: var(--xui-ink);
+    -webkit-text-fill-color: var(--xui-ink);
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+}
+
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-label {
+    color: var(--xui-primary);
+}
+
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-author {
+    background: var(--xui-panel);
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    padding: 2px 8px;
+    box-shadow: var(--xui-shadow-sm);
+    font-size: 13px;
+}
+
+html[data-ui-shell="experimental"] #gtn-tips .gtn-tips-text .gtn-tips-link {
+    color: var(--xui-primary);
+    text-decoration-color: rgba(77, 117, 81, .5);
+}
+
+html[data-ui-shell="experimental"] #view-login .home-footer,
+html[data-ui-shell="experimental"] #view-login .home-footer *,
+html[data-ui-shell="experimental"] #view-login .home-copyright,
+html[data-ui-shell="experimental"] #view-login .home-icp {
+    color: #4a5c50 !important;
+    -webkit-text-fill-color: #4a5c50 !important;
+    -webkit-text-stroke: 0 !important;
+    text-shadow: none !important;
+    font-size: 12.5px;
+}
+
+html[data-ui-shell="experimental"] #view-login #guest-divider-label,
+html[data-ui-shell="experimental"] #view-login .login-divider span {
+    background: var(--xui-panel);
+    color: #4a5c50 !important;
+    -webkit-text-fill-color: #4a5c50 !important;
+    border: 2px solid var(--xui-line);
+    border-radius: 999px;
+    padding: 2px 12px;
+    font-size: 12.5px;
+    box-shadow: var(--xui-shadow-sm);
+}
