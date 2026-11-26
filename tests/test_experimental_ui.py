@@ -216,6 +216,24 @@ class ExperimentalBatchTwoTest(unittest.TestCase):
         self.assertIn('font-size: 20px;', self.css)
         self.assertIn('white-space: nowrap;', self.css)
 
+    def test_announcement_panel_has_an_explicit_close_button(self):
+        """公告面板要有一个显眼的关闭按钮，并且压在游戏遮罩之上。"""
+        self.assertIn('function ensureAnnClose()', self.js)
+        self.assertIn("btn.className = 'xui-ann-close';", self.js)
+        self.assertIn('window.toggleChangelogPopover(false)', self.js)
+        self.assertIn('function watchAnnClose()', self.js)
+        self.assertIn('#changelog-popover .xui-ann-close {', self.css)
+        self.assertIn('z-index: 2580;', self.css)
+
+    def test_announcement_panel_stays_fixed_over_the_page(self):
+        """公告面板必须保持 fixed：一旦变成流内元素，整页会被挤下去、露出深色底。"""
+        block = self.css[self.css.index('/* 公告：目录两栏 + 右侧正文副本 */') if '/* 公告：目录两栏 + 右侧正文副本 */' in self.css else 0:]
+        self.assertIn('#changelog-popover {', self.css)
+        self.assertIn('/* 必须是 fixed', self.css)
+        self.assertNotIn("""html[data-ui-shell="experimental"] #changelog-popover {
+    position: relative;
+}""", self.css)
+
     def test_version_bumped_to_batch_two(self):
         self.assertIn('-experimental-ui-2', VERSION.read_text(encoding='utf-8'))
 

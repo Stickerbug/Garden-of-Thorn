@@ -130,6 +130,43 @@
 
     apply();
 
+
+    /* 公告面板：补一个显眼的「关闭」按钮，并保证它压在游戏各种遮罩之上 */
+    var annCloseBound = false;
+    function ensureAnnClose() {
+        var pop = document.getElementById('changelog-popover');
+        if (!pop || pop.dataset.xuiClose === '1') return;
+        var head = pop.querySelector('.account-popover-head');
+        if (!head) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'xui-ann-close';
+        btn.textContent = '关闭';
+        btn.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof window.toggleChangelogPopover === 'function') window.toggleChangelogPopover(false);
+            else pop.classList.add('hidden');
+        });
+        head.appendChild(btn);
+        pop.dataset.xuiClose = '1';
+    }
+    function watchAnnClose() {
+        if (annCloseBound) return;
+        annCloseBound = true;
+        ensureAnnClose();
+        var pop = document.getElementById('changelog-popover');
+        if (pop && window.MutationObserver) {
+            new MutationObserver(ensureAnnClose).observe(pop, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+        }
+        document.addEventListener('click', function (event) {
+            if (event.target && event.target.closest && event.target.closest('#btn-changelog-top')) {
+                window.setTimeout(ensureAnnClose, 0);
+            }
+        }, true);
+    }
+    watchAnnClose();
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', bind);
     } else {

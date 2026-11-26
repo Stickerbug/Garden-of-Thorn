@@ -751,7 +751,8 @@ html[data-ui-shell="experimental"] #gtn-tips-text .gtn-tips-link {
 
 /* 公告：目录单行 + 右侧正文浮层 */
 html[data-ui-shell="experimental"] #changelog-popover {
-    position: relative;
+    /* 必须是 fixed：改成 relative 会让面板变成 #app 的流内元素，把整页挤到下面、露出深色底 */
+    position: fixed;
 }
 
 html[data-ui-shell="experimental"] #changelog-popover .ann-summary {
@@ -1797,4 +1798,50 @@ html[data-ui-shell="experimental"] #view-login .login-utility-row .btn {
 html[data-ui-shell="experimental"] #view-login .login-form {
     width: 100%;
     margin: 0 auto;
+}
+/* 公告：面板压在游戏遮罩之上，并给一个显眼的关闭按钮 */
+html[data-ui-shell="experimental"] #changelog-popover {
+    z-index: 2580;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .account-popover-head {
+    align-items: center;
+    gap: 10px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .account-close-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--xui-ink);
+    background: var(--xui-panel-alt);
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-close {
+    margin-left: auto;
+    min-height: 32px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: 800;
+    color: #fff;
+    background: var(--xui-primary);
+    border: 2px solid var(--xui-line);
+    border-radius: 8px;
+    box-shadow: 2px 2px 0 rgba(23, 45, 42, .4);
+    cursor: pointer;
+}
+
+html[data-ui-shell="experimental"] #changelog-popover .xui-ann-close:hover {
+    background: var(--xui-primary-dark);
+}
+
+@media (max-width: 720px) {
+    html[data-ui-shell="experimental"] #changelog-popover .xui-ann-close {
+        min-height: 30px;
+        padding: 0 10px;
+        font-size: 13px;
+    }
 }
